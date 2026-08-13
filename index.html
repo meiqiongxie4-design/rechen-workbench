@@ -678,7 +678,7 @@ async function saveLabels(){
   // 关键修复：等云端确认再 toast，避免误导（v7-accurate-sync-toast）
   const ok=await saveSettings('labels',L);
   console.log('[saveLabels v7] cloud write ok=',ok);
-  toast(ok?'✅ 名称已保存，手机电脑同步 ✓\n📌 桌面图标名字不会自动变，长按桌面图标删除后重新"添加到主屏幕"即可同步新名字':'⚠️ 本地已保存，云端写入失败');
+  toast(ok?'✅ 名称已保存并同步云端 ✓\n📌 手机桌面图标：几分钟后服务器会自动更新，届时长按旧图标删除、重新"添加到主屏幕"即为新名字（电脑刷新后重装也自动跟）':'⚠️ 本地已保存，云端写入失败');
   if(!ok){
     showBanner('⚠️ 名称只在本地保存了，云端同步失败。请刷新页面后到 ⚙ 设置再点一次「保存」。<br>如果还失败，按 F12 把 Console 红字截图发我。');
     setTimeout(()=>{ setupError=false; },12000);
