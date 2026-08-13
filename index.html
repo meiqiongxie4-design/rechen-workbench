@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync （iOS 桌面图标名只从服务器原始 manifest.json 读，运行时 Blob 注入无效。现把部署目录 manifest.json 同步为最新名字 GrowTime，并在 applyLabels 改名后给用户提示：iOS 需长按旧桌面图标删除后重新添加）-->
+<!-- 版本：rechen-v2026-08-13-v15-new-icon-no-title-redup （换成豆包"确定方案1"绿色时钟+小芽图标，保留 workbuddy 原图标 favicon_extracted.png 不删；删掉页面顶部大字 H1，应用名只保留在浏览器标签/PWA 窗口标题/桌面图标/设置输入框这一处，避免重复显示；设置面板改名字功能保留）-->
+<!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
@@ -387,7 +388,6 @@
 <body>
 <div class="wrap">
   <header>
-    <h1 id="appTitle">热忱工作台</h1>
     <div class="date" id="date"></div>
     <button id="settingsBtn" class="settings-btn" title="自定义工作台和模块名称">⚙️</button>
   </header>
@@ -612,7 +612,6 @@ function getLabels(){
 }
 function applyLabels(){
   const L=getLabels();
-  const appTitle=$('appTitle'); if(appTitle) appTitle.textContent=L.app;
   const nt=$('navTodo'); if(nt) nt.textContent=L.todo;
   const nm=$('navMemo'); if(nm) nm.textContent=L.memo;
   const nc=$('navCounter'); if(nc) nc.textContent=L.eye;
