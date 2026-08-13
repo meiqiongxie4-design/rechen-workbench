@@ -2629,6 +2629,8 @@ try{ renderStats(); renderList(); }catch(e){}
   try{await loadSettings();}catch(e){}
   // 拉一次暖记：拿到历史记录
   try{await loadPeriod();}catch(e){showFatal('loadPeriod: '+(e.message||e));}
+  // v17: 数据到位后如果停在首页，重渲染 4 卡片
+  try{ if(view==='home') renderHomeCards(); }catch(e){}
   // v17: 触发首页渲染（含 4 张聚合卡 + 时钟 + 鼓励语 footer）
   try{ switchView('home'); }catch(e){showFatal('switchView home: '+(e.message||e));}
 })();
