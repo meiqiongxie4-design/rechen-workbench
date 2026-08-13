@@ -1,0 +1,53 @@
+name: Sync PWA manifest name
+
+# 让 iOS 桌面图标名自动跟随用户在 ⚙设置 里改的应用名。
+# iOS Safari “添加到主屏幕” 只读取服务器上的 manifest.json（运行时 JS 注入的 Blob 对它无效），
+# 所以这里定时去 Supabase 云端读取最新 labels.app，自动改写 manifest.json 并 push，
+# GitHub Pages 构建后，用户删掉旧桌面图标重新添加即可看到新名字。
+
+on:
+  schedule:
+    - cron: '*/2 * * * *'   # 每 2 分钟检查一次（public 仓库 Actions 免费无限）
+  workflow_dispatch:        # 也可在 GitHub Actions 页面手动点 Run workflow 立即触发
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch latest app name and sync manifest
+        env:
+          SUPABASE_URL: https://jioitybssvfberfpqvgv.supabase.co
+          SUPABASE_ANON: sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt
+        run: |
+          set -e
+          resp=$(curl -s -G "$SUPABASE_URL/rest/v1/app_settings" \
+            -H "apikey: $SUPABASE_ANON" \
+            -H "Authorization: Bearer $SUPABASE_ANON" \
+            --data-urlencode "select=value" \
+            --data-urlencode "key=eq.labels")
+          echo "Supabase resp: $resp"
+          name=$(printf '%s' "$resp" | jq -r '.[0].value.app // empty')
+          echo "Resolved app name: [$name]"
+          if [ -z "$name" ]; then
+            echo "No app name found, nothing to do."
+            exit 0
+          fi
+          tmp=$(mktemp)
+          jq --arg n "$name" '.name=$n | .short_name=$n' manifest.json > "$tmp"
+          mv "$tmp" manifest.json
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          if git diff --cached --quiet; then
+            echo "manifest already up to date."
+          else
+            git commit -m "auto: sync PWA manifest name to $name"
+            git push
+            echo "manifest updated and pushed."
+          fi
