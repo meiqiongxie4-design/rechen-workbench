@@ -4,66 +4,16 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17.14-restore-light-green
-  关键修复：删 head 里 v17.7-v17.13 加的 200 行 inline 兜底（覆盖了 body 后原版 CSS），改回 v17.3 workbuddy 浅绿系
-  - 卡片背景 --surface:#ffffff → #f0fdf4（恢复浅绿）
-  - 描边 --line:#86efac → #bbf7d0（恢复浅档）
-  - 阴影 --shadow:rgba(...,.15) → rgba(...,.06)（恢复轻量）
-  兜底只保留关键 3 条：
-  1. [hidden]{display:none !important} — id 选择器优先级兜底
-  2. header .settings-btn{display:none} — 隐藏右上角 ⚙️（已在侧栏底部）
-  3. sidebarToggle 折叠按钮 — .app.collapsed 折叠侧栏
-  鼓励语 footer 只在首页显示：用 body.view-home 类（JS switchView 切换）替代之前的 CSS ~ 选择器（footer 不是 viewHome 兄弟元素，~ 不生效）
-
-  v17.14 一起修的细节：
-  - 水池/喝水池中央 emoji → display:none（用户说"不要中间的图标"）
-  - 存钱 record → 删除 input 编辑器，只读 span + 删除按钮
-  - 存钱 record → 不再粉底（继承 .water-row 淡绿虚线分隔）
-  - 流光 4 统计 → grid repeat(4,1fr)，字号 22→26px
-  - 金库字大点居中 → .goal-name 15→18px / .goal-amount 24→42px，全部 text-align:center
-  - "已喝 7 杯"字号 → 32px 跟流光一致
-  - 左侧栏 ⇤/⇥ 折叠按钮 + localStorage 持久化
+<!-- 版本：rechen-v2026-08-13-v17.18-revert-to-v17.3-plus-patches
+  v17.18 在 v17.3（你认可的浅绿原版）基础上加最小补丁：
+  - 水池中央 emoji 100% 隐藏（防御 CDN 滞后）
+  - 护眼破洞仅 >10 次（按你"超过 10 次出现破洞"原话）
+  - 存钱记录只读（直接显示金额，不可编辑，只能整条删除）
+  - 左侧栏可折叠（⇤/⇥ 按钮 + 状态记忆）
+  v17.14~v17.17 改 sidebar 为 4 列 grid + 首页 4 卡一排导致整个 .app flex 布局塌了
+  （截图里所有 view 同时显示、侧栏跑到顶部），所以彻底回退到 v17.3 layout
 -->
-<!-- 版本：rechen-v2026-08-13-v17.15-home-grid-center
-  - 首页 4 卡片改「一排展示」：grid repeat(4,1fr)（之前竖排）；每卡内容居中、图标紧跟文字（修复点 8「护眼与眼睛图标间距太大」）
-  - 手机端首页 4 卡 → 2×2（点 10 排版不乱）
-  - 护眼水池破洞阈值修正：count=10 只是空池，仅「超过 10 次(count>10)」才显示破洞（点 3 原话"超过10次出现破洞"）
-  - 注：点 2/3 多余文字、点 12 侧栏一排4个、点 11 水池下字居中 等仍需与用户确认具体位置，见对话
--->
-<!-- 版本：rechen-v2026-08-13-v17.16-sidebar-grid-pool-below
-  - 侧栏改 4 个/行网格（宽 248px；点 12「一排 3 个最好 4 个」）；手机端侧栏变顶部满宽横栏，app 改竖排
-  - 护眼/喝水水池：信息区移到水池正下方并居中（点 11b「水池下面字居中」）；隐藏水池上覆盖的「点水池滴一滴/喝一杯」提示（点 3「多余的字」）
-  - 喝水记录行间距加大（点 12a「记录挤一块」）
-  - 折叠按钮 ⇤/⇥ 跟随侧栏新宽度定位
--->
-<!-- 版本：rechen-v2026-08-13-v17.17-fix-pool-emoji-leak
-  修复：水池顶端出现"↑↑/小人"图标（点 3 反馈"这里不就多了字吗"）
-  - 原因1: 水池中央 emoji 元素（.pool .face / .water-pool .pool-face）虽然 body CSS 设了 display:none，但某次 CDN 缓存或 specificity 漏过导致 emoji 在池中央露出
-  - 原因2: .pool::before/.pool::after 是 240%×240% 旋转的大椭圆，被池的 overflow:hidden 裁切后，在某些动画帧顶部会露出"两个小人"形状
-  - 修复: inline <head> 追加 .pool .face / .water-pool .pool-face / .pool-hint / .water-pool-hint 五层 hide（display:none + visibility:hidden + width/height/font-size:0 + pointer-events:none，全部 !important）；
-         .pool::before/.pool::after 和 .water-pool::before/.water-pool::after 从 240%×240% 缩到 130%×60%、top:60%→75%、不透明度 .35→.18，避免溢出池外被裁成奇怪的图形
--->
-<!-- 版本：rechen-v2026-08-13-v17.13-fix-all-11
-  修复 11 条反馈：
-  1. 护眼/喝水水池颜色不对 → 删 inline !important 蓝色 linear-gradient，改让 JS 的 comfortState 颜色生效 + 池背景浅绿 + 外圈 #22c55e 双层描边（实线 + 外发光）
-  2. 水池中央 emoji 露出 / "杯"字 → .pool .face / .water-pool .pool-face {display:none !important}
-  3. 首页 3 块大数字统一色 #22c55e（之前是 #166534 深绿）→ 21:12:38 / 已喝 7 杯 / 今日已滴 0 滴 都用选中绿
-  4. 首页 3 块增高 → .hc padding 20×22, min-height 130px
-  5. 手机端首页文字居中 → .hc-left .lb/.num/.sub/.hc-time/.hc-date/.hc-greet {text-align:center !important}
-  6. 流光页记录列表每条压成竖列"×" → inline 兜底补 .period-list .row {display:flex !important;justify-content:space-between !important}（之前只兜了 .period-history-row，DOM 实际用 .row）
-  7. 流光页底部 3 统计变 4 个：累计/距离下次/距离上次(天)/平均间隔；inline grid-template-columns:repeat(4,1fr)；手机端 media query repeat(2,1fr)
-  8. 存钱加"还差 ¥X 达到目标" → 新增 .goal-remaining 粉底虚线框，renderSaving 计算 remaining 并填文字
-  9. 鼓励语只在首页显示 → inline 加 .site-foot {display:none !important} + #viewHome:not([hidden]) ~ .site-foot {display:block !important}（其它 view 完全不显示 footer，不再盖住内容）
-  10. 喝水"已喝 7 杯"字号统一 → .water-pool-info .big 从 52px 缩到 22px 跟护眼"今日已滴"一致
-  11. 存钱/喝水记录每条保留颜色框（绿 / 粉），手机端排版正常
--->
-<!-- 版本：rechen-v2026-08-13-v17.12-hidden-priority-fix
-  问题：所有 view 都有 hidden 属性，但第 68 行那条 #viewX{display:flex !important} 用了 id 选择器（特性 0,1,0,0），优先级 > [hidden]{display:none !important}（特性 0,0,1,0），hidden 不生效 → 全部 view 同时显示"堆叠"成超长页 → 刷新瞬间看到所有页面 → 过几秒 JS 跑完 switchView('home') 把其它 view 切到 display:none，视觉上才只剩 viewHome
-  修复：把 #viewX 改为 #viewX:not([hidden])，只有未 hidden 的 view 才用 display:flex，hidden 状态的 view 完全走 [hidden]{display:none !important} 真的隐藏
-  附：v17.11 viewTodo 加 hidden 是对的方向，但 [hidden] 被 display:flex !important 盖回去没生效
--->
-<!-- 版本：rechen-v2026-08-13-v17.6-fix-bindfarm-null （修复农场 UI 已删但 bindFarmEvents() 顶层调用导致 null.onclick 报错：注释掉顶层调用 + 函数开头加 !addPlot 防御） -->
-<!-- 版本：rechen-v2026-08-13-v17.5-iterate （删整个农场模块 [侧栏+设置+viewFarm+JS+CSS+tickFarm 暂停]；鼓励语 fixed 永远屏底 + 一天一句按 day-of-year；备忘改成跟待办一样的 add-row 布局；护眼水池满→少→空+>10 破口 + 今日 count 已改 7；首页待办 6 条+卡片高度自适应；天气去外圈+时间 36px；喝水 ml 字号 20px+三行间距；删"× 清空今日"；banner 加红框样式不再无样式；settings → 侧栏图标已确认连通）-->
+<!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
@@ -76,40 +26,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#63e4be" />
-<!-- v17.7: 强制浏览器每次都重新加载 HTML，避免上次 push 部署的旧版 CSS 缓在本地 -->
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-<meta http-equiv="Pragma" content="no-cache" />
-<meta http-equiv="Expires" content="0" />
-<!-- v17.14: 删掉之前 v17.7-v17.13 加在 head 里的 200 行 inline 兜底，恢复 v17.3 浅绿系（卡片 #f0fdf4 / 描边 #bbf7d0 / 阴影轻量），解决"卡片都成白色"的问题 -->
-<style>
-  /* v17.14: 极简兜底 — 只保证 hidden 属性永远生效、不被 id 选择器盖回去；
-  header 默认隐藏右侧 ⚙️；其余样式交给 body 后的原版 CSS 控制 */
-  [hidden]{display:none !important;}
-  header .settings-btn{display:none !important;}
-  /* 手机/桌面兼容保险：避免 CDN 滞后时 view 容器没拿到 display:flex */
-  #viewHome:not([hidden]),#viewTodo:not([hidden]),#viewMemo:not([hidden]),#viewCounter:not([hidden]),#viewPeriod:not([hidden]),#viewWater:not([hidden]),#viewSaving:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column;}
-  /* 左侧栏折叠 — .app.collapsed 隐藏整个 sidebar，sb-toggle 按钮 position:fixed 始终可见 */
-  .app.collapsed .sidebar{width:0 !important;padding:0 !important;border:none !important;overflow:hidden !important;}
-  .sb-toggle{position:fixed;left:256px;top:14px;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid #86efac;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#16a34a;z-index:200;transition:left .25s;box-shadow:0 2px 8px rgba(34,197,94,.18);padding:0;}
-  .sb-toggle:hover{background:#dcfce7;border-color:#22c55e;}
-  .app.collapsed .sb-toggle{left:8px;}
-  @media (max-width:640px){
-    .sb-toggle{right:10px;left:auto;width:26px;height:26px;font-size:13px;}
-    .app.collapsed .sb-toggle{left:8px;}
-  }
-  /* v17.17: 强力兜底 — 水池中央所有 emoji 元素 100% 不可见，CDN 缓存或 CSS 优先级漏过也不会露出图标 */
-  .pool .face,.water-pool .pool-face,.pool-hint,.water-pool-hint{display:none !important;visibility:hidden !important;width:0 !important;height:0 !important;font-size:0 !important;overflow:hidden !important;pointer-events:none !important;}
-</style>
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <script src="./supabase.min.js"></script>
 <style>
   :root{
-    --bg:#dcfce7;
-    --surface:#f0fdf4;
-    --surface-2:#ecfdf5;
-    --line:#bbf7d0;
+    --bg:#dcfce7;       /* workbuddy 绿做整体底色 */
+    --surface:#f0fdf4;  /* 卡片背景：超浅绿 */
+    --surface-2:#ecfdf5;/* 二级表面：更浅 */
+    --line:#bbf7d0;     /* 描边绿 */
     --text:#1f2937; --muted:#6b7280;
-    --accent:#22c55e;
+    --accent:#22c55e;   /* workbuddy 主绿 */
     --accent-soft:#dcfce7;
     --red:#dc2626; --red-soft:#fee2e2;
     --orange:#f59e0b;
@@ -119,14 +45,16 @@
   }
   *{box-sizing:border-box;}
   [hidden]{display:none !important;}
+  /* v17.18: 防御性兜底 — 水池中央所有 emoji 元素 100% 不可见，避免 CDN 滞后或 specificity 漏过 */
+  .pool .face,.water-pool .pool-face,.pool-hint,.water-pool-hint{display:none !important;visibility:hidden !important;width:0 !important;height:0 !important;font-size:0 !important;pointer-events:none !important;}
+  /* v17.18: 侧栏折叠 — .app.collapsed 隐藏整个 sidebar，sb-toggle 按钮 position:fixed 始终可见 */
+  .app.collapsed .sidebar{width:0 !important;padding:0 !important;border:none !important;overflow:hidden !important;}
+  .sb-toggle{position:fixed;left:96px;top:14px;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid #86efac;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#16a34a;z-index:200;transition:left .25s;box-shadow:0 2px 8px rgba(34,197,94,.18);padding:0;}
+  .sb-toggle:hover{background:#dcfce7;border-color:#22c55e;}
+  .app.collapsed .sb-toggle{left:8px;}
+  @media (max-width:640px){ .sb-toggle{left:76px;width:26px;height:26px;font-size:13px;} .app.collapsed .sb-toggle{left:8px;} }
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-  .wrap{max-width:none;margin:0 auto;padding:14px 24px 60px;min-height:100vh;display:flex;flex-direction:column;}
-  /* v17.5: 顶部 banner 一行红字提示 */
-  .banner{margin:0 0 10px;padding:10px 14px;background:#fff7ed;border:1px solid #fdba74;border-radius:10px;color:#9a3412;font-size:13px;line-height:1.5;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
-  .banner b,.banner code{color:#7c2d12;}
-  .banner code{background:#fef3c7;padding:1px 6px;border-radius:4px;font-size:12px;}
-  .banner button{background:none;border:none;color:#9a3412;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;}
-  .banner button:hover{color:#7c2d12;}
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;display:flex;flex-direction:column;}
   header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
@@ -198,7 +126,13 @@
   .time{font-size:11px;color:var(--muted);white-space:nowrap;}
   .memo-time{font-size:11.5px;color:var(--muted);}
 
-      /* ---------- v17.4: 农场模块已从 UI 移除（农场 JS 代码保留在原处，可恢复） ---------- */
+      /* ---------- 我的农场 v5：自由农场 ---------- */
+  .farm-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;}
+  .ftab{flex:1;min-width:64px;padding:9px 4px;border:1px solid var(--line);background:var(--surface);border-radius:12px;cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);transition:.15s;white-space:nowrap;}
+  .ftab.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+  .ftab-pane{padding:6px 2px;}
+  .sec-title{font-size:14px;font-weight:800;margin:4px 0 10px;display:flex;align-items:center;gap:8px;}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
   .sbtn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text);transition:.15s;display:flex;align-items:center;gap:6px;}
   .sbtn:hover{border-color:var(--accent);background:var(--accent-soft);}
   .sbtn:active{transform:scale(.96);}
@@ -208,7 +142,70 @@
   .sbtn.warn:hover{background:#fef2f2;border-color:#ef4444;}
   .tool-btn.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft);}
 
-  /* 仓库 / 地块 - 已被弃用，农场不显示但类保留 */
+  /* ===== 随心农场 ===== */
+  .farm-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+  .farm-head .left{display:flex;align-items:center;gap:10px;}
+  .farm-head h2{margin:0;font-size:18px;}
+  .coin-badge{background:linear-gradient(180deg,#ffe9a8,#ffd24d);color:#7a5b00;border:1px solid #e9c24a;border-radius:999px;padding:5px 12px;font-weight:800;font-size:13px;box-shadow:0 2px 5px rgba(0,0,0,.08);}
+  .farm-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+  .farm-actions .cost{font-size:11px;opacity:.85;margin-left:3px;}
+
+  .farm-ground{position:relative;min-height:420px;width:100%;background:var(--farm-bg,linear-gradient(180deg,#d7f0c2,#b8e08e));border-radius:20px;border:6px solid #8fbf6b;box-shadow:inset 0 0 30px rgba(0,0,0,.06),0 0 0 3px rgba(143,191,107,.25);padding:24px;overflow:hidden;}
+  .farm-ground::before{content:'';position:absolute;inset:24px;background-image:radial-gradient(rgba(255,255,255,.35) 1px,transparent 1px);background-size:18px 18px;pointer-events:none;}
+  .grid-lines{position:absolute;inset:var(--grid-inset,24px);background-image:linear-gradient(rgba(139,191,107,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(139,191,107,.35) 1px,transparent 1px);background-size:var(--grid) var(--grid);pointer-events:none;}
+  .drag-target{position:absolute;width:var(--patch);height:var(--patch);border:2px dashed rgba(79,110,247,.55);border-radius:12px;background:rgba(79,110,247,.10);box-sizing:border-box;pointer-events:none;display:none;z-index:4;transition:left .08s,top .08s;}
+
+  .plot{position:absolute;width:var(--patch);height:var(--patch);background:linear-gradient(180deg,#b58458,#8f5a2b);border:2px solid #6d4220;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-shadow:inset 0 2px 4px rgba(255,255,255,.12),0 3px 6px rgba(0,0,0,.15);transition:transform .1s,filter .15s;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-touch-callout:none;}
+  .plot:hover{filter:brightness(1.08);}
+  .plot:active{transform:scale(.96);}
+  .plot.empty::after{content:'\FF0B';font-size:26px;color:rgba(255,255,255,.5);}
+  .plot .crop{font-size:38px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.15));}
+  .plot .crop-cluster{position:relative;display:inline-block;}
+  .plot .crop-cluster span:nth-child(1){position:relative;z-index:2;}
+  .plot .crop-cluster span:nth-child(2){position:absolute;left:6px;top:-4px;z-index:1;opacity:.85;transform:scale(.9) rotate(12deg);filter:drop-shadow(0 2px 2px rgba(0,0,0,.2));}
+  .plot.ready{box-shadow:inset 0 2px 4px rgba(255,255,255,.12),0 0 0 4px #f5c032,0 0 18px rgba(245,192,50,.45);animation:plotPulse 1.6s ease-in-out infinite;}
+  @keyframes plotPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
+  .plot.ready .crop{font-size:52px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25));}
+  .plot.ready .crop-cluster span:nth-child(2){left:10px;top:-8px;transform:scale(.85) rotate(18deg);}
+  .plot .stage-label{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4);}
+  .plot.ready .stage-label{bottom:5px;font-size:12px;color:#fff700;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .plot .badge-grow{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#fff;color:#ff8a00;font-size:12px;font-weight:900;border-radius:12px;padding:3px 10px;box-shadow:0 4px 10px rgba(0,0,0,.2);border:2px solid #ffba4a;z-index:5;white-space:nowrap;}
+  .plot .badge-grow::after{content:'▼';position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);font-size:10px;color:#ffba4a;}
+  .plot .growth-timer{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:rgba(40,40,40,.78);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:2px 7px;white-space:nowrap;z-index:4;}
+  .plot.dragging{opacity:.7;z-index:100;cursor:grabbing;}
+  .plot.dragover{outline:3px dashed #7ed321;outline-offset:2px;filter:brightness(1.12);}
+
+  .seed-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;min-height:64px;align-items:center;}
+  .seed-bar-title{width:100%;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:700;}
+  .seed{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px;background:var(--surface-2);border:2px solid var(--line);border-radius:12px;cursor:pointer;font-size:12px;font-weight:700;transition:.15s;min-width:58px;}
+  .seed:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .seed.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft);}
+  .seed .emoji{font-size:24px;}
+  .seed .sub{font-size:10px;color:var(--muted);}
+
+  .seed-hint{font-size:12px;color:var(--muted);margin-top:8px;padding:0 4px;display:none;}
+  .seed-hint.show{display:block;}
+  .seed-hint b{color:var(--accent);}
+  .seed-pop{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);min-width:170px;max-width:240px;}
+  .seed-pop .pp-title{font-weight:800;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;color:var(--text);}
+  .seed-pop .pp-stage{font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;}
+  .seed-pop .pp-btns{display:flex;gap:6px;}
+
+  .plot-pop{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:var(--shadow);min-width:180px;}
+  .plot-pop-fixed{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%);z-index:300;max-width:min(92vw,360px);}
+  .plot-pop .pp-title{font-weight:800;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .plot-pop .pp-stage{font-size:11px;color:var(--muted);margin-bottom:8px;}
+  .plot-pop .pp-btns{display:flex;gap:6px;}
+
+  .theme-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+  .theme-row .tl{font-size:12px;color:var(--muted);font-weight:700;}
+  .theme-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);cursor:pointer;transition:.15s;}
+  .theme-dot.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);transform:scale(1.08);}
+
+  /* 农场专用提示，只显示在农场视图内 */
+  .farm-panel{position:relative;}
+  .farm-toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(0,0,0,.78);color:#fff;font-size:13px;font-weight:700;padding:9px 18px;border-radius:999px;pointer-events:none;transition:opacity .25s,transform .25s;z-index:60;white-space:nowrap;}
+  .farm-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
   /* 全局 toast 浮层（之前缺样式导致一直显示在文档底部） */
   .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(0,0,0,.82);color:#fff;font-size:14px;font-weight:600;padding:10px 20px;border-radius:999px;pointer-events:none;transition:opacity .25s,transform .25s;z-index:300;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.2);}
@@ -252,9 +249,30 @@
   .wh-item .count{position:absolute;top:-5px;right:-5px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 2px 5px rgba(0,0,0,.18);}
   .wh-item-wrap{position:relative;display:flex;justify-content:center;}
 
-  /* @media(max-width:560px){ v17.4: 农场相关移动端样式随 UI 移除（保留墙体/区块类不会报错） } */
+  @media(max-width:560px){
+    .farm-layout{flex-direction:column;}
+    .farm-right{width:100%;flex-direction:row;justify-content:center;}
+    .warehouse-tabs{width:76px;}
+    .warehouse-body{grid-template-columns:repeat(auto-fill,minmax(54px,1fr));}
+    .ranch-wrap{height:280px;}
+
+    /* 农场小屏适配：缩小地块、压缩内边距 */
+    .farm-ground{padding:12px;border-width:4px;border-radius:14px;min-height:280px;}
+    .farm-ground::before{inset:12px;background-size:14px 14px;}
+    /* .grid-lines 的 inset 由 renderField 动态写入 --grid-inset（=PAD+OFFSET），不要在这里写死 */
+    .farm-actions .sbtn{font-size:12px;padding:6px 10px;}
+    .farm-head h2{font-size:16px;}
+    .seed-bar{padding:8px;gap:6px;}
+    .seed{padding:6px 8px;min-width:0;flex:1 1 calc(33.333% - 6px);max-width:calc(33.333% - 6px);box-sizing:border-box;}
+    .seed .emoji{font-size:20px;}
+    .seed .sub{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+    .theme-row .theme-dot{width:24px;height:24px;}
+  }
   @media(max-width:380px){
-    .pet-tip{font-size:11.5px;color:var(--muted);text-align:center;max-width:340px;}
+    .seed{flex-basis:calc(50% - 6px);max-width:calc(50% - 6px);}
+    .farm-ground{padding:10px;}
+  }
+  .pet-tip{font-size:11.5px;color:var(--muted);text-align:center;max-width:340px;}
   /* ---------- 暖记 ---------- */
   .period-hero{display:flex;align-items:center;gap:32px;flex-wrap:wrap;justify-content:center;padding:18px 14px;}
   .period-pool{position:relative;width:220px;height:220px;border-radius:50%;background:linear-gradient(180deg,#dcfce7 0%,#bbf7d0 100%);box-shadow:inset 0 0 30px rgba(34,197,94,.15),0 8px 24px rgba(0,0,0,.08);overflow:hidden;cursor:pointer;transition:transform .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:64px;user-select:none;}
@@ -287,10 +305,10 @@
   .period-list .row .date .tag{display:inline-block;font-size:11px;background:#ec4899;color:#fff;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:2px;}
   .period-list .row .del{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px;}
   .period-list .row .del:hover{background:#fee2e2;color:var(--red);}
-  .period-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
-  .period-summary .s{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 4px;text-align:center;}
-  .period-summary .s .n{font-size:26px;font-weight:800;color:#ec4899;line-height:1;}
-  .period-summary .s .l{font-size:11.5px;color:var(--muted);margin-top:6px;}
+  .period-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+  .period-summary .s{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 6px;text-align:center;}
+  .period-summary .s .n{font-size:22px;font-weight:800;color:#ec4899;line-height:1;}
+  .period-summary .s .l{font-size:12px;color:var(--muted);margin-top:6px;}
   .period-summary .s.countdown{cursor:pointer;background:linear-gradient(180deg,#fce7f3 0%,#fff 100%);border-color:#fbcfe8;position:relative;}
   .period-summary .s.countdown:hover{border-color:#ec4899;}
   .period-summary .s.countdown .n{font-size:30px;color:#be185d;}
@@ -302,21 +320,18 @@
   .period-footer{text-align:center;color:var(--muted);font-size:11px;margin-top:8px;line-height:1.7;}
 
 /* 护眼记 - 水池版 */
-  .pool-wrap{display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
+  .pool-wrap{display:flex;gap:32px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
   .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
   .pool:active{transform:scale(.97);}
-  .pool::before,.pool::after{content:'';position:absolute;left:50%;top:75%;width:130%;height:60%;border-radius:42%;background:rgba(255,255,255,.18);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
-  .pool::after{background:rgba(255,255,255,.12);animation:wave 10s linear infinite reverse;}
+  .pool::before,.pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
+  .pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
   @keyframes wave{0%{transform:translate(-50%,-50%) rotate(0);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
   .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%);transition:height .6s ease, background .6s ease;z-index:0;}
-  .pool .face{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
+  .pool .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
   .pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
   @keyframes ripple{to{transform:scale(7);opacity:0;}}
-  .pool-hint{display:none;position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.45);z-index:2;pointer-events:none;}
-  /* v17.5: 超 10 滴水池右上角破口 */
-  .pool.cracked::before{content:'';position:absolute;top:-12px;right:-12px;width:46px;height:46px;background:#fff;clip-path:polygon(100% 0,100% 100%,50% 100%);transform:rotate(45deg);z-index:4;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.15);}
-  .pool.cracked::after{content:'';position:absolute;top:6px;right:6px;width:14px;height:14px;background:#ff6b6b;border-radius:50%;z-index:5;pointer-events:none;}
-  .pool-info{text-align:center;min-width:0;}
+  .pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.45);z-index:2;pointer-events:none;}
+  .pool-info{text-align:left;min-width:210px;}
   .pool-info .today{font-size:15px;color:var(--muted);margin-bottom:2px;}
   .pool-info .count{font-size:58px;font-weight:800;color:var(--accent);line-height:1;}
   .pool-info .count.warn{color:var(--red);}
@@ -359,8 +374,6 @@
   .settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;transition:transform .25s, background .15s, border-color .15s;padding:0;flex-shrink:0;}
   .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
   .settings-btn:active{transform:scale(.94);}
-  /* v17.8: 全局隐藏 header 右上角 ⚙️（已在侧栏底部留入口），用户反馈"原来右上角的设置还在" */
-  header .settings-btn{display:none !important;}
   .detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .detail-date{font-size:15px;font-weight:700;}
   .detail-close{background:transparent;border:none;color:var(--muted);font-size:22px;line-height:1;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:.15s;}
@@ -396,44 +409,35 @@
 
   /* ============ v17 左侧栏 + 首页 4 卡片 ============ */
   .app{display:flex;gap:14px;align-items:stretch;}
-  /* v17.16: 侧栏改 4 个/行网格（用户点 12「一排 3 个最好 4 个」） */
-  .sidebar{width:248px;flex-shrink:0;background:#dcfce7;border-right:1px solid #86efac;border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-content:start;align-self:stretch;}
-  .sb-item{width:auto;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:6px 0;border-radius:10px;color:var(--muted);transition:.15s;}
+  .sidebar{width:84px;flex-shrink:0;background:#dcfce7;border-right:1px solid #86efac;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:stretch;}
+  .sb-item{width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:4px 0;border-radius:10px;color:var(--muted);transition:.15s;}
   .sb-item .ic{width:48px;height:48px;background:#fff;border:1px solid #bbf7d0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;}
   .sb-item .lb{font-size:10.5px;color:#16a34a;font-weight:600;letter-spacing:.3px;}
   .sb-item.active .ic{background:#22c55e;border-color:#22c55e;box-shadow:0 4px 10px rgba(34,197,94,.3);}
   .sb-item.active .lb{color:#166534;font-weight:700;}
   .sb-item:active .ic{transform:scale(.94);}
-  .sb-spacer{display:none;}
-  .sidebar-foot{display:flex;justify-content:center;}
+  .sb-spacer{flex:1;background:transparent;cursor:default;}
+  .sidebar-foot{margin-top:auto;display:flex;flex-direction:column;gap:4px;}
 
-  /* v17.16: 手机端侧栏变顶部横栏（满宽 4 个/行），app 改竖排 */
-  @media(max-width:640px){
-    .app{flex-direction:column;gap:10px;}
-    .sidebar{width:100% !important;border-right:none;border-bottom:1px solid #86efac;border-radius:0;grid-template-columns:repeat(4,1fr);}
-    .app.collapsed .sidebar{width:0 !important;}
-  }
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
   /* 首页 4 卡片 */
-  /* v17.15: 首页 4 卡片一排展示（之前是竖排）；每卡内容居中、图标紧跟文字（修复「护眼与眼睛图标间距太大」） */
-  .home-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:stretch;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-height:132px;height:auto;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;box-shadow:var(--shadow);}
+  .home-cards{display:flex;flex-direction:column;gap:12px;}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;height:130px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
   .hc-left .num{font-size:22px;font-weight:700;color:#166534;line-height:1.2;white-space:nowrap;}
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
   .hc-left .num.warn{color:#dc2626;font-size:20px;font-weight:800;}
   .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-  .hc-time{font-size:36px;font-weight:600;color:#166534;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}    /* v17.5: 30→36px */
+  .hc-time{font-size:30px;font-weight:500;color:#166534;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
   .hc-date{font-size:12.5px;color:#6b7280;}
   .hc-greet{font-size:13px;color:#16a34a;font-weight:500;}
-  /* v17.5: 天气图标去外圈，只保留 emoji */
-  .hc-sun{width:auto;height:auto;background:transparent;border:none;display:flex;align-items:center;justify-content:center;font-size:46px;line-height:1;}
-  .hc-sun.night{background:transparent;border:none;}
-  .hc-sun.dusk{background:transparent;border:none;}
-  .hc-sun.dawn{background:transparent;border:none;}
+  .hc-sun{width:60px;height:60px;background:#fef3c7;border:2px solid #fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;}
+  .hc-sun.night{background:#e0e7ff;border-color:#818cf8;}
+  .hc-sun.dusk{background:#fed7aa;border-color:#fb923c;}
+  .hc-sun.dawn{background:#fde68a;border-color:#fcd34d;}
   .hc-add{width:74px;height:74px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;box-shadow:0 4px 10px rgba(34,197,94,.3);cursor:pointer;border:none;transition:.15s;}
   .hc-add:active{transform:scale(.94);}
   .hc-face{font-size:42px;}
@@ -443,30 +447,14 @@
   .todo-summary-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .todo-summary-hd .lb{font-size:14px;color:#374151;font-weight:600;}
   .todo-summary-hd .ct{font-size:12px;color:#6b7280;}
-  .todo-summary-row{display:flex;align-items:center;gap:8px;padding:7px 0;font-size:14px;color:#374151;border-bottom:1px dashed #f3f4f6;}
-  .todo-summary-row:last-child{border-bottom:none;}
+  .todo-summary-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13.5px;color:#374151;}
   .todo-summary-row .ck{width:16px;height:16px;border:1.5px solid #22c55e;border-radius:50%;flex-shrink:0;}
   .todo-summary-row .tx{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  /* v17.15: 手机端首页 4 卡 → 2×2，避免一行太挤；字号紧跟桌面缩放 */
-  @media(max-width:640px){
-    .home-cards{grid-template-columns:repeat(2,1fr);}
-    .hc{min-height:120px;padding:12px 10px;}
-    .hc-left .num{font-size:18px;}
-    .hc-add{width:60px;height:60px;font-size:18px;}
-    .hc-face{font-size:36px;}
-    .hc-sun{font-size:38px;}
-  }
 
   /* footer 鼓励语 sticky bottom */
-  /* v17.9: 鼓励语 — 移到 .main 外面，固定贴屏底，跨 view 永远显示，无边框无背景只显示文字 */
-  .site-foot{position:fixed;left:96px;right:8px;bottom:8px;text-align:center;padding:6px 0;background:transparent;border:none;border-radius:0;z-index:999;pointer-events:none;}
-  /* v17.14: 鼓励语只在首页显示：默认隐藏，仅当 body 有 view-home 类（switchView 触发）时才显示 */
-  body:not(.view-home) .site-foot{display:none !important;}
-  body.view-home .site-foot{display:block !important;}
-  .site-foot .cn{font-size:14px;color:#16a34a;font-weight:600;line-height:1.4;text-shadow:0 1px 2px rgba(255,255,255,.7);}
-  .site-foot .en{font-size:11.5px;color:#6b7280;margin-top:3px;letter-spacing:.4px;text-shadow:0 1px 2px rgba(255,255,255,.7);}
-  /* 内容区避开底部 footer 不遮挡 */
-  .main{padding-bottom:72px;}
+  .site-foot{margin-top:auto;padding:14px 12px 18px;text-align:center;background:linear-gradient(180deg,transparent 0%,rgba(220,252,231,.6) 30%);}
+  .site-foot .cn{font-size:14px;color:#16a34a;font-weight:600;}
+  .site-foot .en{font-size:11.5px;color:#6b7280;margin-top:3px;letter-spacing:.4px;}
 
   /* 喝水 / 存钱 视图 */
   .water-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;}
@@ -481,7 +469,7 @@
   .water-info .ml{font-size:12.5px;color:#6b7280;margin-top:2px;}
   .water-list{margin-top:14px;padding-top:12px;border-top:1px dashed #bbf7d0;}
   .water-list-title{font-size:12.5px;color:#6b7280;margin-bottom:8px;}
-  .water-row{display:flex;justify-content:space-between;font-size:13px;color:#4b5563;padding:10px 4px;border-bottom:1px dashed #dcfce7;}
+  .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
   .water-row:last-child{border-bottom:none;}
   .water-empty{font-size:12px;color:#9ca3af;text-align:center;padding:8px 0;}
   .water-target-set{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#6b7280;flex-wrap:wrap;}
@@ -489,30 +477,28 @@
   .water-target-set button{padding:5px 10px;border:1px solid #22c55e;background:var(--surface);color:#16a34a;border-radius:8px;font-size:12px;cursor:pointer;}
 
   /* 喝水大水池（同护眼样式，绿系） */
-  .water-pool-wrap{display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
+  .water-pool-wrap{display:flex;gap:28px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
   .water-pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
   .water-pool:active{transform:scale(.97);}
-  .water-pool::before,.water-pool::after{content:'';position:absolute;left:50%;top:75%;width:130%;height:60%;border-radius:42%;background:rgba(255,255,255,.22);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
-  .water-pool::after{background:rgba(255,255,255,.14);animation:wave 10s linear infinite reverse;}
+  .water-pool::before,.water-pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.4);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
+  .water-pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
   @keyframes wave{from{transform:translate(-50%,-50%) rotate(0);}to{transform:translate(-50%,-50%) rotate(360deg);}}
   @keyframes ripple{from{transform:scale(0);opacity:.9;}to{transform:scale(4);opacity:0;}}
   .water-pool .pool-water{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
-  .water-pool .pool-face{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
+  .water-pool .pool-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
   .water-pool .pool-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
-  .water-pool-info{text-align:center;min-width:0;}
-  /* v17.14: .big 字号 52→32 跟流光 .period-info .big 一致 */
-  .water-pool-info .big{font-size:32px;font-weight:700;color:#166534;line-height:1.2;}
-  .water-pool-info .ml{font-size:20px;color:#374151;font-weight:600;margin-top:12px;}
-  .water-pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:16px;padding:10px 18px;border-radius:999px;font-size:14px;font-weight:700;}
-  .water-pool-info{gap:6px;}
+  .water-pool-info{text-align:left;min-width:200px;}
+  .water-pool-info .big{font-size:42px;font-weight:800;color:#166534;line-height:1;}
+  .water-pool-info .ml{font-size:14px;color:#6b7280;margin-top:6px;}
+  .water-pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;}
   .water-pool-info .status.ok{background:#dcfce7;color:#166534;}
   .water-pool-info .status.full{background:#bbf7d0;color:#166534;}
-  .water-pool-hint{display:none;position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
+  .water-pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
 
   .saving-card{background:var(--surface);border:1px solid #fce7f3;border-radius:14px;padding:18px;}
-  .saving-card .goal-name{font-size:18px;font-weight:700;color:#9d174d;text-align:center;}
-  .saving-card .goal-amount{font-size:42px;font-weight:800;color:#be185d;margin-top:10px;text-align:center;letter-spacing:1px;}
-  .saving-card .goal-meta{font-size:13px;color:#6b7280;margin-top:6px;text-align:center;}
+  .saving-card .goal-name{font-size:15px;font-weight:700;color:#9d174d;}
+  .saving-card .goal-amount{font-size:24px;font-weight:700;color:#be185d;margin-top:6px;}
+  .saving-card .goal-meta{font-size:12px;color:#6b7280;margin-top:4px;}
   .saving-card .saving-add{display:flex;gap:8px;margin-top:14px;}
   .saving-card .saving-add input{flex:1;padding:8px 12px;border:1px solid #fbcfe8;border-radius:8px;font-size:13px;background:#fff;}
   .saving-card .saving-add button{padding:8px 16px;border:none;background:#be185d;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
@@ -520,16 +506,16 @@
   .saving-card .goal-set button{padding:6px 12px;border:1px solid #fbcfe8;background:#fff;color:#be185d;border-radius:8px;font-size:12px;cursor:pointer;margin-left:8px;}
 
   @media (max-width:640px){
-    .app{flex-direction:row;gap:6px;align-items:stretch;}
-    .sidebar{width:64px;padding:8px 0;gap:6px;border-radius:10px;height:auto;min-height:calc(100vh - 90px);}
+    .app{flex-direction:row;gap:6px;}
+    .sidebar{width:64px;padding:8px 0;gap:4px;border-radius:10px;}
     .sb-item{width:48px;gap:2px;padding:2px 0;}
     .sb-item .ic{width:38px;height:38px;font-size:18px;border-radius:9px;}
     .sb-item .lb{font-size:9.5px;letter-spacing:0;}
     .sb-spacer{display:none;}
-    .sidebar-foot{margin-top:0;gap:4px;}
+    .sidebar-foot{margin-top:0;gap:2px;}
     .hc{height:auto;min-height:110px;padding:10px 14px;}
     .hc-add{width:60px;height:60px;font-size:18px;}
-    .hc-time{font-size:30px;}        /* v17.5: 时间字稍大 */
+    .hc-time{font-size:24px;}
     .hc-left{gap:6px;}
     .hc-left .num{font-size:18px;}
     .hc-left .lb{font-size:12px;}
@@ -540,8 +526,6 @@
     .water-pool-wrap{gap:16px;padding:6px 0 12px;}
     .hc-left .lb{font-size:11.5px;}
     .hc-sun{width:50px;height:50px;font-size:22px;}
-    /* v17.5: mobile footer 贴屏底 left:76px */
-    .site-foot{left:76px;}
   }
 
   </style>
@@ -564,6 +548,7 @@
       <button class="sb-item" data-view="memo" data-label-key="memo" title="备忘"><span class="ic">📒</span><span class="lb">备忘</span></button>
       <button class="sb-item" data-view="period" data-label-key="warm" title="流光"><span class="ic">🌈</span><span class="lb">流光</span></button>
       <button class="sb-item" data-view="counter" data-label-key="eye" title="护眼"><span class="ic">🌿</span><span class="lb">护眼</span></button>
+      <button class="sb-item" data-view="farm" data-label-key="farm" title="农场"><span class="ic">🐔</span><span class="lb">农场</span></button>
       <button class="sb-item" data-view="saving" data-label-key="saving" title="存钱"><span class="ic">💰</span><span class="lb">存钱</span></button>
       <button class="sb-item" data-view="water" data-label-key="water" title="喝水"><span class="ic">💧</span><span class="lb">喝水</span></button>
       <div class="sb-spacer"></div>
@@ -577,13 +562,14 @@
     <div class="home-cards" id="homeCards">
       <!-- 4 张聚合卡片由 JS renderHomeCards() 注入 -->
     </div>
+    <footer class="site-foot">
+      <div class="cn" id="footCN">坚持就是胜利，做完今天就休息啦。</div>
+      <div class="en">One step at a time.</div>
+    </footer>
   </div>
 
-  <!-- v17.5: 鼓励语 footer 移到 .main 外面，永远贴屏底，跨 view 可见 -->
-  <!-- （CSS 已用 position:fixed） -->
-
-  <!-- 待办（v17.11: 默认 hidden，避免刷新瞬间露出空 viewHome JS 没跑之间被填充 viewTodo 内容；switchView('home') 才是常态入口） -->
-  <div id="viewTodo" hidden>
+  <!-- 待办 -->
+  <div id="viewTodo">
     <div class="grid" id="stats"></div>
     <div class="card panel">
       <div class="add-row">
@@ -598,13 +584,11 @@
     </div>
   </div>
 
-  <!-- 备忘录（v17.5: 改成跟待办一致的 add-row 布局：textarea + add-bar + 添加按钮） -->
+  <!-- 备忘录 -->
   <div id="viewMemo" hidden>
-    <div class="add-row">
-      <textarea class="title" id="memoQuick" placeholder="写点什么…随手记一条备忘（回车换行，点「添加」按钮提交，卡片内可继续编辑、贴图）"></textarea>
-      <div class="add-bar">
-        <button class="btn" id="memoAdd">添加</button>
-      </div>
+    <div class="topbar">
+      <textarea id="memoQuick" placeholder="随时记一笔（回车换行，点「＋ 新建」按钮提交，卡片内可继续编辑、贴图）"></textarea>
+      <button id="memoAdd" title="用左侧输入框内容新建一条备忘录">＋ 新建</button>
     </div>
     <div class="card panel">
       <div id="memoList"></div>
@@ -642,8 +626,59 @@
     </div>
   </div>
 
-    <!-- 我的农场 v17.4: 已从 UI 隐藏，DOM 整体删除 -->
-    <!-- （如需恢复，从 git history 取回 viewFarm + navFarm + DEFAULT_LABELS.farm + SB_LABEL_KEY.farm 即可） -->
+    <!-- 我的农场 -->
+    <div id="viewFarm" hidden>
+      <div class="card panel farm-panel">
+        <div class="farm-head">
+          <div class="left">
+            <h2>🌾 随心农场</h2>
+            <span class="coin-badge" id="coinBadge">💰 0</span>
+          </div>
+        </div>
+
+        <div class="farm-actions">
+          <button class="sbtn" id="addPlot">＋ 开垦新田<span class="cost" id="expandCost"></span></button>
+          <button class="sbtn" id="removePlot" title="直接收最后一块田（点田里的「🗑 收回这块田」可单选）">🗑 收田</button>
+          <button class="sbtn" id="arrangeAll" title="把田按从左到右、从上到下自动排成整齐网格">🔲 一键排列整齐</button>
+          <button class="sbtn" id="plantAll" disabled>🌱 一键播种</button>
+          <button class="sbtn" id="boostAll" disabled>⏩ 一键加速</button>
+          <button class="sbtn primary" id="harvestAll">🌾 一键收获</button>
+          <button class="sbtn" id="openBag">🎒 背包</button>
+        </div>
+
+        <div class="farm-ground" id="farmGround">
+          <div class="grid-lines"></div>
+          <div class="drag-target" id="dragTarget"></div>
+        </div>
+
+        <div class="seed-bar" id="seedBar">
+          <div class="seed-bar-title">🌱 种子栏（点种子选种 → 点空地播种 / 拖到田里 / 或点「一键播种」种满空地）</div>
+        </div>
+        <div class="seed-hint" id="seedHint"></div>
+
+        <div class="theme-row" id="themeRow">
+          <span class="tl">🎨 装饰背景</span>
+        </div>
+
+        <div class="farm-toast" id="farmToast"></div>
+      </div>
+
+      <!-- 背包弹窗 -->
+      <div class="warehouse-panel" id="bagPanel" hidden>
+        <div class="warehouse-card">
+          <div class="warehouse-main">
+            <div class="warehouse-head">
+              <h3>🎒 我的背包</h3>
+              <div style="display:flex;gap:8px;">
+                <button class="sbtn" id="sellAllBag">💰 一键出售全部</button>
+                <button class="sbtn" id="closeBag">✕ 关闭</button>
+              </div>
+            </div>
+            <div class="warehouse-body" id="bagBody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
   <!-- 暖记 -->
   <div id="viewPeriod" hidden>
@@ -668,7 +703,6 @@
         <div class="l" id="periodNextLbl">距离下次天数</div>
         <div class="cycle-hint" id="periodCycleHint" style="display:none"></div>
       </div>
-      <div class="s"><div class="n" id="periodLastGapDays">—</div><div class="l">距离上次(天)</div></div>
       <div class="s"><div class="n" id="periodAvgGap">—</div><div class="l">平均间隔(天)</div></div>
     </div>
   </div>
@@ -706,7 +740,9 @@
       </div>
 
       <div class="water-list">
-        <div class="water-list-title">今日打卡 <span id="waterCountTxt" style="color:#16a34a;font-weight:600;"></span></div>
+        <div class="water-list-title">今日打卡 <span id="waterCountTxt" style="color:#16a34a;font-weight:600;"></span>
+          <button id="waterClearToday" style="float:right;background:none;border:none;color:#dc2626;font-size:11.5px;cursor:pointer;padding:0 4px;">× 清空今日</button>
+        </div>
         <div id="waterList"></div>
       </div>
     </div>
@@ -719,8 +755,6 @@
       <div class="goal-amount" id="savingAmount">¥ 0</div>
       <div class="goal-meta" id="savingMeta">已存 0 / 目标 0 · 0%</div>
       <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" id="savingFill" style="width:0%;background:linear-gradient(90deg,#fbcfe8,#be185d);"></div></div>
-
-      <div class="goal-remaining" id="savingRemaining">还差 ¥0 达到目标，加油！</div>
 
       <div class="saving-add">
         <input type="number" id="savingAddInput" min="1" placeholder="存入金额…" />
@@ -741,12 +775,7 @@
     </div>
   </div>
 
-    <!-- v17.5: 鼓励语 footer — 移到 .main 外但在 .app 内，固定贴屏底，跨 view 永远可见 -->
-    <footer class="site-foot">
-      <div class="cn" id="footCN">你已经比昨天更厉害了。</div>
-      <div class="en" id="footEN">One step at a time.</div>
-    </footer>
-  </div>  <!-- /.main -->
+    </div>  <!-- /.main -->
   </div>    <!-- /.app -->
 
 <div class="modal-mask" id="modal" hidden>
@@ -775,6 +804,7 @@
       <div class="field"><label>备忘录</label><input id="labMemo" maxlength="14" /></div>
       <div class="field"><label>护眼记</label><input id="labEye" maxlength="14" /></div>
       <div class="field"><label>暖记</label><input id="labWarm" maxlength="14" /></div>
+      <div class="field"><label>我的农场</label><input id="labFarm" maxlength="14" /></div>
       <div class="field"><label>喝水</label><input id="labWater" maxlength="14" placeholder="💧 喝水" /></div>
       <div class="field"><label>存钱</label><input id="labSaving" maxlength="14" placeholder="💰 存钱" /></div>
       <div style="font-size:12px;color:var(--muted);">前面带 emoji 的会用作侧栏图标；emoji 后是侧栏显示名。保存后立即生效；不填则恢复默认。</div>
@@ -813,8 +843,8 @@ const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
-const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', water:'💧 喝水', saving:'💰 存钱'};
-const SB_LABEL_KEY={home:'home',todo:'todo',memo:'memo',period:'warm',counter:'eye',saving:'saving',water:'water'};
+const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱'};
+const SB_LABEL_KEY={home:'home',todo:'todo',memo:'memo',period:'warm',counter:'eye',farm:'farm',saving:'saving',water:'water'};
 function getLabels(){
   let s={};
   try{ s=JSON.parse(localStorage.getItem('wbLabels')||'{}'); }catch(e){ s={}; }
@@ -876,6 +906,7 @@ function openSettings(){
   $('labMemo').value=L.memo;
   $('labEye').value=L.eye;
   $('labWarm').value=L.warm;
+  $('labFarm').value=L.farm;
   $('labWater').value=L.water;
   $('labSaving').value=L.saving;
   $('settingsModal').hidden=false;
@@ -890,6 +921,7 @@ async function saveLabels(){
     memo:$('labMemo').value.trim()||DEFAULT_LABELS.memo,
     eye:$('labEye').value.trim()||DEFAULT_LABELS.eye,
     warm:$('labWarm').value.trim()||DEFAULT_LABELS.warm,
+    farm:$('labFarm').value.trim()||DEFAULT_LABELS.farm,
     water:$('labWater').value.trim()||DEFAULT_LABELS.water,
     saving:$('labSaving').value.trim()||DEFAULT_LABELS.saving,
   };
@@ -1015,11 +1047,9 @@ function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 /* 导航 */
 function switchView(v){
   view=v;
-  ['viewHome','viewTodo','viewMemo','viewCounter','viewPeriod','viewWater','viewSaving'].forEach(id=>{
+  ['viewHome','viewTodo','viewMemo','viewCounter','viewPeriod','viewFarm','viewWater','viewSaving'].forEach(id=>{
     const el=$(id); if(el) el.hidden = id!=='view'+capitalize(v);
   });
-  // v17.14: 鼓励语只在首页显示（footer 不是 view 的兄弟，CSS ~ 不生效，改用 body 类）
-  document.body.classList.toggle('view-home', v==='home');
   document.querySelectorAll('.sb-item[data-view]').forEach(b=>{
     b.classList.toggle('active', b.dataset.view===v);
   });
@@ -1028,22 +1058,21 @@ function switchView(v){
   if(v==='memo'){ loadMemos(); refreshAllMemoHeightsSoon(); }
   if(v==='counter') loadDrops();
   if(v==='period') loadPeriod();
+  if(v==='farm') loadFarm();
   if(v==='water') renderWater();
   if(v==='saving') renderSaving();
+  if(v!=='farm'){ closeBag(); closePop(); }
 }
 document.querySelectorAll('.sb-item[data-view]').forEach(b=>{
   b.addEventListener('click', ()=>switchView(b.dataset.view));
 });
 
-/* v17.14: 左侧栏折叠按钮 — ⇤ 收起 / ⇥ 展开，状态持久化到 localStorage */
+/* v17.18: 左侧栏折叠按钮 — ⇤ 收起 / ⇥ 展开，状态持久化到 localStorage */
 (function(){
   const app=$('app') || document.querySelector('.app');
   const btn=$('sidebarToggle');
   if(!app || !btn) return;
-  // 恢复持久状态
-  if(localStorage.getItem('sidebarCollapsed')==='1'){
-    app.classList.add('collapsed'); btn.textContent='⇥';
-  }
+  if(localStorage.getItem('sidebarCollapsed')==='1'){ app.classList.add('collapsed'); btn.textContent='⇥'; }
   btn.addEventListener('click', ()=>{
     const collapsed = app.classList.toggle('collapsed');
     btn.textContent = collapsed ? '⇥' : '⇤';
@@ -1120,7 +1149,7 @@ function renderHomeCards(){
   const dropWarn=dropN>=10;
   // 今日待办（todos 未完成前 3 条）
   const open=(todos||[]).filter(t=>!t.done);
-  const todoRows=open.slice(0,6).map(t=>`<div class="todo-summary-row"><span class="ck"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
+  const todoRows=open.slice(0,3).map(t=>`<div class="todo-summary-row"><span class="ck"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
   const todoMore=open.length>3 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-3} 条未完成</div>` : '';
   // 侧栏 label → home 卡图标+名字
   const L=getLabels();
@@ -1188,14 +1217,8 @@ const FOOT_LINES=[
   {cn:'你已经比昨天更厉害了。', en:'You are improving.'},
 ];
 function rotateFoot(){
-  // v17.5: 一天一句，按 day-of-year 取模 — 刷新不变，一天换一次
-  const d=new Date();
-  const start=new Date(d.getFullYear(),0,0);
-  const diff=d-start;
-  const dayOfYear=Math.floor(diff/(1000*60*60*24));
-  const i=dayOfYear % FOOT_LINES.length;
+  const i=Math.floor(Math.random()*FOOT_LINES.length);
   const cn=$('footCN'); if(cn){ cn.textContent=FOOT_LINES[i].cn; }
-  const en=$('footEN'); if(en){ en.textContent=FOOT_LINES[i].en; }
 }
 
 /* ============ v17: 喝水打卡（localStorage） ============ */
@@ -1282,7 +1305,16 @@ $('waterPool').onclick=async(e)=>{
   renderWater();
   if(view==='home') renderHomeCards();
 };
-/* v17.5: 删除"清空今日"按钮（按用户要求），仅保留每条 × 删除 */
+// 清空今日
+$('waterClearToday').onclick=()=>{
+  if(!confirm('清空今日所有喝水打卡记录？')) return;
+  const o=getWaterLog();
+  delete o[todayStr()];
+  setWaterLog(o);
+  renderWater();
+  if(view==='home') renderHomeCards();
+  toast('✅ 已清空');
+};
 $('waterTargetBtn').onclick=()=>{
   const v=parseInt($('waterTargetInput').value,10);
   if(!v||v<500){toast('⚠️ 目标至少 500 ml');return;}
@@ -1316,14 +1348,6 @@ function renderSaving(){
   $('savingFill').style.width=pct+'%';
   $('savingNameInput').value=name;
   $('savingGoalInput').value=goal;
-  // v17.13: 还差多少达到目标
-  const remaining=Math.max(0, goal-saved);
-  const remEl=$('savingRemaining');
-  if(remEl){
-    if(remaining===0){ remEl.textContent='🎉 已达成目标！'; }
-    else if(saved===0){ remEl.textContent=`还差 ¥${remaining.toLocaleString()} 才能开始，加油！`; }
-    else { remEl.textContent=`还差 ¥${remaining.toLocaleString()} 达到目标，继续努力！`; }
-  }
   // v17.2: 历史记录 - 时间 · 金额可编辑 · 删除按钮（数组是时间倒序展示，保存用升序索引）
   const hist=(d.history||[]).slice().reverse();
   const list=$('savingList');
@@ -1342,7 +1366,7 @@ function renderSaving(){
       </span>
     </div>`;
   }).join('');
-  // 删除单条（v17.14: 去掉 input 编辑器，只读 + 删除）
+  // 删除单条
   list.querySelectorAll('.saving-row-del').forEach(btn=>{
     btn.onclick=()=>{
       const idx=parseInt(btn.dataset.del,10);
@@ -1597,12 +1621,7 @@ async function addMemo(text){
   renderMemos();
   // 不自动 focus —— 新建的卡片默认收起，用户自己想编辑再点「展开」或点卡片内文
 }
-$('memoAdd').onclick=()=>{
-  const v=_memoQuick?_memoQuick.value.trim():'';
-  if(_memoQuick){ _memoQuick.value=''; if(_fitMemoQuick) _fitMemoQuick(); }
-  if(!v){ toast('写点什么再提交吧～'); return; }
-  addMemo(v);
-};
+$('memoAdd').onclick=()=>{ const v=_memoQuick?_memoQuick.value:''; if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } addMemo(v); };
 // 顶部快速输入框：回车=换行（textarea 默认行为），需要添加时点击「＋ 新建」按钮
 const _memoQuick=$('memoQuick');
 // 输入框自适应：写多长显示多长，不出滚动条
@@ -1683,25 +1702,22 @@ function renderDrops(){
   let rec=drops.find(d=>d.date===today);
   if(!rec){ rec={date:today,count:0,max_count:10}; }
   const count=rec.count||0;
-  // v17.5: max_count 跟随 count 自动涨（不再封顶）
+  // v17.3: max_count 跟随 count 自动涨（不再封顶）
   const max=Math.max(rec.max_count||10, count);
-  const overLimit=count>=10;
+  const full=count>=max;
+  const overLimit=count>10;
   const st=comfortState(count);
-  // v17.14: 水位算法调整 — 0次=100%满，7次=58%还有不少水，10次=40%仍可见，超过10破洞+清空
-  let heightPct = Math.max(40, 100 - count*6);
-  if(count>=10) heightPct = 0;
+  // 水位：按 min(count, max)/max 比例（满 100%）
+  const heightPct=Math.min(100, Math.round(Math.min(count,max)/max*100));
   const numEl=$('dropCount');
   numEl.innerHTML=count+'<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ '+max+'</span>';
   numEl.classList.toggle('warn',overLimit);
   $('poolFace').textContent=st.face;
   $('poolWater').style.height=heightPct+'%';
   $('poolWater').style.background=st.color;
-  // v17.5: 超 10 次在右上角加破口
-  const poolEl=$('dropPool');
-  poolEl.classList.toggle('cracked', count>10); // v17.15: 破洞仅「超过 10 次」时显示；=10 只是空池不算破
   const statusEl=$('dropStatus');
   statusEl.className='status '+st.cls;
-  statusEl.innerHTML=(overLimit?'⚠️ ':'')+st.face+' '+st.text;
+  statusEl.innerHTML=(overLimit?'⚠️ ':'')+st.face+' '+st.text+(overLimit?' · 已超医生建议 10 次':'');
   const history=[...drops];
   if(!history.find(d=>d.date===today)) history.unshift(rec);
   history.sort((a,b)=>b.date.localeCompare(a.date));
@@ -1924,12 +1940,8 @@ function renderPeriod(){
     tipEl.style.display='inline-flex';
     tipEl.className='tip '+(gap<21?'short':gap>40?'long':'normal');
     tipEl.textContent=gap<21?`⚠️ 距上次 ${gap} 天，注意休息`:gap>40?`💛 距上次 ${gap} 天，多保重身体`:`🌷 距上次 ${gap} 天，节奏平稳`;
-    const lastGapEl=$('periodLastGapDays');
-    if(lastGapEl) lastGapEl.textContent=gap;
   }else{
     tipEl.style.display='none';
-    const lastGapEl=$('periodLastGapDays');
-    if(lastGapEl) lastGapEl.textContent='—';
   }
   const list=$('periodList');
   if(!periodRecs.length){
@@ -2113,7 +2125,7 @@ sb.channel('farm-rt').on('postgres_changes',{event:'*',schema:'public',table:'fa
 if(sb){
   try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>safeReload('settings',loadSettings)).subscribe(); }catch(e){}
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); } });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); } });
 
 /* ---------- 我的农场 v5：自由农场 ---------- */
 const FARM_KEY='suixin_farm_v3';
@@ -2315,8 +2327,6 @@ function farmToast(m){
 
 function bindFarmEvents(){
   if(farmBound)return; farmBound=true;
-  // v17.5: 农场模块已整体移除（UI + 数据），若 DOM 不存在直接 return，避免 null.onclick 报错
-  if(!$('addPlot'))return;
   $('addPlot').onclick=()=>{
     const cost=expandCost();
     if(farm.coins<cost){farmToast('金币不够，收获作物赚金币 💰');return;}
@@ -2821,8 +2831,7 @@ function sellAll(){
   farmToast('一键出售全部作物，+'+total+' 金币 💰');
 }
 
-// v17.5: 农场 UI / 数据已整体移除，无需再绑事件（保留函数定义便于 git 恢复）
-// bindFarmEvents();
+bindFarmEvents();
 
 /* 初始加载（任一失败不影响其它，先把 UI 框架渲染出来） */
 // 本地预览（sb 为 null）也要先把 stats/列表框架渲染出来，避免打开一片空白
@@ -2832,7 +2841,7 @@ try{ renderStats(); renderList(); }catch(e){}
   restoreDebugBar(); // v11: 有上次错误就常驻显示，不再一闪而过
   try{await loadTodos();}catch(e){showFatal('loadTodos: '+(e.message||e));}
   try{await loadMemos();}catch(e){showFatal('loadMemos: '+(e.message||e));}
-  // v17.4: loadFarm 已停用（农场入口从 UI 移除）
+  try{await loadFarm();}catch(e){showFatal('loadFarm: '+(e.message||e));}
   // 拉一次设置：拿到云端 labels 和 cycle_len，手机电脑即时同步名称/倒计时
   try{await loadSettings();}catch(e){}
   // 拉一次暖记：拿到历史记录
@@ -2842,8 +2851,7 @@ try{ renderStats(); renderList(); }catch(e){}
   // v17: 触发首页渲染（含 4 张聚合卡 + 时钟 + 鼓励语 footer）
   try{ switchView('home'); }catch(e){showFatal('switchView home: '+(e.message||e));}
 })();
-// v17.4: 农场 tick 暂停（农场 UI 不可见，不消耗 cpu）
-// setInterval(tickFarm,1000);
+setInterval(tickFarm,1000);
 // v17: 鼓励语 30 秒换一次
 rotateFoot(); setInterval(rotateFoot, 30000);
 </script>
