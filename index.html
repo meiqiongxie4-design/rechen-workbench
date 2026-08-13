@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17.2-iterate （删点击切换天气-智能天气图标按 24h 时段；护眼 ≥10 滴 banner 报警不 return；存钱记录可编辑金额+删除；设置加水/存字段；侧栏图标读设置-护眼默认 🌿；移动端竖栏 64px；喝水护眼卡字号 20px+三段 gap:8px；6 处 SVG 已更图标）-->
+<!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
@@ -21,15 +21,23 @@
 <script src="./supabase.min.js"></script>
 <style>
   :root{
-    --bg:#f4f6fb; --surface:#fff; --surface-2:#f7f9fc; --line:#e6e9f0;
-    --text:#1f2733; --muted:#8a93a6; --accent:#4f6ef7; --accent-soft:#eef1fe;
-    --red:#e5484d; --red-soft:#fdecec; --orange:#f5a623; --green:#2bb673;
-    --gray:#9aa3b2; --shadow:0 2px 10px rgba(31,39,51,.06);
+    --bg:#dcfce7;       /* workbuddy 绿做整体底色 */
+    --surface:#f0fdf4;  /* 卡片背景：超浅绿 */
+    --surface-2:#ecfdf5;/* 二级表面：更浅 */
+    --line:#bbf7d0;     /* 描边绿 */
+    --text:#1f2937; --muted:#6b7280;
+    --accent:#22c55e;   /* workbuddy 主绿 */
+    --accent-soft:#dcfce7;
+    --red:#dc2626; --red-soft:#fee2e2;
+    --orange:#f59e0b;
+    --green:#16a34a;
+    --gray:#9ca3af;
+    --shadow:0 2px 10px rgba(34,197,94,.06);
   }
   *{box-sizing:border-box;}
   [hidden]{display:none !important;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;}
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;display:flex;flex-direction:column;}
   header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
@@ -250,7 +258,7 @@
   .pet-tip{font-size:11.5px;color:var(--muted);text-align:center;max-width:340px;}
   /* ---------- 暖记 ---------- */
   .period-hero{display:flex;align-items:center;gap:32px;flex-wrap:wrap;justify-content:center;padding:18px 14px;}
-  .period-pool{position:relative;width:220px;height:220px;border-radius:50%;background:linear-gradient(180deg,#fce7f3 0%,#fbcfe8 100%);box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08);overflow:hidden;cursor:pointer;transition:transform .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:64px;user-select:none;}
+  .period-pool{position:relative;width:220px;height:220px;border-radius:50%;background:linear-gradient(180deg,#dcfce7 0%,#bbf7d0 100%);box-shadow:inset 0 0 30px rgba(34,197,94,.15),0 8px 24px rgba(0,0,0,.08);overflow:hidden;cursor:pointer;transition:transform .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:64px;user-select:none;}
   .period-pool:active{transform:scale(.96);}
   .period-pool.flash{animation:periodFlash .8s ease;}
   @keyframes periodFlash{0%{box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08)}50%{box-shadow:inset 0 0 60px rgba(236,72,153,.55),0 0 60px rgba(236,72,153,.6)}100%{box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08)}}
@@ -263,11 +271,11 @@
     .period-info{text-align:center;width:100%;}
   }
   .period-info .label{font-size:13px;color:var(--muted);}
-  .period-info .big{font-size:30px;font-weight:800;color:#ec4899;line-height:1.2;margin:4px 0;}
-  .period-info .meta{font-size:13px;color:var(--muted);margin-top:6px;}
-  .period-info .tip{margin-top:10px;padding:9px 13px;border-radius:999px;font-size:13px;display:inline-flex;align-items:center;gap:6px;background:#fce7f3;color:#9d174d;font-weight:600;}
-  .period-info .tip.normal{background:#dcfce7;color:#166534;}
-  .period-info .tip.short{background:#ffedd5;color:#9a3412;}
+.period-info .big{font-size:30px;font-weight:800;color:#16a34a;line-height:1.2;margin:4px 0;}
+.period-info .meta{font-size:13px;color:var(--muted);margin-top:6px;}
+.period-info .tip{margin-top:10px;padding:9px 13px;border-radius:999px;font-size:13px;display:inline-flex;align-items:center;gap:6px;background:#dcfce7;color:#166534;font-weight:600;}
+.period-info .tip.normal{background:#dcfce7;color:#166534;}
+.period-info .tip.short{background:#fef9c3;color:#854d0e;}
   .period-info .tip.long{background:#fef9c3;color:#854d0e;}
   .period-info .today{font-size:14px;color:var(--muted);margin-bottom:4px;}
   .period-info .today b{color:#ec4899;}
@@ -296,7 +304,7 @@
 
 /* 护眼记 - 水池版 */
   .pool-wrap{display:flex;gap:32px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
-  .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#e0f2fe;box-shadow:inset 0 0 30px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.12);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
+  .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
   .pool:active{transform:scale(.97);}
   .pool::before,.pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
   .pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
@@ -394,20 +402,21 @@
   .sb-spacer{flex:1;background:transparent;cursor:default;}
   .sidebar-foot{margin-top:auto;display:flex;flex-direction:column;gap:4px;}
 
-  .main{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;}
+  .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}
+  #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
   /* 首页 4 卡片 */
   .home-cards{display:flex;flex-direction:column;gap:12px;}
-  .hc{background:#fff;border:1px solid #bbf7d0;border-radius:14px;padding:14px 18px;height:130px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(34,197,94,.04);}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;height:130px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
-  .hc-left .lb{font-size:12.5px;color:#6b7280;font-weight:600;letter-spacing:.3px;}
-  .hc-left .num{font-size:20px;font-weight:700;color:#166534;line-height:1.2;white-space:nowrap;}
-  .hc-left .sub{font-size:11.5px;color:#9ca3af;text-align:center;line-height:1.4;}
-  .hc-left .num.warn{color:#dc2626;font-size:18px;font-weight:800;}
+  .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
+  .hc-left .num{font-size:22px;font-weight:700;color:#166534;line-height:1.2;white-space:nowrap;}
+  .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
+  .hc-left .num.warn{color:#dc2626;font-size:20px;font-weight:800;}
   .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
   .hc-time{font-size:30px;font-weight:500;color:#166534;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
   .hc-date{font-size:12.5px;color:#6b7280;}
-  .hc-greet{font-size:12.5px;color:#16a34a;font-weight:500;}
+  .hc-greet{font-size:13px;color:#16a34a;font-weight:500;}
   .hc-sun{width:60px;height:60px;background:#fef3c7;border:2px solid #fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;}
   .hc-sun.night{background:#e0e7ff;border-color:#818cf8;}
   .hc-sun.dusk{background:#fed7aa;border-color:#fb923c;}
@@ -417,47 +426,66 @@
   .hc-face{font-size:42px;}
 
   /* 今日待办卡（首页底部） */
-  .todo-summary{background:#fff;border:1px solid #bbf7d0;border-radius:14px;padding:14px 18px;}
+  .todo-summary{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;}
   .todo-summary-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-  .todo-summary-hd .lb{font-size:13.5px;color:#6b7280;font-weight:600;}
-  .todo-summary-hd .ct{font-size:12px;color:#9ca3af;}
+  .todo-summary-hd .lb{font-size:14px;color:#374151;font-weight:600;}
+  .todo-summary-hd .ct{font-size:12px;color:#6b7280;}
   .todo-summary-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13.5px;color:#374151;}
-  .todo-summary-row .ck{width:16px;height:16px;border:1.5px solid #cbd5e1;border-radius:50%;flex-shrink:0;}
+  .todo-summary-row .ck{width:16px;height:16px;border:1.5px solid #22c55e;border-radius:50%;flex-shrink:0;}
   .todo-summary-row .tx{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-  /* footer 鼓励语 */
-  .site-foot{margin:18px auto 8px;text-align:center;padding:0 12px;max-width:560px;}
-  .site-foot .cn{font-size:14px;color:#16a34a;font-weight:500;}
-  .site-foot .en{font-size:11.5px;color:#9ca3af;margin-top:3px;letter-spacing:.4px;}
+  /* footer 鼓励语 sticky bottom */
+  .site-foot{margin-top:auto;padding:14px 12px 18px;text-align:center;background:linear-gradient(180deg,transparent 0%,rgba(220,252,231,.6) 30%);}
+  .site-foot .cn{font-size:14px;color:#16a34a;font-weight:600;}
+  .site-foot .en{font-size:11.5px;color:#6b7280;margin-top:3px;letter-spacing:.4px;}
 
   /* 喝水 / 存钱 视图 */
-  .water-card{background:#fff;border:1px solid #bbf7d0;border-radius:14px;padding:18px;}
+  .water-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;}
   .water-progress{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
-  .water-progress .pct{font-size:13px;color:#6b7280;font-weight:600;}
-  .water-progress .target{font-size:12px;color:#9ca3af;}
-  .progress-bar{height:8px;background:#f0fdf4;border-radius:99px;overflow:hidden;}
+  .water-progress .pct{font-size:13px;color:#166534;font-weight:700;}
+  .water-progress .target{font-size:12px;color:#6b7280;}
+  .progress-bar{height:8px;background:#dcfce7;border-radius:99px;overflow:hidden;}
   .progress-fill{height:100%;background:linear-gradient(90deg,#86efac,#22c55e);transition:width .3s;}
   .water-quick{display:flex;align-items:center;gap:18px;padding:12px 0;}
   .water-info{flex:1;min-width:0;}
   .water-info .big{font-size:24px;font-weight:700;color:#166534;}
-  .water-info .ml{font-size:12.5px;color:#9ca3af;margin-top:2px;}
-  .water-list{margin-top:14px;padding-top:12px;border-top:1px dashed #e5e7eb;}
-  .water-list-title{font-size:12.5px;color:#9ca3af;margin-bottom:8px;}
-  .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #f3f4f6;}
+  .water-info .ml{font-size:12.5px;color:#6b7280;margin-top:2px;}
+  .water-list{margin-top:14px;padding-top:12px;border-top:1px dashed #bbf7d0;}
+  .water-list-title{font-size:12.5px;color:#6b7280;margin-bottom:8px;}
+  .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
   .water-row:last-child{border-bottom:none;}
   .water-empty{font-size:12px;color:#9ca3af;text-align:center;padding:8px 0;}
-  .water-target-set{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#6b7280;}
+  .water-target-set{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#6b7280;flex-wrap:wrap;}
   .water-target-set input{width:80px;padding:5px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12.5px;text-align:center;}
-  .water-target-set button{padding:5px 10px;border:1px solid #22c55e;background:#fff;color:#16a34a;border-radius:8px;font-size:12px;cursor:pointer;}
+  .water-target-set button{padding:5px 10px;border:1px solid #22c55e;background:var(--surface);color:#16a34a;border-radius:8px;font-size:12px;cursor:pointer;}
 
-  .saving-card{background:#fff;border:1px solid #fce7f3;border-radius:14px;padding:18px;}
+  /* 喝水大水池（同护眼样式，绿系） */
+  .water-pool-wrap{display:flex;gap:28px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
+  .water-pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
+  .water-pool:active{transform:scale(.97);}
+  .water-pool::before,.water-pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.4);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
+  .water-pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
+  @keyframes wave{from{transform:translate(-50%,-50%) rotate(0);}to{transform:translate(-50%,-50%) rotate(360deg);}}
+  @keyframes ripple{from{transform:scale(0);opacity:.9;}to{transform:scale(4);opacity:0;}}
+  .water-pool .pool-water{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
+  .water-pool .pool-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
+  .water-pool .pool-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
+  .water-pool-info{text-align:left;min-width:200px;}
+  .water-pool-info .big{font-size:42px;font-weight:800;color:#166534;line-height:1;}
+  .water-pool-info .ml{font-size:14px;color:#6b7280;margin-top:6px;}
+  .water-pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;}
+  .water-pool-info .status.ok{background:#dcfce7;color:#166534;}
+  .water-pool-info .status.full{background:#bbf7d0;color:#166534;}
+  .water-pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
+
+  .saving-card{background:var(--surface);border:1px solid #fce7f3;border-radius:14px;padding:18px;}
   .saving-card .goal-name{font-size:15px;font-weight:700;color:#9d174d;}
   .saving-card .goal-amount{font-size:24px;font-weight:700;color:#be185d;margin-top:6px;}
-  .saving-card .goal-meta{font-size:12px;color:#9ca3af;margin-top:4px;}
+  .saving-card .goal-meta{font-size:12px;color:#6b7280;margin-top:4px;}
   .saving-card .saving-add{display:flex;gap:8px;margin-top:14px;}
-  .saving-card .saving-add input{flex:1;padding:8px 12px;border:1px solid #fbcfe8;border-radius:8px;font-size:13px;}
+  .saving-card .saving-add input{flex:1;padding:8px 12px;border:1px solid #fbcfe8;border-radius:8px;font-size:13px;background:#fff;}
   .saving-card .saving-add button{padding:8px 16px;border:none;background:#be185d;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
-  .saving-card .goal-set{margin-top:14px;padding-top:12px;border-top:1px dashed #fce7f3;font-size:12.5px;color:#9ca3af;}
+  .saving-card .goal-set{margin-top:14px;padding-top:12px;border-top:1px dashed #fce7f3;font-size:12.5px;color:#6b7280;}
   .saving-card .goal-set button{padding:6px 12px;border:1px solid #fbcfe8;background:#fff;color:#be185d;border-radius:8px;font-size:12px;cursor:pointer;margin-left:8px;}
 
   @media (max-width:640px){
@@ -473,6 +501,12 @@
     .hc-time{font-size:24px;}
     .hc-left{gap:6px;}
     .hc-left .num{font-size:18px;}
+    .hc-left .lb{font-size:12px;}
+    .hc-face{font-size:36px;}
+    header .settings-btn{display:none;}   /* v17.3 手机端隐藏顶部齿轮（已移到侧栏） */
+    .water-pool{width:160px;height:160px;}
+    .water-pool .pool-face{font-size:48px;}
+    .water-pool-wrap{gap:16px;padding:6px 0 12px;}
     .hc-left .lb{font-size:11.5px;}
     .hc-sun{width:50px;height:50px;font-size:22px;}
   }
@@ -655,34 +689,42 @@
     </div>
   </div>
 
-  <!-- 喝水（v17 新模块） -->
+  <!-- 喝水（v17.3 大水池 + 自定义每杯 + 记录可删） -->
   <div id="viewWater" hidden>
     <div class="water-card">
+      <div class="water-pool-wrap">
+        <div class="water-pool" id="waterPool" title="点一下水池喝一杯">
+          <div class="pool-water" id="waterPoolWater"></div>
+          <div class="pool-face" id="waterPoolFace">💧</div>
+          <div class="water-pool-hint">点水池喝一杯</div>
+        </div>
+        <div class="water-pool-info">
+          <div class="big" id="waterBig">已喝 0 杯</div>
+          <div class="ml" id="waterMl">· 0 ml</div>
+          <div class="status ok" id="waterStatus">💧 继续喝水</div>
+          <div class="status" id="waterOverWarn" style="display:none;background:#fee2e2;color:#991b1b;">⚠️ 已超过目标</div>
+        </div>
+      </div>
+
       <div class="water-progress">
         <div class="pct" id="waterPct">已完成 0%</div>
         <div class="target" id="waterTargetTxt">目标 2000 ml</div>
       </div>
       <div class="progress-bar"><div class="progress-fill" id="waterFill" style="width:0%"></div></div>
 
-      <div class="water-quick">
-        <div class="water-info">
-          <div class="big" id="waterBig">已喝 0 杯</div>
-          <div class="ml" id="waterMl">· 0 ml</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
-          <button class="hc-add" id="waterAdd" title="记录一杯 250 ml">+1</button>
-          <div style="font-size:10.5px;color:#9ca3af;">每杯 250 ml</div>
-        </div>
-      </div>
-
-      <div class="water-target-set">
-        我的目标：
-        <input type="number" id="waterTargetInput" min="500" max="5000" step="100" value="2000" /> ml
+      <div class="water-target-set" style="margin-top:14px;">
+        <span style="font-weight:600;">每杯：</span>
+        <input type="number" id="waterCupInput" min="50" max="2000" step="50" value="250" style="width:70px;" /> ml
+        <button id="waterCupBtn">保存</button>
+        <span style="margin-left:14px;font-weight:600;">目标：</span>
+        <input type="number" id="waterTargetInput" min="500" max="5000" step="100" value="2000" style="width:80px;" /> ml
         <button id="waterTargetBtn">保存</button>
       </div>
 
       <div class="water-list">
-        <div class="water-list-title">今日打卡 <span id="waterCountTxt" style="color:#16a34a;font-weight:600;"></span></div>
+        <div class="water-list-title">今日打卡 <span id="waterCountTxt" style="color:#16a34a;font-weight:600;"></span>
+          <button id="waterClearToday" style="float:right;background:none;border:none;color:#dc2626;font-size:11.5px;cursor:pointer;padding:0 4px;">× 清空今日</button>
+        </div>
         <div id="waterList"></div>
       </div>
     </div>
@@ -739,6 +781,7 @@
     <h3>自定义名称</h3>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
       <div class="field"><label>工作台名称</label><input id="labApp" maxlength="20" /></div>
+      <div class="field"><label>首页</label><input id="labHome" maxlength="14" placeholder="🏠 首页" /></div>
       <div class="field"><label>待办事项</label><input id="labTodo" maxlength="14" /></div>
       <div class="field"><label>备忘录</label><input id="labMemo" maxlength="14" /></div>
       <div class="field"><label>护眼记</label><input id="labEye" maxlength="14" /></div>
@@ -782,7 +825,7 @@ const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
-const DEFAULT_LABELS={app:'热忱工作台', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱'};
+const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱'};
 const SB_LABEL_KEY={home:'home',todo:'todo',memo:'memo',period:'warm',counter:'eye',farm:'farm',saving:'saving',water:'water'};
 function getLabels(){
   let s={};
@@ -797,11 +840,12 @@ function splitEmojiLabel(s){
   return {ic:'·', lb:String(s)};
 }
 function applyLabels(){
-  const L=getLabels();
-  // 侧栏按钮（带 data-label-key 的 .sb-item）
+  const L=Object.assign({},DEFAULT_LABELS,getLabels());
+  // 侧栏按钮（带 data-label-key 的 .sb-item）；key 缺失时用 DEFAULT_LABELS 兜底，避免首页字不见
   document.querySelectorAll('.sb-item[data-label-key]').forEach(btn=>{
     const key=btn.dataset.labelKey;
-    const spl=splitEmojiLabel(L[key]);
+    const txt=L[key]||DEFAULT_LABELS[key]||key;
+    const spl=splitEmojiLabel(txt);
     const ic=btn.querySelector('.ic'); if(ic) ic.textContent=spl.ic;
     const lb=btn.querySelector('.lb'); if(lb) lb.textContent=spl.lb;
   });
@@ -839,6 +883,7 @@ function refreshManifest(appName){
 function openSettings(){
   const L=getLabels();
   $('labApp').value=L.app;
+  $('labHome').value=L.home;
   $('labTodo').value=L.todo;
   $('labMemo').value=L.memo;
   $('labEye').value=L.eye;
@@ -853,6 +898,7 @@ function closeSettings(){ $('settingsModal').hidden=true; }
 async function saveLabels(){
   const L={
     app:$('labApp').value.trim()||DEFAULT_LABELS.app,
+    home:$('labHome').value.trim()||DEFAULT_LABELS.home,
     todo:$('labTodo').value.trim()||DEFAULT_LABELS.todo,
     memo:$('labMemo').value.trim()||DEFAULT_LABELS.memo,
     eye:$('labEye').value.trim()||DEFAULT_LABELS.eye,
@@ -1060,7 +1106,8 @@ function renderHomeCards(){
                   :          '夜深了，记得早点休息';
   // 喝水（localStorage）
   const waterCups=getWaterCups(today);
-  const waterMl=waterCups*250;
+  const waterCupMl=parseInt(localStorage.getItem('wbWaterCup')||'250',10);
+  const waterMl=waterCups*waterCupMl;
   const waterTarget=parseInt(localStorage.getItem('wbWaterTarget')||'2000',10);
   const waterPct=Math.min(100, Math.round(waterMl/waterTarget*100));
   // 护眼（drops 表今日）
@@ -1095,9 +1142,9 @@ function renderHomeCards(){
       <div class="hc-left">
         <div class="lb">${wSplit.ic} ${wSplit.lb}</div>
         <div class="num">已喝 ${waterCups} 杯</div>
-        <div class="sub">· ${waterMl} ml · 已完成 ${waterPct}%</div>
+        <div class="sub">· ${waterMl} ml · 已完成 ${waterPct}% · 每杯 ${waterCupMl} ml</div>
       </div>
-      <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 250 ml">+1</button></div>
+      <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 ${waterCupMl} ml">+1</button></div>
     </div>
 
     <!-- ③ 护眼卡（图标读设置，≥10 滴加 warn 样式） -->
@@ -1164,27 +1211,92 @@ function addWaterCup(day){
 function renderWater(){
   const today=todayStr();
   const cups=getWaterCups(today);
-  const ml=cups*250;
+  const cupMl=parseInt(localStorage.getItem('wbWaterCup')||'250',10);
+  const ml=cups*cupMl;
   const target=parseInt(localStorage.getItem('wbWaterTarget')||'2000',10);
   const pct=Math.min(100, Math.round(ml/target*100));
+  // 大水池
   $('waterBig').textContent = `已喝 ${cups} 杯`;
   $('waterMl').textContent = `· ${ml} ml`;
   $('waterPct').textContent = `已完成 ${pct}%`;
   $('waterTargetTxt').textContent = `目标 ${target} ml`;
   $('waterFill').style.width = pct+'%';
   $('waterTargetInput').value = target;
-  $('waterCountTxt').textContent = cups>0?`(${cups} 杯 · ${ml} ml)`:'';
+  $('waterCupInput').value = cupMl;
+  $('waterCountTxt').textContent = cups>0?`(${cups} 杯 · ${ml} ml · 每杯 ${cupMl} ml)`:'';
+  // 水池水位 + 表情
+  const heightPct=Math.min(100, Math.round(ml/target*100));
+  $('waterPoolWater').style.height=heightPct+'%';
+  const over=ml>=target;
+  $('waterOverWarn').style.display=over?'':'none';
+  $('waterStatus').textContent = over?'🎉 已完成今日目标':'💧 继续喝水';
+  $('waterStatus').className = 'status '+(over?'full':'ok');
+  $('waterPoolFace').textContent = over?'🎉':(cups===0?'💧':(cups<3?'💦':'🌊'));
+  // 记录列表 + 每行 × 删除按钮
   const list=$('waterList');
   const arr=(getWaterLog()[today]||[]).slice().reverse();
   if(arr.length===0) list.innerHTML = `<div class="water-empty">今天还没打卡，喝一杯吧～</div>`;
-  else list.innerHTML = arr.map(t=>`<div class="water-row"><span>${esc(t)}</span><span style="color:#22c55e;font-weight:600;">250 ml</span></div>`).join('');
+  else list.innerHTML = arr.map((t,i)=>{
+    const realIdx=arr.length-1-i;
+    return `<div class="water-row" data-idx="${realIdx}">
+      <span>${esc(t)}</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <span style="color:#22c55e;font-weight:600;">${cupMl} ml</span>
+        <button class="water-row-del" data-del="${realIdx}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
+      </span>
+    </div>`;
+  }).join('');
+  // 删除单条
+  list.querySelectorAll('.water-row-del').forEach(btn=>{
+    btn.onclick=()=>{
+      const idx=parseInt(btn.dataset.del,10);
+      const o=getWaterLog();
+      o[today].splice(idx,1);
+      if(o[today].length===0) delete o[today];
+      setWaterLog(o);
+      renderWater();
+      if(view==='home') renderHomeCards();
+    };
+  });
 }
-$('waterAdd').onclick=()=>{ addWaterCup(todayStr()); renderWater(); if(view==='home') renderHomeCards(); };
+// 点水池喝一杯（带波纹）
+$('waterPool').onclick=async(e)=>{
+  const rect=$('waterPool').getBoundingClientRect();
+  const x=e.clientX-rect.left, y=e.clientY-rect.top;
+  const ripple=document.createElement('div');
+  ripple.className='pool-ripple';
+  ripple.style.left=(x-25)+'px';
+  ripple.style.top=(y-25)+'px';
+  ripple.style.width=ripple.style.height='50px';
+  $('waterPool').appendChild(ripple);
+  setTimeout(()=>ripple.remove(),900);
+  addWaterCup(todayStr());
+  renderWater();
+  if(view==='home') renderHomeCards();
+};
+// 清空今日
+$('waterClearToday').onclick=()=>{
+  if(!confirm('清空今日所有喝水打卡记录？')) return;
+  const o=getWaterLog();
+  delete o[todayStr()];
+  setWaterLog(o);
+  renderWater();
+  if(view==='home') renderHomeCards();
+  toast('✅ 已清空');
+};
 $('waterTargetBtn').onclick=()=>{
   const v=parseInt($('waterTargetInput').value,10);
   if(!v||v<500){toast('⚠️ 目标至少 500 ml');return;}
   localStorage.setItem('wbWaterTarget', String(v));
   toast('✅ 目标已更新');
+  renderWater(); if(view==='home') renderHomeCards();
+};
+// v17.3: 自定义每杯 ml
+$('waterCupBtn').onclick=()=>{
+  const v=parseInt($('waterCupInput').value,10);
+  if(!v||v<50||v>2000){toast('⚠️ 每杯 50~2000 ml');return;}
+  localStorage.setItem('wbWaterCup', String(v));
+  toast('✅ 每杯已设为 '+v+' ml');
   renderWater(); if(view==='home') renderHomeCards();
 };
 
@@ -1564,27 +1676,33 @@ async function loadDrops(){
   drops=data||[]; renderDrops();
 }
 function comfortState(count){
-  if(count<=2) return {cls:'ok', face:'😊', text:'眼睛舒适', color:'linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%)', height:100, tip:'今天用眼很轻松，继续保持！'};
-  if(count<=5) return {cls:'mid', face:'🙂', text:'状态正常', color:'linear-gradient(180deg,#93c5fd 0%,#60a5fa 100%)', height:78, tip:'用眼强度一般，注意休息。'};
-  if(count<=8) return {cls:'tired', face:'😐', text:'眼睛疲劳', color:'linear-gradient(180deg,#fdba74 0%,#fb923c 100%)', height:55, tip:'滴得有点多了，建议闭眼休息或远眺。'};
-  return {cls:'bad', face:'😫', text:'需要休息', color:'linear-gradient(180deg,#fca5a5 0%,#f87171 100%)', height:35, tip:'已接近上限，让眼睛好好放松。'};
+  // v17.3: 颜色统一 workbuddy 绿系（蓝/橙/红分别对应舒适/疲劳/危险）
+  if(count<=2) return {cls:'ok', face:'😊', text:'眼睛舒适', color:'linear-gradient(180deg,#86efac 0%,#22c55e 100%)', tip:'今天用眼很轻松，继续保持！'};
+  if(count<=5) return {cls:'mid', face:'🙂', text:'状态正常', color:'linear-gradient(180deg,#6ee7b7 0%,#10b981 100%)', tip:'用眼强度一般，注意休息。'};
+  if(count<=8) return {cls:'tired', face:'😐', text:'眼睛疲劳', color:'linear-gradient(180deg,#fbbf24 0%,#f59e0b 100%)', tip:'滴得有点多了，建议闭眼休息或远眺。'};
+  return {cls:'bad', face:'😵', text:'需要休息', color:'linear-gradient(180deg,#f87171 0%,#dc2626 100%)', tip:'已超过医生建议 10 次/天上限。'};
 }
 function renderDrops(){
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
   if(!rec){ rec={date:today,count:0,max_count:10}; }
-  const count=Math.min(rec.count||0, rec.max_count||10);
-  const full=count>=10;
+  const count=rec.count||0;
+  // v17.3: max_count 跟随 count 自动涨（不再封顶）
+  const max=Math.max(rec.max_count||10, count);
+  const full=count>=max;
+  const overLimit=count>=10;
   const st=comfortState(count);
+  // 水位：按 min(count, max)/max 比例（满 100%）
+  const heightPct=Math.min(100, Math.round(Math.min(count,max)/max*100));
   const numEl=$('dropCount');
-  numEl.innerHTML=count+'<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ 10</span>';
-  numEl.classList.toggle('warn',full);
+  numEl.innerHTML=count+'<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ '+max+'</span>';
+  numEl.classList.toggle('warn',overLimit);
   $('poolFace').textContent=st.face;
-  $('poolWater').style.height=st.height+'%';
+  $('poolWater').style.height=heightPct+'%';
   $('poolWater').style.background=st.color;
   const statusEl=$('dropStatus');
   statusEl.className='status '+st.cls;
-  statusEl.textContent=st.face+' '+st.text;
+  statusEl.innerHTML=(overLimit?'⚠️ ':'')+st.face+' '+st.text+(overLimit?' · 已超医生建议 10 次':'');
   const history=[...drops];
   if(!history.find(d=>d.date===today)) history.unshift(rec);
   history.sort((a,b)=>b.date.localeCompare(a.date));
@@ -1593,9 +1711,10 @@ function renderDrops(){
     const label=isToday?'今天':d.date.slice(5);
     // 今天用 rec.count（实时），其他日期用 d.count（数据库值）
     const cnt=isToday?rec.count:(d.count||0);
+    const dmax=Math.max(d.max_count||10, cnt);
     const s=comfortState(cnt);
     const txt={ok:'眼睛舒适',mid:'状态正常',tired:'眼睛疲劳',bad:'需要休息'}[s.cls];
-    return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${d.max_count||10}</div></div>`;
+    return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${dmax}</div></div>`;
   }).join('');
   $('dropHistory').querySelectorAll('.history-item').forEach(el=>{
     el.onclick=()=>{
@@ -1630,14 +1749,10 @@ async function addDrop(){
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
   if(rec){
-    // v17.2: ≥10 滴医生建议警告，但次数不限制；之前是 return
-    if(rec.count>=10){
-      showBanner(`⚠️ 今日已滴 ${rec.count+1} 次，超过医生建议的 10 次/天。滴眼药水过多反而可能伤眼，请休息一下眼睛或咨询医生。`);
-      try{ navigator.vibrate && navigator.vibrate(200); }catch(e){}
-    }
+    // v17.3: ≥10 滴医生建议警告显示在水池右侧（不再 banner 弹窗）
     rec.count++;
     renderDrops(); // 立即刷新（水池+今天格子+详情都跟着变）
-    const {error}=await sb.from('drops').update({count:rec.count}).eq('id',rec.id);
+    const {error}=await sb.from('drops').update({count:rec.count, max_count:Math.max(rec.max_count||10, rec.count)}).eq('id',rec.id);
     if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');rec.count--;renderDrops();return;}
   }else{
     rec={date:today,count:1,max_count:10};
@@ -1650,13 +1765,6 @@ async function addDrop(){
   toast(rec.count>=10?'⚠️ 已记录（已超医生建议）':'已记录');
 }
 $('dropPool').onclick=async(e)=>{
-  const today=todayStr();
-  let rec=drops.find(d=>d.date===today);
-  if(rec&&rec.count>=10){
-    // 警告但继续
-    showBanner(`⚠️ 今日已滴 ${rec.count+1} 次，超过医生建议的 10 次/天。滴眼药水过多反而可能伤眼。`);
-    try{ navigator.vibrate && navigator.vibrate(200); }catch(e){}
-  }
   const rect=$('dropPool').getBoundingClientRect();
   const x=e.clientX-rect.left, y=e.clientY-rect.top;
   const ripple=document.createElement('div');
