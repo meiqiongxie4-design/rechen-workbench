@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
+<!-- 版本：rechen-v2026-08-13-v7-accurate-sync-toast （让 toast 等云端确认再显示，失败时 banner 警示 12 秒）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
@@ -624,7 +625,7 @@ function openSettings(){
   setTimeout(()=>$('labApp').focus(),50);
 }
 function closeSettings(){ $('settingsModal').hidden=true; }
-function saveLabels(){
+async function saveLabels(){
   const L={
     app:$('labApp').value.trim()||DEFAULT_LABELS.app,
     todo:$('labTodo').value.trim()||DEFAULT_LABELS.todo,
@@ -636,9 +637,16 @@ function saveLabels(){
   localStorage.setItem('wbLabels', JSON.stringify(L));
   applyLabels();
   closeSettings();
-  toast('名称已保存 ✓');
-  // 同步到云端（手机电脑实时一致）：存到 app_settings 的 'labels' 行
-  if(sb){ cloudLabelsStr=JSON.stringify(L); saveSettings('labels',L).then(ok=>{ if(!ok) toast('云端同步未成功，稍后会自动重试'); }); }
+  if(!sb){ toast('名称已保存（本地，无云端）'); return; }
+  cloudLabelsStr=JSON.stringify(L);
+  // 关键修复：等云端确认再 toast，避免误导（v7-accurate-sync-toast）
+  const ok=await saveSettings('labels',L);
+  console.log('[saveLabels v7] cloud write ok=',ok);
+  toast(ok?'✅ 名称已保存，手机电脑同步 ✓':'⚠️ 本地已保存，云端写入失败');
+  if(!ok){
+    showBanner('⚠️ 名称只在本地保存了，云端同步失败。请刷新页面后到 ⚙ 设置再点一次「保存」。<br>如果还失败，按 F12 把 Console 红字截图发我。');
+    setTimeout(()=>{ setupError=false; },12000);
+  }
 }
 function resetLabels(){
   if(!confirm('确定要恢复全部默认名称吗？')) return;
