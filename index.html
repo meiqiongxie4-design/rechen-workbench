@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v15-new-icon-no-title-redup （换成豆包"确定方案1"绿色时钟+小芽图标，保留 workbuddy 原图标 favicon_extracted.png 不删；删掉页面顶部大字 H1，应用名只保留在浏览器标签/PWA 窗口标题/桌面图标/设置输入框这一处，避免重复显示；设置面板改名字功能保留）-->
+<!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
@@ -29,9 +29,8 @@
   [hidden]{display:none !important;}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
   .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;}
-  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+  header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
-  header   .date{color:var(--muted);font-size:13px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
   .nav button{flex:1;padding:11px;border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;}
   .nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:var(--shadow);}
@@ -388,7 +387,6 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="date" id="date"></div>
     <button id="settingsBtn" class="settings-btn" title="自定义工作台和模块名称">⚙️</button>
   </header>
 
@@ -786,7 +784,6 @@ function restoreDebugBar(){
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 
 /* 日期 */
-$('date').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
 
 /* 导航 */
 function switchView(v){
