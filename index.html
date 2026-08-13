@@ -4,10 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17.11-all-views-inline
-  问题：v17.10 inline 兜底只盖 .app/.hc/.site-foot，但其它 view（护眼/流光/存钱/喝水/待办/备忘/设置）的 .card/.pool/.period-pool/.water-pool/.saving-card/.modal 等还在 body 后的 CSS 块——CDN 滞后时其它 view 看起来像"纯文本堆叠"
-  修复：把 7 个 view 的核心容器全部 inline + !important 兜底（card/panel/add-row/todo-row/memo-card/pool/water/saving/period-hero/modal/field）
-  + viewTodo 默认 hidden，避免刷新瞬间 viewHome JS 没跑之间从待办视图露出
+<!-- 版本：rechen-v2026-08-13-v17.12-hidden-priority-fix
+  问题：所有 view 都有 hidden 属性，但第 68 行那条 #viewX{display:flex !important} 用了 id 选择器（特性 0,1,0,0），优先级 > [hidden]{display:none !important}（特性 0,0,1,0），hidden 不生效 → 全部 view 同时显示"堆叠"成超长页 → 刷新瞬间看到所有页面 → 过几秒 JS 跑完 switchView('home') 把其它 view 切到 display:none，视觉上才只剩 viewHome
+  修复：把 #viewX 改为 #viewX:not([hidden])，只有未 hidden 的 view 才用 display:flex，hidden 状态的 view 完全走 [hidden]{display:none !important} 真的隐藏
+  附：v17.11 viewTodo 加 hidden 是对的方向，但 [hidden] 被 display:flex !important 盖回去没生效
 -->
 <!-- 版本：rechen-v2026-08-13-v17.6-fix-bindfarm-null （修复农场 UI 已删但 bindFarmEvents() 顶层调用导致 null.onclick 报错：注释掉顶层调用 + 函数开头加 !addPlot 防御） -->
 <!-- 版本：rechen-v2026-08-13-v17.5-iterate （删整个农场模块 [侧栏+设置+viewFarm+JS+CSS+tickFarm 暂停]；鼓励语 fixed 永远屏底 + 一天一句按 day-of-year；备忘改成跟待办一样的 add-row 布局；护眼水池满→少→空+>10 破口 + 今日 count 已改 7；首页待办 6 条+卡片高度自适应；天气去外圈+时间 36px；喝水 ml 字号 20px+三行间距；删"× 清空今日"；banner 加红框样式不再无样式；settings → 侧栏图标已确认连通）-->
@@ -65,7 +65,7 @@
   .hc-sun{font-size:46px !important;background:transparent !important;border:none !important;}
   .hc-face{font-size:42px !important;}
   /* v17.11: 兜底强制所有 view 的核心卡片样式（防 CDN 滞后整个 content 区变成纯文本堆叠） */
-  #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewWater,#viewSaving{flex:1 !important;min-height:0 !important;display:flex !important;flex-direction:column !important;gap:12px !important;}
+  #viewHome:not([hidden]),#viewTodo:not([hidden]),#viewMemo:not([hidden]),#viewCounter:not([hidden]),#viewPeriod:not([hidden]),#viewWater:not([hidden]),#viewSaving:not([hidden]){flex:1 !important;min-height:0 !important;display:flex !important;flex-direction:column !important;gap:12px !important;}
   .card,#viewMemo>.add-row,.panel{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;padding:18px !important;margin-bottom:8px !important;}
   /* 待办/备忘 add-row */
   .add-row{display:flex !important;flex-direction:column !important;gap:8px !important;margin-bottom:16px !important;align-items:stretch !important;background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;}
