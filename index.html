@@ -4,6 +4,20 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
+<!-- 版本：rechen-v2026-08-13-v17.13-fix-all-11
+  修复 11 条反馈：
+  1. 护眼/喝水水池颜色不对 → 删 inline !important 蓝色 linear-gradient，改让 JS 的 comfortState 颜色生效 + 池背景浅绿 + 外圈 #22c55e 双层描边（实线 + 外发光）
+  2. 水池中央 emoji 露出 / "杯"字 → .pool .face / .water-pool .pool-face {display:none !important}
+  3. 首页 3 块大数字统一色 #22c55e（之前是 #166534 深绿）→ 21:12:38 / 已喝 7 杯 / 今日已滴 0 滴 都用选中绿
+  4. 首页 3 块增高 → .hc padding 20×22, min-height 130px
+  5. 手机端首页文字居中 → .hc-left .lb/.num/.sub/.hc-time/.hc-date/.hc-greet {text-align:center !important}
+  6. 流光页记录列表每条压成竖列"×" → inline 兜底补 .period-list .row {display:flex !important;justify-content:space-between !important}（之前只兜了 .period-history-row，DOM 实际用 .row）
+  7. 流光页底部 3 统计变 4 个：累计/距离下次/距离上次(天)/平均间隔；inline grid-template-columns:repeat(4,1fr)；手机端 media query repeat(2,1fr)
+  8. 存钱加"还差 ¥X 达到目标" → 新增 .goal-remaining 粉底虚线框，renderSaving 计算 remaining 并填文字
+  9. 鼓励语只在首页显示 → inline 加 .site-foot {display:none !important} + #viewHome:not([hidden]) ~ .site-foot {display:block !important}（其它 view 完全不显示 footer，不再盖住内容）
+  10. 喝水"已喝 7 杯"字号统一 → .water-pool-info .big 从 52px 缩到 22px 跟护眼"今日已滴"一致
+  11. 存钱/喝水记录每条保留颜色框（绿 / 粉），手机端排版正常
+-->
 <!-- 版本：rechen-v2026-08-13-v17.12-hidden-priority-fix
   问题：所有 view 都有 hidden 属性，但第 68 行那条 #viewX{display:flex !important} 用了 id 选择器（特性 0,1,0,0），优先级 > [hidden]{display:none !important}（特性 0,0,1,0），hidden 不生效 → 全部 view 同时显示"堆叠"成超长页 → 刷新瞬间看到所有页面 → 过几秒 JS 跑完 switchView('home') 把其它 view 切到 display:none，视觉上才只剩 viewHome
   修复：把 #viewX 改为 #viewX:not([hidden])，只有未 hidden 的 view 才用 display:flex，hidden 状态的 view 完全走 [hidden]{display:none !important} 真的隐藏
@@ -52,15 +66,15 @@
   .main{flex:1 !important;min-width:0 !important;min-height:0 !important;display:flex !important;flex-direction:column !important;gap:12px !important;padding-bottom:72px !important;}
   /* v17.10: 首页 4 卡片（双保险） */
   .home-cards{display:flex !important;flex-direction:column !important;gap:12px !important;}
-  .hc{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;height:auto !important;min-height:110px !important;display:flex !important;justify-content:space-between !important;align-items:center !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;flex:1 !important;}
+  .hc{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:20px 22px !important;height:auto !important;min-height:130px !important;display:flex !important;justify-content:space-between !important;align-items:center !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:10px !important;flex:1 !important;}
   .todo-summary{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
-  .hc-time{font-size:36px !important;font-weight:600 !important;color:#166534 !important;letter-spacing:1px !important;line-height:1 !important;font-feature-settings:'tnum' !important;}
-  .hc-date{font-size:12.5px !important;color:#6b7280 !important;}
-  .hc-greet{font-size:13px !important;color:#16a34a !important;font-weight:500 !important;}
-  .hc-left .lb{font-size:14px !important;color:#374151 !important;font-weight:600 !important;}
-  .hc-left .num{font-size:22px !important;font-weight:700 !important;color:#166534 !important;line-height:1.2 !important;white-space:nowrap !important;}
-  .hc-left .sub{font-size:12px !important;color:#6b7280 !important;line-height:1.4 !important;}
+  .hc-time{font-size:36px !important;font-weight:700 !important;color:#22c55e !important;letter-spacing:1px !important;line-height:1 !important;font-feature-settings:'tnum' !important;text-align:center !important;}
+  .hc-date{font-size:13px !important;color:#6b7280 !important;text-align:center !important;}
+  .hc-greet{font-size:13px !important;color:#16a34a !important;font-weight:500 !important;text-align:center !important;}
+  .hc-left .lb{font-size:14px !important;color:#374151 !important;font-weight:600 !important;text-align:center !important;}
+  .hc-left .num{font-size:22px !important;font-weight:700 !important;color:#22c55e !important;line-height:1.2 !important;white-space:nowrap !important;text-align:center !important;}
+  .hc-left .sub{font-size:12px !important;color:#6b7280 !important;line-height:1.4 !important;text-align:center !important;}
   .hc-add{width:74px !important;height:74px !important;background:#22c55e !important;border-radius:50% !important;color:#fff !important;font-size:22px !important;font-weight:700 !important;box-shadow:0 4px 10px rgba(34,197,94,.3) !important;border:none !important;cursor:pointer !important;}
   .hc-sun{font-size:46px !important;background:transparent !important;border:none !important;}
   .hc-face{font-size:42px !important;}
@@ -92,9 +106,9 @@
   .memo-del{position:absolute !important;top:8px !important;right:8px !important;background:none !important;border:none !important;color:#dc2626 !important;cursor:pointer !important;font-size:18px !important;}
   /* 护眼水池 */
   .pool-wrap{display:flex !important;gap:32px !important;align-items:center !important;justify-content:center !important;padding:10px 0 22px !important;flex-wrap:wrap !important;}
-  .pool{position:relative !important;width:220px !important;height:220px !important;border-radius:50% !important;background:#ecfdf5 !important;box-shadow:inset 0 0 30px rgba(0,0,0,.06),0 8px 24px rgba(34,197,94,.15) !important;overflow:hidden !important;cursor:pointer !important;transition:background .5s, transform .15s !important;flex-shrink:0 !important;}
-  .pool .water{position:absolute !important;bottom:0 !important;left:0 !important;right:0 !important;height:100% !important;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%) !important;transition:height .6s ease,background .6s ease !important;z-index:0 !important;}
-  .pool .face{position:absolute !important;inset:0 !important;display:flex !important;align-items:center !important;justify-content:center !important;font-size:64px !important;z-index:2 !important;pointer-events:none !important;transition:transform .3s !important;}
+  .pool{position:relative !important;width:220px !important;height:220px !important;border-radius:50% !important;background:#ecfdf5 !important;box-shadow:inset 0 0 30px rgba(0,0,0,.06),0 0 0 6px rgba(34,197,94,.18),0 0 0 8px #22c55e,0 8px 24px rgba(34,197,94,.18) !important;overflow:hidden !important;cursor:pointer !important;transition:background .5s, transform .15s !important;flex-shrink:0 !important;}
+  .pool .water{position:absolute !important;bottom:0 !important;left:0 !important;right:0 !important;height:0% !important;transition:height .6s ease !important;z-index:0 !important;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%) !important;}
+  .pool .face{position:absolute !important;inset:0 !important;display:none !important;align-items:center !important;justify-content:center !important;font-size:64px !important;z-index:2 !important;pointer-events:none !important;transition:transform .3s !important;}
   .pool-hint{position:absolute !important;bottom:18px !important;left:0 !important;right:0 !important;text-align:center !important;font-size:12px !important;color:rgba(0,0,0,.5) !important;z-index:2 !important;pointer-events:none !important;}
   .pool-info{text-align:left !important;min-width:210px !important;flex:0 0 auto !important;}
   .pool-info .today{font-size:15px !important;color:#6b7280 !important;margin-bottom:2px !important;}
@@ -137,7 +151,7 @@
   .period-info .tip.long{background:#fef9c3 !important;color:#854d0e !important;}
   .period-info .today{font-size:14px !important;color:#6b7280 !important;margin-bottom:4px !important;}
   .period-info .today b{color:#ec4899 !important;}
-  .period-summary{display:grid !important;grid-template-columns:repeat(3,1fr) !important;gap:8px !important;margin-bottom:12px !important;}
+  .period-summary{display:grid !important;grid-template-columns:repeat(4,1fr) !important;gap:8px !important;margin-bottom:12px !important;}
   .period-summary .s{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 6px !important;text-align:center !important;}
   .period-summary .s .n{font-size:22px !important;font-weight:800 !important;color:#ec4899 !important;line-height:1 !important;}
   .period-summary .s .l{font-size:12px !important;color:#6b7280 !important;margin-top:6px !important;}
@@ -149,14 +163,21 @@
   .period-summary .s.countdown.overdue .l{color:#b91c1c !important;}
   .period-history-row{display:flex !important;gap:8px !important;align-items:center !important;padding:8px 12px !important;background:#f0fdf4 !important;border:1px solid #86efac !important;border-radius:10px !important;margin-bottom:6px !important;}
   .period-history-row .del{background:none !important;border:none !important;color:#dc2626 !important;cursor:pointer !important;font-size:16px !important;margin-left:auto !important;}
+  /* v17.13: 流光页记录列表 — 实际 DOM 是 .period-list .row（不是 .period-history-row），必须单独兜底 */
+  .period-list{display:flex !important;flex-direction:column !important;gap:8px !important;}
+  .period-list .row{display:flex !important;justify-content:space-between !important;align-items:center !important;background:#ffffff !important;border:1px solid #86efac !important;border-radius:12px !important;padding:11px 14px !important;transition:.15s !important;}
+  .period-list .row.today{background:#fce7f3 !important;border-color:#fbcfe8 !important;}
+  .period-list .row .date{font-weight:600 !important;font-size:15px !important;flex:1 !important;min-width:0 !important;}
+  .period-list .row .date .tag{display:inline-block !important;font-size:11px !important;background:#ec4899 !important;color:#fff !important;padding:2px 7px !important;border-radius:6px !important;margin-left:6px !important;vertical-align:2px !important;}
+  .period-list .row .del{background:transparent !important;border:none !important;color:#9ca3af !important;font-size:18px !important;cursor:pointer !important;padding:4px 8px !important;border-radius:8px !important;margin-left:8px !important;flex-shrink:0 !important;}
   /* 喝水 */
   .water-card{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:18px !important;}
   .water-pool-wrap{display:flex !important;gap:28px !important;align-items:center !important;justify-content:center !important;padding:8px 0 18px !important;flex-wrap:wrap !important;}
-  .water-pool{position:relative !important;width:220px !important;height:220px !important;border-radius:50% !important;background:#ecfdf5 !important;box-shadow:inset 0 0 30px rgba(0,0,0,.06),0 8px 24px rgba(34,197,94,.15) !important;overflow:hidden !important;cursor:pointer !important;transition:background .5s,transform .15s !important;flex-shrink:0 !important;}
-  .water-pool .pool-water{position:absolute !important;bottom:0 !important;left:0 !important;right:0 !important;height:0% !important;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%) !important;transition:height .6s ease,background .6s ease !important;z-index:0 !important;}
-  .water-pool .pool-face{position:absolute !important;inset:0 !important;display:flex !important;align-items:center !important;justify-content:center !important;font-size:64px !important;z-index:2 !important;pointer-events:none !important;transition:transform .3s !important;}
+  .water-pool{position:relative !important;width:220px !important;height:220px !important;border-radius:50% !important;background:#ecfdf5 !important;box-shadow:inset 0 0 30px rgba(0,0,0,.06),0 0 0 6px rgba(34,197,94,.18),0 0 0 8px #22c55e,0 8px 24px rgba(34,197,94,.18) !important;overflow:hidden !important;cursor:pointer !important;transition:background .5s,transform .15s !important;flex-shrink:0 !important;}
+  .water-pool .pool-water{position:absolute !important;bottom:0 !important;left:0 !important;right:0 !important;height:0% !important;transition:height .6s ease !important;z-index:0 !important;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%) !important;}
+  .water-pool .pool-face{position:absolute !important;inset:0 !important;display:none !important;align-items:center !important;justify-content:center !important;font-size:64px !important;z-index:2 !important;pointer-events:none !important;transition:transform .3s !important;}
   .water-pool-info{text-align:left !important;min-width:200px !important;}
-  .water-pool-info .big{font-size:52px !important;font-weight:800 !important;color:#166534 !important;line-height:1.1 !important;}
+  .water-pool-info .big{font-size:22px !important;font-weight:700 !important;color:#22c55e !important;line-height:1.2 !important;}
   .water-pool-info .ml{font-size:20px !important;color:#1f2937 !important;font-weight:600 !important;margin-top:12px !important;}
   .water-pool-info .status{display:inline-flex !important;align-items:center !important;gap:8px !important;margin-top:16px !important;padding:10px 18px !important;border-radius:999px !important;font-size:14px !important;font-weight:700 !important;}
   .water-pool-info .status.ok{background:#dcfce7 !important;color:#166534 !important;}
@@ -177,8 +198,13 @@
   .saving-card .goal-set{margin-top:14px !important;padding-top:12px !important;border-top:1px dashed #fce7f3 !important;font-size:12.5px !important;color:#6b7280 !important;display:flex !important;align-items:center !important;gap:8px !important;flex-wrap:wrap !important;}
   .saving-card .goal-set input{width:80px !important;padding:6px 8px !important;border:1px solid #fbcfe8 !important;border-radius:8px !important;font-size:12px !important;background:#fff !important;}
   .saving-card .goal-set button{padding:6px 12px !important;border:1px solid #fbcfe8 !important;background:#fff !important;color:#be185d !important;border-radius:8px !important;font-size:12px !important;cursor:pointer !important;margin:0 !important;}
-  .saving-row{display:flex !important;align-items:center !important;gap:8px !important;padding:8px 12px !important;background:#fce7f3 !important;border:1px solid #fbcfe8 !important;border-radius:10px !important;margin-bottom:6px !important;}
-  .saving-row .del{background:none !important;border:none !important;color:#dc2626 !important;cursor:pointer !important;font-size:16px !important;margin-left:auto !important;}
+  .saving-card .goal-remaining{margin-top:10px !important;padding:10px 14px !important;background:#fce7f3 !important;border:1px dashed #f9a8d4 !important;border-radius:10px !important;font-size:13px !important;color:#9d174d !important;font-weight:600 !important;text-align:center !important;}
+  .saving-row{display:flex !important;align-items:center !important;gap:8px !important;padding:8px 12px !important;background:#fce7f3 !important;border:1px solid #fbcfe8 !important;border-radius:10px !important;margin-bottom:6px !important;flex-wrap:nowrap !important;}
+  .saving-row > span:first-child{flex:0 0 130px !important;font-size:12.5px !important;color:#1f2937 !important;}
+  .saving-row .saving-edit{flex:1 !important;display:flex !important;align-items:center !important;justify-content:flex-end !important;gap:6px !important;}
+  .saving-row .saving-edit input{width:60px !important;padding:3px 6px !important;border:1px solid #fbcfe8 !important;border-radius:6px !important;font-size:12px !important;background:#fff !important;text-align:right !important;}
+  .saving-row .saving-edit .yuan{font-size:12px !important;color:#9d174d !important;}
+  .saving-row .del{background:none !important;border:none !important;color:#dc2626 !important;cursor:pointer !important;font-size:16px !important;margin-left:4px !important;flex-shrink:0 !important;}
   /* 设置弹窗 */
   .modal-mask{position:fixed !important;inset:0 !important;background:rgba(0,0,0,.45) !important;display:flex !important;align-items:center !important;justify-content:center !important;z-index:1000 !important;animation:fadeIn .15s !important;}
   .modal{background:#ffffff !important;border-radius:14px !important;padding:22px 22px 18px !important;max-width:420px !important;width:calc(100vw - 32px) !important;box-shadow:0 20px 60px rgba(0,0,0,.25) !important;}
@@ -190,8 +216,9 @@
   .modal .actions button{padding:9px 16px !important;border:none !important;border-radius:9px !important;font-size:14px !important;font-weight:600 !important;cursor:pointer !important;}
   .modal .actions .secondary{background:#f0fdf4 !important;color:#16a34a !important;border:1px solid #86efac !important;}
   .modal .actions .primary{background:#22c55e !important;color:#fff !important;}
-  /* v17.10: footer 鼓励语 — 只显示文字，无边框无背景无阴影 */
-  .site-foot{position:fixed !important;left:96px !important;right:8px !important;bottom:8px !important;text-align:center !important;padding:6px 0 !important;background:transparent !important;border:none !important;border-radius:0 !important;z-index:999 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  /* v17.10: footer 鼓励语 — 只在首页（viewHome 可见）显示；其它 view 完全隐藏，不盖住内容 */
+  .site-foot{position:fixed !important;left:96px !important;right:8px !important;bottom:8px !important;text-align:center !important;padding:6px 0 !important;background:transparent !important;border:none !important;border-radius:0 !important;z-index:999 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;display:none !important;}
+  #viewHome:not([hidden]) ~ .site-foot{display:block !important;}
   .site-foot .cn{font-size:14px !important;color:#16a34a !important;font-weight:600 !important;text-shadow:0 1px 2px rgba(255,255,255,.7) !important;}
   .site-foot .en{font-size:11.5px !important;color:#6b7280 !important;margin-top:3px !important;text-shadow:0 1px 2px rgba(255,255,255,.7) !important;}
   /* v17.10: 手机端适配（max-width:640px） */
@@ -203,16 +230,23 @@
     .sb-item .lb{font-size:9.5px !important;letter-spacing:0 !important;}
     .sb-spacer{display:none !important;}
     .sidebar-foot{margin-top:0 !important;gap:4px !important;}
-    .hc{min-height:90px !important;padding:10px 14px !important;}
+    .hc{min-height:110px !important;padding:16px 16px !important;}
     .hc-time{font-size:30px !important;}
-    .hc-left{gap:6px !important;}
+    .hc-left{gap:6px !important;align-items:center !important;justify-content:center !important;}
     .hc-left .num{font-size:18px !important;}
     .hc-left .lb{font-size:12px !important;}
     .hc-face{font-size:36px !important;}
     .hc-add{width:60px !important;height:60px !important;font-size:18px !important;}
     .wrap{padding:14px 14px 50px !important;}
     .site-foot{left:76px !important;}
+    .period-summary{grid-template-columns:repeat(2,1fr) !important;}
+    .pool,.water-pool{width:160px !important;height:160px !important;}
+    .water-pool-info .big{font-size:20px !important;}
+    .water-pool-info .ml{font-size:18px !important;margin-top:8px !important;}
   }
+  /* v17.13: footer 鼓励语只在首页（viewHome 可见）显示；其它 view 完全隐藏，不盖住内容 */
+  .site-foot.only-home{display:none !important;}
+  #viewHome:not([hidden]) ~ .site-foot{display:block !important;}
 </style>
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <script src="./supabase.min.js"></script>
@@ -761,6 +795,7 @@
         <div class="l" id="periodNextLbl">距离下次天数</div>
         <div class="cycle-hint" id="periodCycleHint" style="display:none"></div>
       </div>
+      <div class="s"><div class="n" id="periodLastGapDays">—</div><div class="l">距离上次(天)</div></div>
       <div class="s"><div class="n" id="periodAvgGap">—</div><div class="l">平均间隔(天)</div></div>
     </div>
   </div>
@@ -811,6 +846,8 @@
       <div class="goal-amount" id="savingAmount">¥ 0</div>
       <div class="goal-meta" id="savingMeta">已存 0 / 目标 0 · 0%</div>
       <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" id="savingFill" style="width:0%;background:linear-gradient(90deg,#fbcfe8,#be185d);"></div></div>
+
+      <div class="goal-remaining" id="savingRemaining">还差 ¥0 达到目标，加油！</div>
 
       <div class="saving-add">
         <input type="number" id="savingAddInput" min="1" placeholder="存入金额…" />
@@ -1388,6 +1425,14 @@ function renderSaving(){
   $('savingFill').style.width=pct+'%';
   $('savingNameInput').value=name;
   $('savingGoalInput').value=goal;
+  // v17.13: 还差多少达到目标
+  const remaining=Math.max(0, goal-saved);
+  const remEl=$('savingRemaining');
+  if(remEl){
+    if(remaining===0){ remEl.textContent='🎉 已达成目标！'; }
+    else if(saved===0){ remEl.textContent=`还差 ¥${remaining.toLocaleString()} 才能开始，加油！`; }
+    else { remEl.textContent=`还差 ¥${remaining.toLocaleString()} 达到目标，继续努力！`; }
+  }
   // v17.2: 历史记录 - 时间 · 金额可编辑 · 删除按钮（数组是时间倒序展示，保存用升序索引）
   const hist=(d.history||[]).slice().reverse();
   const list=$('savingList');
@@ -2004,8 +2049,12 @@ function renderPeriod(){
     tipEl.style.display='inline-flex';
     tipEl.className='tip '+(gap<21?'short':gap>40?'long':'normal');
     tipEl.textContent=gap<21?`⚠️ 距上次 ${gap} 天，注意休息`:gap>40?`💛 距上次 ${gap} 天，多保重身体`:`🌷 距上次 ${gap} 天，节奏平稳`;
+    const lastGapEl=$('periodLastGapDays');
+    if(lastGapEl) lastGapEl.textContent=gap;
   }else{
     tipEl.style.display='none';
+    const lastGapEl=$('periodLastGapDays');
+    if(lastGapEl) lastGapEl.textContent='—';
   }
   const list=$('periodList');
   if(!periodRecs.length){
