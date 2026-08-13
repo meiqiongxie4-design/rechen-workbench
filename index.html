@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17.7-card-contrast （4 张首页卡片 vs body 浅绿背景几乎同色，肉眼看像纯文本：把 --surface 改 #ffffff 纯白，--line #bbf7d0→#86efac 加深，--shadow 加深到 .15 透明度，让卡片边界和阴影更明显） -->
+<!-- 版本：rechen-v2026-08-13-v17.7b-fallback-card-style （首屏 head 里 inline 一段带 !important 的 .hc / .todo-summary 白底+绿描边+深阴影兜底样式，并加 Cache-Control:no-cache 三件套 meta，避免用户浏览器用旧版 CSS 看到无边框卡片） -->
 <!-- 版本：rechen-v2026-08-13-v17.6-fix-bindfarm-null （修复农场 UI 已删但 bindFarmEvents() 顶层调用导致 null.onclick 报错：注释掉顶层调用 + 函数开头加 !addPlot 防御） -->
 <!-- 版本：rechen-v2026-08-13-v17.5-iterate （删整个农场模块 [侧栏+设置+viewFarm+JS+CSS+tickFarm 暂停]；鼓励语 fixed 永远屏底 + 一天一句按 day-of-year；备忘改成跟待办一样的 add-row 布局；护眼水池满→少→空+>10 破口 + 今日 count 已改 7；首页待办 6 条+卡片高度自适应；天气去外圈+时间 36px；喝水 ml 字号 20px+三行间距；删"× 清空今日"；banner 加红框样式不再无样式；settings → 侧栏图标已确认连通）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
@@ -19,6 +19,15 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#63e4be" />
+<!-- v17.7: 强制浏览器每次都重新加载 HTML，避免上次 push 部署的旧版 CSS 缓在本地 -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<!-- v17.7: 兜底强制首页卡片样式（不依赖 var()、带 !important），确保即便 CDN/缓存了旧 CSS，新加载也能直接生效 -->
+<style>
+  .hc{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;height:130px !important;display:flex !important;justify-content:space-between !important;align-items:center !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;}
+  .todo-summary{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;}
+</style>
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <script src="./supabase.min.js"></script>
 <style>
