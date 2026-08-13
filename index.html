@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17-sidebar-home （v17 部署：左侧栏 8 项 + 设置按钮；首页 4 卡片 130px 等高 [时间/喝水/护眼/今日待办]；底部鼓励语 footer；新增喝水 [localStorage] + 存钱 [localStorage] 模块；现有 5 大模块 JS 一字不改只换样式）-->
+<!-- 版本：rechen-v2026-08-13-v17.2-iterate （删点击切换天气-智能天气图标按 24h 时段；护眼 ≥10 滴 banner 报警不 return；存钱记录可编辑金额+删除；设置加水/存字段；侧栏图标读设置-护眼默认 🌿；移动端竖栏 64px；喝水护眼卡字号 20px+三段 gap:8px；6 处 SVG 已更图标）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
@@ -399,16 +399,19 @@
   /* 首页 4 卡片 */
   .home-cards{display:flex;flex-direction:column;gap:12px;}
   .hc{background:#fff;border:1px solid #bbf7d0;border-radius:14px;padding:14px 18px;height:130px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(34,197,94,.04);}
-  .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;min-width:0;}
-  .hc-left .lb{font-size:13.5px;color:#6b7280;font-weight:600;}
-  .hc-left .num{font-size:24px;font-weight:700;color:#166534;line-height:1.1;margin-top:4px;}
-  .hc-left .sub{font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;line-height:1.4;}
+  .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
+  .hc-left .lb{font-size:12.5px;color:#6b7280;font-weight:600;letter-spacing:.3px;}
+  .hc-left .num{font-size:20px;font-weight:700;color:#166534;line-height:1.2;white-space:nowrap;}
+  .hc-left .sub{font-size:11.5px;color:#9ca3af;text-align:center;line-height:1.4;}
+  .hc-left .num.warn{color:#dc2626;font-size:18px;font-weight:800;}
   .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
   .hc-time{font-size:30px;font-weight:500;color:#166534;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
-  .hc-date{font-size:12.5px;color:#6b7280;margin-top:6px;}
-  .hc-greet{font-size:12.5px;color:#16a34a;margin-top:4px;font-weight:500;}
-  .hc-tip{font-size:11px;color:#9ca3af;margin-top:4px;cursor:pointer;}
-  .hc-sun{width:60px;height:60px;background:#fef3c7;border:2px solid #fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;}
+  .hc-date{font-size:12.5px;color:#6b7280;}
+  .hc-greet{font-size:12.5px;color:#16a34a;font-weight:500;}
+  .hc-sun{width:60px;height:60px;background:#fef3c7;border:2px solid #fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;}
+  .hc-sun.night{background:#e0e7ff;border-color:#818cf8;}
+  .hc-sun.dusk{background:#fed7aa;border-color:#fb923c;}
+  .hc-sun.dawn{background:#fde68a;border-color:#fcd34d;}
   .hc-add{width:74px;height:74px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;box-shadow:0 4px 10px rgba(34,197,94,.3);cursor:pointer;border:none;transition:.15s;}
   .hc-add:active{transform:scale(.94);}
   .hc-face{font-size:42px;}
@@ -458,13 +461,20 @@
   .saving-card .goal-set button{padding:6px 12px;border:1px solid #fbcfe8;background:#fff;color:#be185d;border-radius:8px;font-size:12px;cursor:pointer;margin-left:8px;}
 
   @media (max-width:640px){
-    .app{flex-direction:column;}
-    .sidebar{flex-direction:row;width:100%;border-right:none;border-bottom:1px solid #86efac;padding:8px;gap:6px;overflow-x:auto;}
+    .app{flex-direction:row;gap:6px;}
+    .sidebar{width:64px;padding:8px 0;gap:4px;border-radius:10px;}
+    .sb-item{width:48px;gap:2px;padding:2px 0;}
+    .sb-item .ic{width:38px;height:38px;font-size:18px;border-radius:9px;}
+    .sb-item .lb{font-size:9.5px;letter-spacing:0;}
     .sb-spacer{display:none;}
-    .sidebar-foot{margin-top:0;}
-    .sb-item{flex-shrink:0;}
-    .hc{height:auto;min-height:130px;}
-    .hc-add{width:64px;height:64px;font-size:20px;}
+    .sidebar-foot{margin-top:0;gap:2px;}
+    .hc{height:auto;min-height:110px;padding:10px 14px;}
+    .hc-add{width:60px;height:60px;font-size:18px;}
+    .hc-time{font-size:24px;}
+    .hc-left{gap:6px;}
+    .hc-left .num{font-size:18px;}
+    .hc-left .lb{font-size:11.5px;}
+    .hc-sun{width:50px;height:50px;font-size:22px;}
   }
 
   </style>
@@ -481,14 +491,14 @@
 
   <div class="app">
     <aside class="sidebar">
-      <button class="sb-item active" data-view="home" title="首页"><span class="ic">🏠</span><span class="lb">首页</span></button>
-      <button class="sb-item" data-view="todo" title="待办"><span class="ic">📝</span><span class="lb">待办</span></button>
-      <button class="sb-item" data-view="memo" title="备忘"><span class="ic">📒</span><span class="lb">备忘</span></button>
-      <button class="sb-item" data-view="period" title="流光"><span class="ic">🌈</span><span class="lb">流光</span></button>
-      <button class="sb-item" data-view="counter" title="护眼"><span class="ic">👁</span><span class="lb">护眼</span></button>
-      <button class="sb-item" data-view="farm" title="农场"><span class="ic">🐔</span><span class="lb">农场</span></button>
-      <button class="sb-item" data-view="saving" title="存钱"><span class="ic">💰</span><span class="lb">存钱</span></button>
-      <button class="sb-item" data-view="water" title="喝水"><span class="ic">💧</span><span class="lb">喝水</span></button>
+      <button class="sb-item active" data-view="home" data-label-key="home" title="首页"><span class="ic">🏠</span><span class="lb">首页</span></button>
+      <button class="sb-item" data-view="todo" data-label-key="todo" title="待办"><span class="ic">📝</span><span class="lb">待办</span></button>
+      <button class="sb-item" data-view="memo" data-label-key="memo" title="备忘"><span class="ic">📒</span><span class="lb">备忘</span></button>
+      <button class="sb-item" data-view="period" data-label-key="warm" title="流光"><span class="ic">🌈</span><span class="lb">流光</span></button>
+      <button class="sb-item" data-view="counter" data-label-key="eye" title="护眼"><span class="ic">🌿</span><span class="lb">护眼</span></button>
+      <button class="sb-item" data-view="farm" data-label-key="farm" title="农场"><span class="ic">🐔</span><span class="lb">农场</span></button>
+      <button class="sb-item" data-view="saving" data-label-key="saving" title="存钱"><span class="ic">💰</span><span class="lb">存钱</span></button>
+      <button class="sb-item" data-view="water" data-label-key="water" title="喝水"><span class="ic">💧</span><span class="lb">喝水</span></button>
       <div class="sb-spacer"></div>
       <div class="sidebar-foot"><button class="sb-item" id="settingsBtnSb" title="设置"><span class="ic">⚙️</span><span class="lb">设置</span></button></div>
     </aside>
@@ -734,7 +744,9 @@
       <div class="field"><label>护眼记</label><input id="labEye" maxlength="14" /></div>
       <div class="field"><label>暖记</label><input id="labWarm" maxlength="14" /></div>
       <div class="field"><label>我的农场</label><input id="labFarm" maxlength="14" /></div>
-      <div style="font-size:12px;color:var(--muted);">保存后立即生效；不填则恢复默认。</div>
+      <div class="field"><label>喝水</label><input id="labWater" maxlength="14" placeholder="💧 喝水" /></div>
+      <div class="field"><label>存钱</label><input id="labSaving" maxlength="14" placeholder="💰 存钱" /></div>
+      <div style="font-size:12px;color:var(--muted);">前面带 emoji 的会用作侧栏图标；emoji 后是侧栏显示名。保存后立即生效；不填则恢复默认。</div>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="labReset">恢复默认</button>
@@ -770,19 +782,29 @@ const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
-const DEFAULT_LABELS={app:'热忱工作台', todo:'📋 待办事项', memo:'📝 备忘录', eye:'👁 护眼记', warm:'💗 暖记', farm:'🌾 我的农场'};
+const DEFAULT_LABELS={app:'热忱工作台', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱'};
+const SB_LABEL_KEY={home:'home',todo:'todo',memo:'memo',period:'warm',counter:'eye',farm:'farm',saving:'saving',water:'water'};
 function getLabels(){
   let s={};
   try{ s=JSON.parse(localStorage.getItem('wbLabels')||'{}'); }catch(e){ s={}; }
   return Object.assign({},DEFAULT_LABELS,s);
 }
+function splitEmojiLabel(s){
+  // 拆 "🌿 护眼记" → {ic:'🌿', lb:'护眼记'}；没 emoji 则 ic='·' lb=原
+  if(!s) return {ic:'·',lb:'·'};
+  const m=String(s).match(/^(\p{Extended_Pictographic}+)/u);
+  if(m){ return {ic:m[1], lb:String(s).slice(m[0].length).trim()||String(s)}; }
+  return {ic:'·', lb:String(s)};
+}
 function applyLabels(){
   const L=getLabels();
-  const nt=$('navTodo'); if(nt) nt.textContent=L.todo;
-  const nm=$('navMemo'); if(nm) nm.textContent=L.memo;
-  const nc=$('navCounter'); if(nc) nc.textContent=L.eye;
-  const np=$('navPeriod'); if(np) np.textContent=L.warm;
-  const nf=$('navFarm'); if(nf) nf.textContent=L.farm;
+  // 侧栏按钮（带 data-label-key 的 .sb-item）
+  document.querySelectorAll('.sb-item[data-label-key]').forEach(btn=>{
+    const key=btn.dataset.labelKey;
+    const spl=splitEmojiLabel(L[key]);
+    const ic=btn.querySelector('.ic'); if(ic) ic.textContent=spl.ic;
+    const lb=btn.querySelector('.lb'); if(lb) lb.textContent=spl.lb;
+  });
   document.title=L.app;
   const meta=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(meta) meta.setAttribute('content',L.app);
   // v10: 同步更新 PWA manifest 为 Blob URL，让重新安装的桌面快捷方式用最新名字
@@ -822,6 +844,8 @@ function openSettings(){
   $('labEye').value=L.eye;
   $('labWarm').value=L.warm;
   $('labFarm').value=L.farm;
+  $('labWater').value=L.water;
+  $('labSaving').value=L.saving;
   $('settingsModal').hidden=false;
   setTimeout(()=>$('labApp').focus(),50);
 }
@@ -834,6 +858,8 @@ async function saveLabels(){
     eye:$('labEye').value.trim()||DEFAULT_LABELS.eye,
     warm:$('labWarm').value.trim()||DEFAULT_LABELS.warm,
     farm:$('labFarm').value.trim()||DEFAULT_LABELS.farm,
+    water:$('labWater').value.trim()||DEFAULT_LABELS.water,
+    saving:$('labSaving').value.trim()||DEFAULT_LABELS.saving,
   };
   localStorage.setItem('wbLabels', JSON.stringify(L));
   applyLabels();
@@ -1014,6 +1040,24 @@ function renderHomeCards(){
   const p=n=>String(n).padStart(2,'0');
   const tStr = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
   const dStr = `${d.getFullYear()} 年 ${d.getMonth()+1} 月 ${d.getDate()} 日 · 星期${wk}`;
+  // 智能天气图标（按 24h 时段）
+  const hr=d.getHours();
+  const sun = hr<5  ? {face:'🌙', cls:'night'}
+            : hr<8  ? {face:'🌅', cls:'dawn'}
+            : hr<11 ? {face:'☀️', cls:''}
+            : hr<14 ? {face:'🌞', cls:''}
+            : hr<17 ? {face:'🌤️', cls:''}
+            : hr<19 ? {face:'🌇', cls:'dusk'}
+            : hr<21 ? {face:'🌆', cls:'dusk'}
+            :          {face:'🌙', cls:'night'};
+  const greetTxt = hr<5 ? '夜深了，记得早点休息'
+                  : hr<8 ? '早上好！新的一天开始啦'
+                  : hr<11 ? '上午好！记得多喝水'
+                  : hr<14 ? '中午好！吃饱再开工'
+                  : hr<17 ? '下午好！继续加油～'
+                  : hr<19 ? '傍晚啦，出去走走？'
+                  : hr<22 ? '晚上好！今天辛苦啦'
+                  :          '夜深了，记得早点休息';
   // 喝水（localStorage）
   const waterCups=getWaterCups(today);
   const waterMl=waterCups*250;
@@ -1024,10 +1068,16 @@ function renderHomeCards(){
   const dropN=dropsToday.length;
   const dropFace=getDropStatus(dropN).face||'😊';
   const dropText=getDropStatus(dropN).text||'眼睛舒适';
+  const dropWarn=dropN>=10;
   // 今日待办（todos 未完成前 3 条）
   const open=(todos||[]).filter(t=>!t.done);
   const todoRows=open.slice(0,3).map(t=>`<div class="todo-summary-row"><span class="ck"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
   const todoMore=open.length>3 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-3} 条未完成</div>` : '';
+  // 侧栏 label → home 卡图标+名字
+  const L=getLabels();
+  const wSplit=splitEmojiLabel(L.water);
+  const sSplit=splitEmojiLabel(L.saving);
+  const eSplit=splitEmojiLabel(L.eye);
 
   box.innerHTML = `
     <!-- ① 时间卡 -->
@@ -1035,27 +1085,26 @@ function renderHomeCards(){
       <div class="hc-left">
         <div class="hc-time" id="hcTime">${tStr}</div>
         <div class="hc-date" id="hcDate">${dStr}</div>
-        <div class="hc-greet" id="hcGreet">下午好！继续加油～</div>
-        <div class="hc-tip" id="hcTip">点击切换天气</div>
+        <div class="hc-greet" id="hcGreet">${greetTxt}</div>
       </div>
-      <div class="hc-right"><div class="hc-sun" id="hcSun">☀️</div></div>
+      <div class="hc-right"><div class="hc-sun ${sun.cls}" id="hcSun">${sun.face}</div></div>
     </div>
 
-    <!-- ② 喝水卡 -->
+    <!-- ② 喝水卡（图标 + 名字读设置） -->
     <div class="hc">
       <div class="hc-left">
-        <div class="lb">💧 喝水</div>
+        <div class="lb">${wSplit.ic} ${wSplit.lb}</div>
         <div class="num">已喝 ${waterCups} 杯</div>
         <div class="sub">· ${waterMl} ml · 已完成 ${waterPct}%</div>
       </div>
       <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 250 ml">+1</button></div>
     </div>
 
-    <!-- ③ 护眼卡 -->
+    <!-- ③ 护眼卡（图标读设置，≥10 滴加 warn 样式） -->
     <div class="hc">
       <div class="hc-left">
-        <div class="lb">👁 护眼</div>
-        <div class="num">今日已滴 ${dropN} 滴</div>
+        <div class="lb">${eSplit.ic} ${eSplit.lb}</div>
+        <div class="num ${dropWarn?'warn':''}">${dropWarn?'⚠️ ':''}今日已滴 ${dropN} 滴</div>
         <div class="sub">· ${dropText} · 上限 10 滴</div>
       </div>
       <div class="hc-right"><div class="hc-face" id="hcFace">${dropFace}</div></div>
@@ -1074,8 +1123,6 @@ function renderHomeCards(){
 
   // 事件绑定
   const addBtn=$('hcWaterAdd'); if(addBtn) addBtn.onclick=()=>{ addWaterCup(today); renderHomeCards(); };
-  const sun=$('hcSun'); if(sun) sun.onclick=()=>{ const next=sun.textContent==='☀️'?'🌧️':sun.textContent==='🌧️'?'☁️':'☀️'; sun.textContent=next; };
-  const tip=$('hcTip'); if(tip) tip.onclick=()=>{ if(sun) sun.click(); };
   const todoCard=box.querySelector('.todo-summary');
   if(todoCard) todoCard.onclick=()=>switchView('todo');
 }
@@ -1158,15 +1205,54 @@ function renderSaving(){
   $('savingFill').style.width=pct+'%';
   $('savingNameInput').value=name;
   $('savingGoalInput').value=goal;
+  // v17.2: 历史记录 - 时间 · 金额可编辑 · 删除按钮（数组是时间倒序展示，保存用升序索引）
   const hist=(d.history||[]).slice().reverse();
   const list=$('savingList');
-  if(hist.length===0) list.innerHTML=`<div class="water-empty">还没有存钱记录</div>`;
-  else list.innerHTML=hist.map(h=>{
+  if(hist.length===0){ list.innerHTML=`<div class="water-empty">还没有存钱记录</div>`; return; }
+  list.innerHTML=hist.map((h,revIdx)=>{
+    const realIdx=(d.history||[]).length-1-revIdx; // 转回原数组索引
     const dt=new Date(h.t);
     const p=n=>String(n).padStart(2,'0');
     const ts=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
-    return `<div class="water-row"><span>${ts}</span><span style="color:#be185d;font-weight:600;">＋ ¥${h.amount.toLocaleString()}</span></div>`;
+    return `<div class="water-row saving-row" data-idx="${realIdx}">
+      <span>${ts}</span>
+      <span style="display:flex;align-items:center;gap:6px;">
+        <input type="number" class="saving-amt-input" data-edit="${realIdx}" value="${h.amount}" step="0.01" style="width:90px;padding:3px 8px;border:1px solid #fbcfe8;border-radius:6px;font-size:12.5px;color:#be185d;font-weight:600;text-align:right;" />
+        <span style="color:#9ca3af;font-size:12px;">元</span>
+        <button class="saving-row-del" data-del="${realIdx}" title="删除这条记录" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
+      </span>
+    </div>`;
   }).join('');
+  // 编辑金额
+  list.querySelectorAll('.saving-amt-input').forEach(inp=>{
+    inp.onblur=()=>{
+      const idx=parseInt(inp.dataset.edit,10);
+      const v=parseFloat(inp.value);
+      if(isNaN(v)||v<0){ toast('⚠️ 金额必须 ≥ 0'); renderSaving(); return; }
+      const dd=getSaving();
+      const oldAmt=dd.history[idx]?dd.history[idx].amount:0;
+      dd.history[idx].amount=v;
+      dd.saved=Math.max(0,(dd.saved||0)-oldAmt+v);
+      setSaving(dd);
+      toast('✅ 已更新金额为 ¥'+v.toLocaleString());
+      renderSaving();
+    };
+    inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } };
+  });
+  // 删除单条
+  list.querySelectorAll('.saving-row-del').forEach(btn=>{
+    btn.onclick=()=>{
+      const idx=parseInt(btn.dataset.del,10);
+      const dd=getSaving();
+      const oldAmt=dd.history[idx]?dd.history[idx].amount:0;
+      if(!confirm(`删除这条 ¥${oldAmt.toLocaleString()} 的存钱记录吗？`)) return;
+      dd.history.splice(idx,1);
+      dd.saved=Math.max(0,(dd.saved||0)-oldAmt);
+      setSaving(dd);
+      toast('✅ 已删除');
+      renderSaving();
+    };
+  });
 }
 $('savingAddBtn').onclick=()=>{
   const v=parseFloat($('savingAddInput').value);
@@ -1544,7 +1630,11 @@ async function addDrop(){
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
   if(rec){
-    if(rec.count>=10){toast('今天已经滴满 10 次了');return;}
+    // v17.2: ≥10 滴医生建议警告，但次数不限制；之前是 return
+    if(rec.count>=10){
+      showBanner(`⚠️ 今日已滴 ${rec.count+1} 次，超过医生建议的 10 次/天。滴眼药水过多反而可能伤眼，请休息一下眼睛或咨询医生。`);
+      try{ navigator.vibrate && navigator.vibrate(200); }catch(e){}
+    }
     rec.count++;
     renderDrops(); // 立即刷新（水池+今天格子+详情都跟着变）
     const {error}=await sb.from('drops').update({count:rec.count}).eq('id',rec.id);
@@ -1557,12 +1647,16 @@ async function addDrop(){
     if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');drops.shift();renderDrops();return;}
     if(data&&data[0]) rec.id=data[0].id;
   }
-  toast('已记录');
+  toast(rec.count>=10?'⚠️ 已记录（已超医生建议）':'已记录');
 }
 $('dropPool').onclick=async(e)=>{
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
-  if(rec&&rec.count>=10){toast('今天已经滴满 10 次了');return;}
+  if(rec&&rec.count>=10){
+    // 警告但继续
+    showBanner(`⚠️ 今日已滴 ${rec.count+1} 次，超过医生建议的 10 次/天。滴眼药水过多反而可能伤眼。`);
+    try{ navigator.vibrate && navigator.vibrate(200); }catch(e){}
+  }
   const rect=$('dropPool').getBoundingClientRect();
   const x=e.clientX-rect.left, y=e.clientY-rect.top;
   const ripple=document.createElement('div');
