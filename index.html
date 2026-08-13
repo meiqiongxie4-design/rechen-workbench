@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v7-accurate-sync-toast （让 toast 等云端确认再显示，失败时 banner 警示 12 秒）-->
+<!-- 版本：rechen-v2026-08-13-v8-upsert-by-key （saveSettings 改用 upsert+onConflict=key，因为表里没有 id 列，原版 select id 永远 400）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
@@ -1403,30 +1403,16 @@ async function loadSettings(){
 async function saveSettings(key, value){
   if(!sb) return false;
   const payload={key,value:value===null?null:JSON.parse(JSON.stringify(value)),updated_at:new Date().toISOString()};
-  // 优先 upsert：先 select 一次拿 id；不行再 insert
-  const {data:rows,error:se}=await sb.from('app_settings').select('id').eq('key',key).limit(1);
-  if(se){
-    if(/relation .* does not exist|app_settings/i.test(se.message||'')){
+  // v8 修复：用 upsert + onConflict=key (key 是主键)，不再 select 'id'（表里没 id 列）
+  const {error}=await sb.from('app_settings').upsert(payload,{onConflict:'key'});
+  if(error){
+    console.error('[saveSettings] error:',error);
+    if(/relation .* does not exist|app_settings/i.test(error.message||'')){
       if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
     }else{
-      toast('云端设置失败：'+(se.message||se));
+      toast('云端同步失败：'+(error.message||error));
     }
     return false;
-  }
-  if(rows&&rows.length){
-    const {error}=await sb.from('app_settings').update(payload).eq('id',rows[0].id);
-    if(error){
-      if(/relation .* does not exist|app_settings/i.test(error.message||'')){ if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);} }
-      else toast('云端设置失败：'+(error.message||error));
-      return false;
-    }
-  }else{
-    const {error}=await sb.from('app_settings').insert(payload);
-    if(error){
-      if(/relation .* does not exist|app_settings/i.test(error.message||'')){ if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);} }
-      else toast('云端设置失败：'+(error.message||error));
-      return false;
-    }
   }
   return true;
 }
