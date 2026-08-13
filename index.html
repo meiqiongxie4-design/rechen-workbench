@@ -30,6 +30,12 @@
   - 护眼水池破洞阈值修正：count=10 只是空池，仅「超过 10 次(count>10)」才显示破洞（点 3 原话"超过10次出现破洞"）
   - 注：点 2/3 多余文字、点 12 侧栏一排4个、点 11 水池下字居中 等仍需与用户确认具体位置，见对话
 -->
+<!-- 版本：rechen-v2026-08-13-v17.16-sidebar-grid-pool-below
+  - 侧栏改 4 个/行网格（宽 248px；点 12「一排 3 个最好 4 个」）；手机端侧栏变顶部满宽横栏，app 改竖排
+  - 护眼/喝水水池：信息区移到水池正下方并居中（点 11b「水池下面字居中」）；隐藏水池上覆盖的「点水池滴一滴/喝一杯」提示（点 3「多余的字」）
+  - 喝水记录行间距加大（点 12a「记录挤一块」）
+  - 折叠按钮 ⇤/⇥ 跟随侧栏新宽度定位
+-->
 <!-- 版本：rechen-v2026-08-13-v17.13-fix-all-11
   修复 11 条反馈：
   1. 护眼/喝水水池颜色不对 → 删 inline !important 蓝色 linear-gradient，改让 JS 的 comfortState 颜色生效 + 池背景浅绿 + 外圈 #22c55e 双层描边（实线 + 外发光）
@@ -77,11 +83,11 @@
   #viewHome:not([hidden]),#viewTodo:not([hidden]),#viewMemo:not([hidden]),#viewCounter:not([hidden]),#viewPeriod:not([hidden]),#viewWater:not([hidden]),#viewSaving:not([hidden]){flex:1;min-height:0;display:flex;flex-direction:column;}
   /* 左侧栏折叠 — .app.collapsed 隐藏整个 sidebar，sb-toggle 按钮 position:fixed 始终可见 */
   .app.collapsed .sidebar{width:0 !important;padding:0 !important;border:none !important;overflow:hidden !important;}
-  .sb-toggle{position:fixed;left:96px;top:14px;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid #86efac;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#16a34a;z-index:200;transition:left .25s;box-shadow:0 2px 8px rgba(34,197,94,.18);padding:0;}
+  .sb-toggle{position:fixed;left:256px;top:14px;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid #86efac;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#16a34a;z-index:200;transition:left .25s;box-shadow:0 2px 8px rgba(34,197,94,.18);padding:0;}
   .sb-toggle:hover{background:#dcfce7;border-color:#22c55e;}
   .app.collapsed .sb-toggle{left:8px;}
   @media (max-width:640px){
-    .sb-toggle{left:78px;width:26px;height:26px;font-size:13px;}
+    .sb-toggle{right:10px;left:auto;width:26px;height:26px;font-size:13px;}
     .app.collapsed .sb-toggle{left:8px;}
   }
 </style>
@@ -287,7 +293,7 @@
   .period-footer{text-align:center;color:var(--muted);font-size:11px;margin-top:8px;line-height:1.7;}
 
 /* 护眼记 - 水池版 */
-  .pool-wrap{display:flex;gap:32px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
+  .pool-wrap{display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
   .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
   .pool:active{transform:scale(.97);}
   .pool::before,.pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
@@ -297,11 +303,11 @@
   .pool .face{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
   .pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
   @keyframes ripple{to{transform:scale(7);opacity:0;}}
-  .pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.45);z-index:2;pointer-events:none;}
+  .pool-hint{display:none;position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.45);z-index:2;pointer-events:none;}
   /* v17.5: 超 10 滴水池右上角破口 */
   .pool.cracked::before{content:'';position:absolute;top:-12px;right:-12px;width:46px;height:46px;background:#fff;clip-path:polygon(100% 0,100% 100%,50% 100%);transform:rotate(45deg);z-index:4;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.15);}
   .pool.cracked::after{content:'';position:absolute;top:6px;right:6px;width:14px;height:14px;background:#ff6b6b;border-radius:50%;z-index:5;pointer-events:none;}
-  .pool-info{text-align:left;min-width:210px;}
+  .pool-info{text-align:center;min-width:0;}
   .pool-info .today{font-size:15px;color:var(--muted);margin-bottom:2px;}
   .pool-info .count{font-size:58px;font-weight:800;color:var(--accent);line-height:1;}
   .pool-info .count.warn{color:var(--red);}
@@ -381,16 +387,23 @@
 
   /* ============ v17 左侧栏 + 首页 4 卡片 ============ */
   .app{display:flex;gap:14px;align-items:stretch;}
-  .sidebar{width:84px;flex-shrink:0;background:#dcfce7;border-right:1px solid #86efac;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:stretch;}
-  .sb-item{width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:4px 0;border-radius:10px;color:var(--muted);transition:.15s;}
+  /* v17.16: 侧栏改 4 个/行网格（用户点 12「一排 3 个最好 4 个」） */
+  .sidebar{width:248px;flex-shrink:0;background:#dcfce7;border-right:1px solid #86efac;border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-content:start;align-self:stretch;}
+  .sb-item{width:auto;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:6px 0;border-radius:10px;color:var(--muted);transition:.15s;}
   .sb-item .ic{width:48px;height:48px;background:#fff;border:1px solid #bbf7d0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;}
   .sb-item .lb{font-size:10.5px;color:#16a34a;font-weight:600;letter-spacing:.3px;}
   .sb-item.active .ic{background:#22c55e;border-color:#22c55e;box-shadow:0 4px 10px rgba(34,197,94,.3);}
   .sb-item.active .lb{color:#166534;font-weight:700;}
   .sb-item:active .ic{transform:scale(.94);}
-  .sb-spacer{flex:1;background:transparent;cursor:default;}
-  .sidebar-foot{margin-top:auto;display:flex;flex-direction:column;gap:4px;}
+  .sb-spacer{display:none;}
+  .sidebar-foot{display:flex;justify-content:center;}
 
+  /* v17.16: 手机端侧栏变顶部横栏（满宽 4 个/行），app 改竖排 */
+  @media(max-width:640px){
+    .app{flex-direction:column;gap:10px;}
+    .sidebar{width:100% !important;border-right:none;border-bottom:1px solid #86efac;border-radius:0;grid-template-columns:repeat(4,1fr);}
+    .app.collapsed .sidebar{width:0 !important;}
+  }
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
@@ -459,7 +472,7 @@
   .water-info .ml{font-size:12.5px;color:#6b7280;margin-top:2px;}
   .water-list{margin-top:14px;padding-top:12px;border-top:1px dashed #bbf7d0;}
   .water-list-title{font-size:12.5px;color:#6b7280;margin-bottom:8px;}
-  .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
+  .water-row{display:flex;justify-content:space-between;font-size:13px;color:#4b5563;padding:10px 4px;border-bottom:1px dashed #dcfce7;}
   .water-row:last-child{border-bottom:none;}
   .water-empty{font-size:12px;color:#9ca3af;text-align:center;padding:8px 0;}
   .water-target-set{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#6b7280;flex-wrap:wrap;}
@@ -467,7 +480,7 @@
   .water-target-set button{padding:5px 10px;border:1px solid #22c55e;background:var(--surface);color:#16a34a;border-radius:8px;font-size:12px;cursor:pointer;}
 
   /* 喝水大水池（同护眼样式，绿系） */
-  .water-pool-wrap{display:flex;gap:28px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
+  .water-pool-wrap{display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
   .water-pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
   .water-pool:active{transform:scale(.97);}
   .water-pool::before,.water-pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.4);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
@@ -477,7 +490,7 @@
   .water-pool .pool-water{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
   .water-pool .pool-face{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
   .water-pool .pool-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
-  .water-pool-info{text-align:left;min-width:200px;}
+  .water-pool-info{text-align:center;min-width:0;}
   /* v17.14: .big 字号 52→32 跟流光 .period-info .big 一致 */
   .water-pool-info .big{font-size:32px;font-weight:700;color:#166534;line-height:1.2;}
   .water-pool-info .ml{font-size:20px;color:#374151;font-weight:600;margin-top:12px;}
@@ -485,7 +498,7 @@
   .water-pool-info{gap:6px;}
   .water-pool-info .status.ok{background:#dcfce7;color:#166534;}
   .water-pool-info .status.full{background:#bbf7d0;color:#166534;}
-  .water-pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
+  .water-pool-hint{display:none;position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
 
   .saving-card{background:var(--surface);border:1px solid #fce7f3;border-radius:14px;padding:18px;}
   .saving-card .goal-name{font-size:18px;font-weight:700;color:#9d174d;text-align:center;}
