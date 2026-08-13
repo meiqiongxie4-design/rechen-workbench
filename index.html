@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
+<!-- 版本：rechen-v2026-08-13-v17.6-fix-bindfarm-null （修复农场 UI 已删但 bindFarmEvents() 顶层调用导致 null.onclick 报错：注释掉顶层调用 + 函数开头加 !addPlot 防御） -->
 <!-- 版本：rechen-v2026-08-13-v17.5-iterate （删整个农场模块 [侧栏+设置+viewFarm+JS+CSS+tickFarm 暂停]；鼓励语 fixed 永远屏底 + 一天一句按 day-of-year；备忘改成跟待办一样的 add-row 布局；护眼水池满→少→空+>10 破口 + 今日 count 已改 7；首页待办 6 条+卡片高度自适应；天气去外圈+时间 36px；喝水 ml 字号 20px+三行间距；删"× 清空今日"；banner 加红框样式不再无样式；settings → 侧栏图标已确认连通）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
@@ -2192,6 +2193,8 @@ function farmToast(m){
 
 function bindFarmEvents(){
   if(farmBound)return; farmBound=true;
+  // v17.5: 农场模块已整体移除（UI + 数据），若 DOM 不存在直接 return，避免 null.onclick 报错
+  if(!$('addPlot'))return;
   $('addPlot').onclick=()=>{
     const cost=expandCost();
     if(farm.coins<cost){farmToast('金币不够，收获作物赚金币 💰');return;}
@@ -2696,7 +2699,8 @@ function sellAll(){
   farmToast('一键出售全部作物，+'+total+' 金币 💰');
 }
 
-bindFarmEvents();
+// v17.5: 农场 UI / 数据已整体移除，无需再绑事件（保留函数定义便于 git 恢复）
+// bindFarmEvents();
 
 /* 初始加载（任一失败不影响其它，先把 UI 框架渲染出来） */
 // 本地预览（sb 为 null）也要先把 stats/列表框架渲染出来，避免打开一片空白
