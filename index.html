@@ -24,6 +24,12 @@
   - "已喝 7 杯"字号 → 32px 跟流光一致
   - 左侧栏 ⇤/⇥ 折叠按钮 + localStorage 持久化
 -->
+<!-- 版本：rechen-v2026-08-13-v17.15-home-grid-center
+  - 首页 4 卡片改「一排展示」：grid repeat(4,1fr)（之前竖排）；每卡内容居中、图标紧跟文字（修复点 8「护眼与眼睛图标间距太大」）
+  - 手机端首页 4 卡 → 2×2（点 10 排版不乱）
+  - 护眼水池破洞阈值修正：count=10 只是空池，仅「超过 10 次(count>10)」才显示破洞（点 3 原话"超过10次出现破洞"）
+  - 注：点 2/3 多余文字、点 12 侧栏一排4个、点 11 水池下字居中 等仍需与用户确认具体位置，见对话
+-->
 <!-- 版本：rechen-v2026-08-13-v17.13-fix-all-11
   修复 11 条反馈：
   1. 护眼/喝水水池颜色不对 → 删 inline !important 蓝色 linear-gradient，改让 JS 的 comfortState 颜色生效 + 池背景浅绿 + 外圈 #22c55e 双层描边（实线 + 外发光）
@@ -389,8 +395,9 @@
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
   /* 首页 4 卡片 */
-  .home-cards{display:flex;flex-direction:column;gap:12px;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;height:130px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
+  /* v17.15: 首页 4 卡片一排展示（之前是竖排）；每卡内容居中、图标紧跟文字（修复「护眼与眼睛图标间距太大」） */
+  .home-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:stretch;}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-height:132px;height:auto;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;text-align:center;box-shadow:var(--shadow);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
   .hc-left .num{font-size:22px;font-weight:700;color:#166534;line-height:1.2;white-space:nowrap;}
@@ -418,6 +425,15 @@
   .todo-summary-row:last-child{border-bottom:none;}
   .todo-summary-row .ck{width:16px;height:16px;border:1.5px solid #22c55e;border-radius:50%;flex-shrink:0;}
   .todo-summary-row .tx{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* v17.15: 手机端首页 4 卡 → 2×2，避免一行太挤；字号紧跟桌面缩放 */
+  @media(max-width:640px){
+    .home-cards{grid-template-columns:repeat(2,1fr);}
+    .hc{min-height:120px;padding:12px 10px;}
+    .hc-left .num{font-size:18px;}
+    .hc-add{width:60px;height:60px;font-size:18px;}
+    .hc-face{font-size:36px;}
+    .hc-sun{font-size:38px;}
+  }
 
   /* footer 鼓励语 sticky bottom */
   /* v17.9: 鼓励语 — 移到 .main 外面，固定贴屏底，跨 view 永远显示，无边框无背景只显示文字 */
@@ -1660,7 +1676,7 @@ function renderDrops(){
   $('poolWater').style.background=st.color;
   // v17.5: 超 10 次在右上角加破口
   const poolEl=$('dropPool');
-  poolEl.classList.toggle('cracked', overLimit);
+  poolEl.classList.toggle('cracked', count>10); // v17.15: 破洞仅「超过 10 次」时显示；=10 只是空池不算破
   const statusEl=$('dropStatus');
   statusEl.className='status '+st.cls;
   statusEl.innerHTML=(overLimit?'⚠️ ':'')+st.face+' '+st.text;
