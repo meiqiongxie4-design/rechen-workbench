@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>热忱工作台</title>
+<!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
+<link rel="shortcut icon" href="favicon.ico" />
+<meta name="apple-mobile-web-app-title" content="热忱工作台" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#63e4be" />
+<link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
+<script src="./supabase.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f6fb; --surface:#fff; --surface-2:#f7f9fc; --line:#e6e9f0;
+    --text:#1f2733; --muted:#8a93a6; --accent:#4f6ef7; --accent-soft:#eef1fe;
+    --red:#e5484d; --red-soft:#fdecec; --orange:#f5a623; --green:#2bb673;
+    --gray:#9aa3b2; --shadow:0 2px 10px rgba(31,39,51,.06);
+  }
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;}
+  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;}
+  header h1{font-size:22px;margin:0;letter-spacing:1px;}
+  header   .date{color:var(--muted);font-size:13px;}
+  .nav{display:flex;gap:8px;margin-bottom:16px;}
+  .nav button{flex:1;padding:11px;border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;}
+  .nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:var(--shadow);}
+  .topbar{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;}
+  .topbar #memoQuick{flex:1;min-width:0;min-height:88px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;font-size:15px;line-height:1.55;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;overflow-y:hidden;transition:border-color .15s,background .15s;}
+  .topbar #memoQuick:focus{border-color:var(--accent);background:#fff;}
+  .topbar #memoQuick::placeholder{color:var(--muted);opacity:.7;}
+  .topbar button{padding:9px 16px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-size:13px;color:var(--muted);cursor:pointer;align-self:flex-start;}
+  .topbar button:hover{color:var(--accent);border-color:var(--accent);}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
+  .stat{padding:16px 18px;border:2px solid transparent;cursor:pointer;transition:.15s;}
+  .stat:hover{border-color:var(--accent-soft);}
+  .stat.active{border-color:var(--accent);}
+  .stat .label{color:var(--muted);font-size:12.5px;font-weight:600;}
+  .stat .num{font-size:28px;font-weight:800;margin-top:4px;}
+  .stat .hint{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .panel{padding:18px;}
+  .sub-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .sub-head h2{font-size:15px;margin:0;}
+  .add-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;align-items:stretch;}
+  .add-row .title{flex:0 0 auto;width:100%;min-width:220px;padding:11px 14px;border:1px solid var(--line);border-radius:10px;font-size:14.5px;background:var(--surface-2);font-family:inherit;outline:none;resize:none;line-height:1.55;white-space:pre-wrap;word-break:break-word;overflow-y:hidden;box-sizing:border-box;}
+  .add-row .title:focus{border-color:var(--accent);background:#fff;}
+  .add-bar{display:flex;gap:10px;align-items:center;justify-content:flex-end;}
+  .add-row input[type=date]{padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;background:var(--surface-2);font-family:inherit;outline:none;}
+  .btn{padding:11px 18px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:.15s;}
+  .btn:hover{filter:brightness(1.05);}
+  .btn.ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--line);}
+  .btn.danger{background:var(--red-soft);color:var(--red);border:1px solid transparent;}
+  .btn.sm{padding:6px 12px;font-size:12.5px;}
+  .btn:disabled{opacity:.55;cursor:not-allowed;}
+  .list-title{font-size:13px;color:var(--muted);font-weight:600;margin:6px 2px 10px;}
+  .todo-item{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--surface);}
+  .todo-check{width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;margin-top:1px;}
+  .todo-item.done .todo-check{background:var(--green);border-color:var(--green);}
+  .todo-main{flex:1;min-width:0;}
+  .todo-title{font-weight:600;font-size:14.5px;white-space:pre-wrap;word-break:break-word;}
+  .todo-item.done .todo-title{text-decoration:line-through;color:var(--muted);}
+  .todo-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;align-items:center;}
+  .badge{font-size:11.5px;padding:2px 9px;border-radius:20px;font-weight:600;}
+  .b-red{background:var(--red-soft);color:var(--red);}
+  .b-orange{background:#fff4e0;color:var(--orange);}
+  .b-gray{background:#eef0f5;color:var(--gray);}
+  .m{color:var(--muted);font-size:12px;white-space:pre-wrap;}
+  .todo-text.collapsed{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+  .row-actions{display:flex;gap:6px;flex-shrink:0;align-items:flex-start;}
+  .memo-card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;box-shadow:var(--shadow);}
+  .memo-card.collapsed .memo{overflow:hidden;}
+  .memo-card .memo{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;line-height:1.5;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;}
+  .memo-card .memo:focus{border-color:var(--accent);background:#fff;}
+  .memo-del{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .memo-del:hover{background:var(--red-soft);color:var(--red);border-color:transparent;}
+  .memo-toggle{align-self:flex-start;margin-top:6px;padding:4px 11px;font-size:12px;font-weight:700;color:var(--accent);background:transparent;border:1px solid var(--line);border-radius:8px;cursor:pointer;}
+  .memo-toggle:hover{background:var(--accent-soft);}
+  .memo-hint{font-size:11.5px;color:var(--muted);margin-top:8px;}
+  .memo-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px;flex-wrap:wrap;}
+  .memo-foot .memo-time{margin-top:0;}
+  .thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .thumb-wrap{position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--line);background:var(--surface-2);cursor:zoom-in;flex-shrink:0;}
+  .thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s;}
+  .thumb-wrap:hover img{transform:scale(1.05);}
+  .thumb-wrap .x{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;opacity:0;transition:.15s;}
+  .thumb-wrap:hover .x{opacity:1;}
+  .thumb-wrap .x:hover{background:var(--red);}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;animation:fadeIn .2s;}
+  .overlay img{max-width:95vw;max-height:95vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
+  .time{font-size:11px;color:var(--muted);white-space:nowrap;}
+  .memo-time{font-size:11.5px;color:var(--muted);}
+
+      /* ---------- 我的农场 v5：自由农场 ---------- */
+  .farm-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;}
+  .ftab{flex:1;min-width:64px;padding:9px 4px;border:1px solid var(--line);background:var(--surface);border-radius:12px;cursor:pointer;font-size:13px;font-weight:700;color:var(--muted);transition:.15s;white-space:nowrap;}
+  .ftab.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+  .ftab-pane{padding:6px 2px;}
+  .sec-title{font-size:14px;font-weight:800;margin:4px 0 10px;display:flex;align-items:center;gap:8px;}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+  .sbtn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 12px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text);transition:.15s;display:flex;align-items:center;gap:6px;}
+  .sbtn:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .sbtn:active{transform:scale(.96);}
+  .sbtn:disabled{opacity:.45;cursor:not-allowed;}
+  .sbtn.primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .sbtn.warn{background:#fff;border-color:#fca5a5;color:#dc2626;}
+  .sbtn.warn:hover{background:#fef2f2;border-color:#ef4444;}
+  .tool-btn.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft);}
+
+  /* ===== 随心农场 ===== */
+  .farm-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+  .farm-head .left{display:flex;align-items:center;gap:10px;}
+  .farm-head h2{margin:0;font-size:18px;}
+  .coin-badge{background:linear-gradient(180deg,#ffe9a8,#ffd24d);color:#7a5b00;border:1px solid #e9c24a;border-radius:999px;padding:5px 12px;font-weight:800;font-size:13px;box-shadow:0 2px 5px rgba(0,0,0,.08);}
+  .farm-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+  .farm-actions .cost{font-size:11px;opacity:.85;margin-left:3px;}
+
+  .farm-ground{position:relative;min-height:420px;width:100%;background:var(--farm-bg,linear-gradient(180deg,#d7f0c2,#b8e08e));border-radius:20px;border:6px solid #8fbf6b;box-shadow:inset 0 0 30px rgba(0,0,0,.06),0 0 0 3px rgba(143,191,107,.25);padding:24px;overflow:hidden;}
+  .farm-ground::before{content:'';position:absolute;inset:24px;background-image:radial-gradient(rgba(255,255,255,.35) 1px,transparent 1px);background-size:18px 18px;pointer-events:none;}
+  .grid-lines{position:absolute;inset:var(--grid-inset,24px);background-image:linear-gradient(rgba(139,191,107,.35) 1px,transparent 1px),linear-gradient(90deg,rgba(139,191,107,.35) 1px,transparent 1px);background-size:var(--grid) var(--grid);pointer-events:none;}
+  .drag-target{position:absolute;width:var(--patch);height:var(--patch);border:2px dashed rgba(79,110,247,.55);border-radius:12px;background:rgba(79,110,247,.10);box-sizing:border-box;pointer-events:none;display:none;z-index:4;transition:left .08s,top .08s;}
+
+  .plot{position:absolute;width:var(--patch);height:var(--patch);background:linear-gradient(180deg,#b58458,#8f5a2b);border:2px solid #6d4220;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-shadow:inset 0 2px 4px rgba(255,255,255,.12),0 3px 6px rgba(0,0,0,.15);transition:transform .1s,filter .15s;user-select:none;-webkit-user-select:none;touch-action:none;-webkit-touch-callout:none;}
+  .plot:hover{filter:brightness(1.08);}
+  .plot:active{transform:scale(.96);}
+  .plot.empty::after{content:'\FF0B';font-size:26px;color:rgba(255,255,255,.5);}
+  .plot .crop{font-size:38px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.15));}
+  .plot .crop-cluster{position:relative;display:inline-block;}
+  .plot .crop-cluster span:nth-child(1){position:relative;z-index:2;}
+  .plot .crop-cluster span:nth-child(2){position:absolute;left:6px;top:-4px;z-index:1;opacity:.85;transform:scale(.9) rotate(12deg);filter:drop-shadow(0 2px 2px rgba(0,0,0,.2));}
+  .plot.ready{box-shadow:inset 0 2px 4px rgba(255,255,255,.12),0 0 0 4px #f5c032,0 0 18px rgba(245,192,50,.45);animation:plotPulse 1.6s ease-in-out infinite;}
+  @keyframes plotPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
+  .plot.ready .crop{font-size:52px;filter:drop-shadow(0 3px 4px rgba(0,0,0,.25));}
+  .plot.ready .crop-cluster span:nth-child(2){left:10px;top:-8px;transform:scale(.85) rotate(18deg);}
+  .plot .stage-label{position:absolute;bottom:3px;left:0;right:0;text-align:center;font-size:10px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4);}
+  .plot.ready .stage-label{bottom:5px;font-size:12px;color:#fff700;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .plot .badge-grow{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#fff;color:#ff8a00;font-size:12px;font-weight:900;border-radius:12px;padding:3px 10px;box-shadow:0 4px 10px rgba(0,0,0,.2);border:2px solid #ffba4a;z-index:5;white-space:nowrap;}
+  .plot .badge-grow::after{content:'▼';position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);font-size:10px;color:#ffba4a;}
+  .plot .growth-timer{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:rgba(40,40,40,.78);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:2px 7px;white-space:nowrap;z-index:4;}
+  .plot.dragging{opacity:.7;z-index:100;cursor:grabbing;}
+  .plot.dragover{outline:3px dashed #7ed321;outline-offset:2px;filter:brightness(1.12);}
+
+  .seed-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;min-height:64px;align-items:center;}
+  .seed-bar-title{width:100%;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:700;}
+  .seed{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 10px;background:var(--surface-2);border:2px solid var(--line);border-radius:12px;cursor:pointer;font-size:12px;font-weight:700;transition:.15s;min-width:58px;}
+  .seed:hover{border-color:var(--accent);background:var(--accent-soft);}
+  .seed.active{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft);}
+  .seed .emoji{font-size:24px;}
+  .seed .sub{font-size:10px;color:var(--muted);}
+
+  .seed-hint{font-size:12px;color:var(--muted);margin-top:8px;padding:0 4px;display:none;}
+  .seed-hint.show{display:block;}
+  .seed-hint b{color:var(--accent);}
+  .seed-pop{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow);min-width:170px;max-width:240px;}
+  .seed-pop .pp-title{font-weight:800;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;color:var(--text);}
+  .seed-pop .pp-stage{font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.5;}
+  .seed-pop .pp-btns{display:flex;gap:6px;}
+
+  .plot-pop{position:absolute;z-index:50;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:var(--shadow);min-width:180px;}
+  .plot-pop-fixed{position:fixed!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%);z-index:300;max-width:min(92vw,360px);}
+  .plot-pop .pp-title{font-weight:800;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+  .plot-pop .pp-stage{font-size:11px;color:var(--muted);margin-bottom:8px;}
+  .plot-pop .pp-btns{display:flex;gap:6px;}
+
+  .theme-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+  .theme-row .tl{font-size:12px;color:var(--muted);font-weight:700;}
+  .theme-dot{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);cursor:pointer;transition:.15s;}
+  .theme-dot.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);transform:scale(1.08);}
+
+  /* 农场专用提示，只显示在农场视图内 */
+  .farm-panel{position:relative;}
+  .farm-toast{position:absolute;left:50%;bottom:18px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(0,0,0,.78);color:#fff;font-size:13px;font-weight:700;padding:9px 18px;border-radius:999px;pointer-events:none;transition:opacity .25s,transform .25s;z-index:60;white-space:nowrap;}
+  .farm-toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  /* 全局 toast 浮层（之前缺样式导致一直显示在文档底部） */
+  .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(0,0,0,.82);color:#fff;font-size:14px;font-weight:600;padding:10px 20px;border-radius:999px;pointer-events:none;transition:opacity .25s,transform .25s;z-index:300;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.2);}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  [hidden]{display:none!important;}
+
+  /* 仓库弹窗 - 限制在农场面板内，不遮挡顶部导航 */
+  .warehouse-panel{position:absolute;inset:0;background:rgba(0,0,0,.35);z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;}
+
+  /* 种子拖拽 / 一键播种 */
+  .seed[draggable="true"]{cursor:grab;}
+  .seed:active{cursor:grabbing;}
+  /* 作物详情 */
+  .pp-detail{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6;background:var(--surface-2);border-radius:8px;padding:6px 9px;}
+  .pp-detail b{color:var(--text);}
+  /* 背包出售 */
+  .wh-item .sell{margin-top:4px;font-size:10px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;color:var(--muted);font-weight:700;transition:.15s;}
+  .wh-item .sell:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+
+
+  .warehouse-card{background:var(--surface);border-radius:18px;width:100%;max-width:720px;max-height:82vh;overflow:hidden;display:flex;box-shadow:var(--shadow);}
+  .warehouse-main{flex:1;display:flex;flex-direction:column;min-width:0;}
+  .warehouse-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);}
+  .warehouse-head h3{margin:0;font-size:16px;}
+  .warehouse-tabs{width:100px;flex-shrink:0;border-left:1px solid var(--line);background:var(--surface-2);display:flex;flex-direction:column;padding:8px 0;}
+  .wh-tab{padding:10px 8px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;text-align:center;border-left:3px solid transparent;transition:.15s;}
+  .wh-tab:hover{color:var(--text);background:var(--surface);}
+  .wh-tab.active{color:var(--accent);background:var(--surface);border-left-color:var(--accent);}
+  .warehouse-body{padding:10px;overflow-y:auto;flex:1;display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:4px;align-content:start;}
+  .wh-empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:20px 0;}
+  .wh-item{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;transition:.15s;box-shadow:0 2px 4px rgba(0,0,0,.03);}
+  .wh-item:hover{border-color:var(--accent);transform:translateY(-2px);}
+  .wh-item .emoji{font-size:24px;line-height:1;}
+  .wh-item .name{font-size:10px;font-weight:700;color:var(--text);text-align:center;}
+  .wh-item .count{position:absolute;top:-5px;right:-5px;background:var(--accent);color:#fff;font-size:10px;font-weight:800;border-radius:999px;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 2px 5px rgba(0,0,0,.18);}
+  .wh-item-wrap{position:relative;display:flex;justify-content:center;}
+
+  @media(max-width:560px){
+    .farm-layout{flex-direction:column;}
+    .farm-right{width:100%;flex-direction:row;justify-content:center;}
+    .warehouse-tabs{width:76px;}
+    .warehouse-body{grid-template-columns:repeat(auto-fill,minmax(54px,1fr));}
+    .ranch-wrap{height:280px;}
+
+    /* 农场小屏适配：缩小地块、压缩内边距 */
+    .farm-ground{padding:12px;border-width:4px;border-radius:14px;min-height:280px;}
+    .farm-ground::before{inset:12px;background-size:14px 14px;}
+    /* .grid-lines 的 inset 由 renderField 动态写入 --grid-inset（=PAD+OFFSET），不要在这里写死 */
+    .farm-actions .sbtn{font-size:12px;padding:6px 10px;}
+    .farm-head h2{font-size:16px;}
+    .seed-bar{padding:8px;gap:6px;}
+    .seed{padding:6px 8px;min-width:0;flex:1 1 calc(33.333% - 6px);max-width:calc(33.333% - 6px);box-sizing:border-box;}
+    .seed .emoji{font-size:20px;}
+    .seed .sub{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+    .theme-row .theme-dot{width:24px;height:24px;}
+  }
+  @media(max-width:380px){
+    .seed{flex-basis:calc(50% - 6px);max-width:calc(50% - 6px);}
+    .farm-ground{padding:10px;}
+  }
+  .pet-tip{font-size:11.5px;color:var(--muted);text-align:center;max-width:340px;}
+  /* ---------- 暖记 ---------- */
+  .period-hero{display:flex;align-items:center;gap:32px;flex-wrap:wrap;justify-content:center;padding:18px 14px;}
+  .period-pool{position:relative;width:220px;height:220px;border-radius:50%;background:linear-gradient(180deg,#fce7f3 0%,#fbcfe8 100%);box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08);overflow:hidden;cursor:pointer;transition:transform .15s;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:64px;user-select:none;}
+  .period-pool:active{transform:scale(.96);}
+  .period-pool.flash{animation:periodFlash .8s ease;}
+  @keyframes periodFlash{0%{box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08)}50%{box-shadow:inset 0 0 60px rgba(236,72,153,.55),0 0 60px rgba(236,72,153,.6)}100%{box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08)}}
+  .period-pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.85);transform:scale(0);animation:periodRipple .9s ease-out;pointer-events:none;}
+  @keyframes periodRipple{to{transform:scale(3.4);opacity:0}}
+  .period-info{min-width:210px;flex:0 0 auto;text-align:left;}
+  @media(max-width:520px){
+    .period-hero{flex-direction:column;text-align:center;}
+    .period-pool{width:170px;height:170px;}
+    .period-info{text-align:center;width:100%;}
+  }
+  .period-info .label{font-size:13px;color:var(--muted);}
+  .period-info .big{font-size:30px;font-weight:800;color:#ec4899;line-height:1.2;margin:4px 0;}
+  .period-info .meta{font-size:13px;color:var(--muted);margin-top:6px;}
+  .period-info .tip{margin-top:10px;padding:9px 13px;border-radius:999px;font-size:13px;display:inline-flex;align-items:center;gap:6px;background:#fce7f3;color:#9d174d;font-weight:600;}
+  .period-info .tip.normal{background:#dcfce7;color:#166534;}
+  .period-info .tip.short{background:#ffedd5;color:#9a3412;}
+  .period-info .tip.long{background:#fef9c3;color:#854d0e;}
+  .period-info .today{font-size:14px;color:var(--muted);margin-bottom:4px;}
+  .period-info .today b{color:#ec4899;}
+  .hist-title{font-size:14px;color:var(--muted);font-weight:600;margin:6px 4px 10px;display:flex;justify-content:space-between;align-items:center;}
+  .hist-title .right{font-size:12px;font-weight:400;}
+  .period-list{display:flex;flex-direction:column;gap:8px;}
+  .period-list .row{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;transition:.15s;}
+  .period-list .row.today{background:#fce7f3;border-color:#fbcfe8;}
+  .period-list .row .date{font-weight:600;font-size:15px;}
+  .period-list .row .date .tag{display:inline-block;font-size:11px;background:#ec4899;color:#fff;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:2px;}
+  .period-list .row .del{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px;}
+  .period-list .row .del:hover{background:#fee2e2;color:var(--red);}
+  .period-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+  .period-summary .s{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 6px;text-align:center;}
+  .period-summary .s .n{font-size:22px;font-weight:800;color:#ec4899;line-height:1;}
+  .period-summary .s .l{font-size:12px;color:var(--muted);margin-top:6px;}
+  .period-summary .s.countdown{cursor:pointer;background:linear-gradient(180deg,#fce7f3 0%,#fff 100%);border-color:#fbcfe8;position:relative;}
+  .period-summary .s.countdown:hover{border-color:#ec4899;}
+  .period-summary .s.countdown .n{font-size:30px;color:#be185d;}
+  .period-summary .s.countdown .l{color:#9d174d;font-weight:600;}
+  .period-summary .s.countdown .cycle-hint{font-size:11px;color:#9d174d;margin-top:4px;opacity:.7;}
+  .period-summary .s.countdown.overdue{background:linear-gradient(180deg,#fee2e2 0%,#fff 100%);border-color:#fca5a5;}
+  .period-summary .s.countdown.overdue .n{color:#b91c1c;}
+  .period-summary .s.countdown.overdue .l{color:#b91c1c;}
+  .period-footer{text-align:center;color:var(--muted);font-size:11px;margin-top:8px;line-height:1.7;}
+
+/* 护眼记 - 水池版 */
+  .pool-wrap{display:flex;gap:32px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
+  .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#e0f2fe;box-shadow:inset 0 0 30px rgba(0,0,0,.08), 0 8px 24px rgba(0,0,0,.12);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
+  .pool:active{transform:scale(.97);}
+  .pool::before,.pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
+  .pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
+  @keyframes wave{0%{transform:translate(-50%,-50%) rotate(0);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
+  .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%);transition:height .6s ease, background .6s ease;z-index:0;}
+  .pool .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
+  .pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
+  @keyframes ripple{to{transform:scale(7);opacity:0;}}
+  .pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.45);z-index:2;pointer-events:none;}
+  .pool-info{text-align:left;min-width:210px;}
+  .pool-info .today{font-size:15px;color:var(--muted);margin-bottom:2px;}
+  .pool-info .count{font-size:58px;font-weight:800;color:var(--accent);line-height:1;}
+  .pool-info .count.warn{color:var(--red);}
+  .pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;transition:background .3s, color .3s;}
+  .pool-info .status.ok{background:#dcfce7;color:#166534;}
+  .pool-info .status.mid{background:#fef9c3;color:#854d0e;}
+  .pool-info .status.tired{background:#ffedd5;color:#9a3412;}
+  .pool-info .status.bad{background:#fee2e2;color:#991b1b;}
+  .pool-info .max{font-size:13px;color:var(--muted);margin-top:10px;}
+  .tip-card{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted);margin-top:16px;display:inline-flex;align-items:center;gap:6px;}
+  .history-section{margin-top:6px;}
+  .history-title{font-size:13px;color:var(--muted);font-weight:600;}
+  .history-sub{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px;}
+  .history-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:10px;}
+  .history-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;min-width:0;cursor:pointer;transition:.15s;position:relative;}
+  .history-item:hover{border-color:var(--accent);transform:translateY(-2px);}
+  .history-item.today{background:#eef1fe;border-color:var(--accent);}
+  .history-item .d{font-size:12px;color:var(--muted);}
+  .history-item .n{font-size:18px;font-weight:700;color:var(--accent);margin-top:4px;}
+  .history-item .badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;box-shadow:0 3px 8px rgba(0,0,0,.18);background:var(--green);color:#fff;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;z-index:2;}
+  .history-item .badge .em{font-size:15px;line-height:1;}
+  .history-item .badge.ok{background:#22c55e;}
+  .history-item .badge.mid{background:#3b82f6;}
+  .history-item .badge.tired{background:#f97316;}
+  .history-item .badge.bad{background:#ef4444;}
+  .history-detail{margin-top:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px;animation:fadeIn .3s;position:relative;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  @media (max-width:640px){ .history-list{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
+  /* 编辑待办弹窗 */
+  .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;}
+  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;max-width:420px;width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,.25);}
+  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;}
+  .modal-body{display:flex;flex-direction:column;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:12.5px;color:var(--muted);font-weight:600;}
+  .field textarea,.field input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--surface-2);font-family:inherit;outline:none;resize:vertical;}
+  .field textarea:focus,.field input:focus{border-color:var(--accent);background:#fff;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
+  /* 齿轮按钮 */
+  .settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;transition:transform .25s, background .15s, border-color .15s;padding:0;flex-shrink:0;}
+  .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
+  .settings-btn:active{transform:scale(.94);}
+  .detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .detail-date{font-size:15px;font-weight:700;}
+  .detail-close{background:transparent;border:none;color:var(--muted);font-size:22px;line-height:1;width:30px;height:30px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:.15s;}
+  .detail-close:hover{background:#fee2e2;color:var(--red);}
+  .detail-body{font-size:13px;color:var(--muted);line-height:1.7;}
+  @media(max-width:560px){
+    .pool{width:170px;height:170px;}
+    .pool .face{font-size:48px;}
+    .pool-info{text-align:center;}
+    .pool-info .count{font-size:46px;}
+    .tip-card{margin-left:auto;margin-right:auto;}
+  }
+  @media(max-width:768px){
+    .grid{grid-template-columns:repeat(2,1fr);}
+    .wrap{padding:16px 16px 50px;}
+    .add-row .title{width:100%;}
+    .modal{max-width:calc(100vw - 32px);}
+  }
+  @media(max-width:560px){
+    .grid{grid-template-columns:1fr;}
+    .stat .num{font-size:24px;}
+    .counter-num{font-size:60px;}
+    .counter-actions .btn{width:100%;}
+    .nav button{font-size:13px;padding:10px 6px;}
+  }
+  @media(max-width:420px){
+    .nav button{font-size:12px;padding:8px 4px;}
+  }
+  .mod-error{margin:0 0 12px;padding:8px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .mod-error span{flex:1;line-height:1.4;}
+  .mod-error button{background:none;border:none;color:#b91c1c;cursor:pointer;font-size:18px;line-height:1;padding:0 2px;}
+  .mod-error button:hover{color:#7f1d1d;}
+
+  </style>
+</head>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="appTitle">热忱工作台</h1>
+    <div class="date" id="date"></div>
+    <button id="settingsBtn" class="settings-btn" title="自定义工作台和模块名称">⚙️</button>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="nav">
+    <button id="navTodo" class="active">📋 待办事项</button>
+    <button id="navMemo">📝 备忘录</button>
+    <button id="navCounter">👁 护眼记</button>
+    <button id="navPeriod">💗 暖记</button>
+    <button id="navFarm">🌾 我的农场</button>
+  </div>
+
+  <!-- 待办 -->
+  <div id="viewTodo">
+    <div class="grid" id="stats"></div>
+    <div class="card panel">
+      <div class="add-row">
+        <textarea class="title" id="qTitle" placeholder="写点什么…随手记一条待办（回车换行，点「添加」按钮提交）"></textarea>
+        <div class="add-bar">
+          <input type="date" id="qDue" title="提醒日期（可选）" />
+          <button class="btn" id="qAdd">添加</button>
+        </div>
+      </div>
+      <div class="list-title" id="listTitle"></div>
+      <div id="list"></div>
+    </div>
+  </div>
+
+  <!-- 备忘录 -->
+  <div id="viewMemo" hidden>
+    <div class="topbar">
+      <textarea id="memoQuick" placeholder="随时记一笔（回车换行，点「＋ 新建」按钮提交，卡片内可继续编辑、贴图）"></textarea>
+      <button id="memoAdd" title="用左侧输入框内容新建一条备忘录">＋ 新建</button>
+    </div>
+    <div class="card panel">
+      <div id="memoList"></div>
+    </div>
+  </div>
+
+  <!-- 护眼记 -->
+  <div id="viewCounter" hidden>
+    <div class="card panel">
+      <div class="pool-wrap">
+        <div class="pool" id="dropPool" title="点一下水池滴一次">
+          <div class="water" id="poolWater"></div>
+          <div class="face" id="poolFace">😊</div>
+          <div class="pool-hint">点水池滴一滴</div>
+        </div>
+        <div class="pool-info">
+          <div class="today">今日已滴</div>
+          <div class="count" id="dropCount">0<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ 10</span></div>
+          <div class="status ok" id="dropStatus">😊 眼睛舒适</div>
+          <div class="max">每天上限 10 次 · 次日自动清零</div>
+          <div class="tip-card">💡 点水池即可记录一次</div>
+        </div>
+      </div>
+      <div class="history-section">
+        <div class="history-title">近 7 天记录 <span class="history-sub">点日期看详情，滴得少显示「真棒」</span></div>
+        <div class="history-list" id="dropHistory"></div>
+        <div class="history-detail" id="dropDetail" hidden>
+          <div class="detail-head">
+            <div class="detail-date" id="detailDate"></div>
+            <button class="detail-close" id="detailClose" title="关闭">×</button>
+          </div>
+          <div class="detail-body" id="detailBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <!-- 我的农场 -->
+    <div id="viewFarm" hidden>
+      <div class="card panel farm-panel">
+        <div class="farm-head">
+          <div class="left">
+            <h2>🌾 随心农场</h2>
+            <span class="coin-badge" id="coinBadge">💰 0</span>
+          </div>
+        </div>
+
+        <div class="farm-actions">
+          <button class="sbtn" id="addPlot">＋ 开垦新田<span class="cost" id="expandCost"></span></button>
+          <button class="sbtn" id="removePlot" title="直接收最后一块田（点田里的「🗑 收回这块田」可单选）">🗑 收田</button>
+          <button class="sbtn" id="arrangeAll" title="把田按从左到右、从上到下自动排成整齐网格">🔲 一键排列整齐</button>
+          <button class="sbtn" id="plantAll" disabled>🌱 一键播种</button>
+          <button class="sbtn" id="boostAll" disabled>⏩ 一键加速</button>
+          <button class="sbtn primary" id="harvestAll">🌾 一键收获</button>
+          <button class="sbtn" id="openBag">🎒 背包</button>
+        </div>
+
+        <div class="farm-ground" id="farmGround">
+          <div class="grid-lines"></div>
+          <div class="drag-target" id="dragTarget"></div>
+        </div>
+
+        <div class="seed-bar" id="seedBar">
+          <div class="seed-bar-title">🌱 种子栏（点种子选种 → 点空地播种 / 拖到田里 / 或点「一键播种」种满空地）</div>
+        </div>
+        <div class="seed-hint" id="seedHint"></div>
+
+        <div class="theme-row" id="themeRow">
+          <span class="tl">🎨 装饰背景</span>
+        </div>
+
+        <div class="farm-toast" id="farmToast"></div>
+      </div>
+
+      <!-- 背包弹窗 -->
+      <div class="warehouse-panel" id="bagPanel" hidden>
+        <div class="warehouse-card">
+          <div class="warehouse-main">
+            <div class="warehouse-head">
+              <h3>🎒 我的背包</h3>
+              <div style="display:flex;gap:8px;">
+                <button class="sbtn" id="sellAllBag">💰 一键出售全部</button>
+                <button class="sbtn" id="closeBag">✕ 关闭</button>
+              </div>
+            </div>
+            <div class="warehouse-body" id="bagBody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  <!-- 暖记 -->
+  <div id="viewPeriod" hidden>
+    <div class="card period-hero">
+      <div class="period-pool" id="periodPool" title="点一下记一笔">🌷</div>
+      <div class="period-info">
+        <div class="label">上一次</div>
+        <div class="big" id="periodLastGap">—</div>
+        <div class="meta" id="periodLastWhen">还没有记录</div>
+        <div class="today" id="periodTodayInfo">这个月还没记录</div>
+        <div class="tip" id="periodTip" style="display:none"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="hist-title">记录列表 <span class="right" id="periodHistRight">共 0 条</span></div>
+      <div class="period-list" id="periodList"></div>
+    </div>
+    <div class="period-summary">
+      <div class="s"><div class="n" id="periodCntTotal">0</div><div class="l">累计记录</div></div>
+      <div class="s countdown" id="periodNextCard" title="点我调整周期长度">
+        <div class="n" id="periodNextDays">—</div>
+        <div class="l" id="periodNextLbl">距离下次天数</div>
+        <div class="cycle-hint" id="periodCycleHint" style="display:none"></div>
+      </div>
+      <div class="s"><div class="n" id="periodAvgGap">—</div><div class="l">平均间隔(天)</div></div>
+    </div>
+  </div>
+
+<div class="modal-mask" id="modal" hidden>
+  <div class="modal">
+    <h3>编辑内容</h3>
+    <div class="modal-body">
+      <div class="field"><textarea id="eTitle" rows="3" placeholder="待办内容…"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="eCancel">取消</button>
+      <button class="btn" id="eSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" hidden><img id="overlayImg" src="" /></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-mask" id="settingsModal" hidden>
+  <div class="modal">
+    <h3>自定义名称</h3>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <div class="field"><label>工作台名称</label><input id="labApp" maxlength="20" /></div>
+      <div class="field"><label>待办事项</label><input id="labTodo" maxlength="14" /></div>
+      <div class="field"><label>备忘录</label><input id="labMemo" maxlength="14" /></div>
+      <div class="field"><label>护眼记</label><input id="labEye" maxlength="14" /></div>
+      <div class="field"><label>暖记</label><input id="labWarm" maxlength="14" /></div>
+      <div class="field"><label>我的农场</label><input id="labFarm" maxlength="14" /></div>
+      <div style="font-size:12px;color:var(--muted);">保存后立即生效；不填则恢复默认。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="labReset">恢复默认</button>
+      <button class="btn ghost" id="labCancel">取消</button>
+      <button class="btn" id="labSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-mask" id="cycleModal" hidden>
+  <div class="modal">
+    <h3>经期周期设置</h3>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;">
+        距下次月经 = <b>上一次开始日 + 周期长度</b>。<br>
+        常见范围 21~35 天，默认 28。记录数 ≥ 2 时按历史平均值自动推测。
+      </div>
+      <div class="field"><label>周期长度（天）</label>
+        <input id="cycleInput" type="number" min="18" max="60" step="1" placeholder="28" />
+      </div>
+      <div id="cycleAutoHint" style="font-size:12px;color:var(--muted);"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cycleAutoBtn">按历史自动</button>
+      <button class="btn ghost" id="cycleCancel">取消</button>
+      <button class="btn" id="cycleSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
+const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
+
+/* 自定义名称：localStorage 持久化，刷新保留 */
+const DEFAULT_LABELS={app:'热忱工作台', todo:'📋 待办事项', memo:'📝 备忘录', eye:'👁 护眼记', warm:'💗 暖记', farm:'🌾 我的农场'};
+function getLabels(){
+  let s={};
+  try{ s=JSON.parse(localStorage.getItem('wbLabels')||'{}'); }catch(e){ s={}; }
+  return Object.assign({},DEFAULT_LABELS,s);
+}
+function applyLabels(){
+  const L=getLabels();
+  const appTitle=$('appTitle'); if(appTitle) appTitle.textContent=L.app;
+  const nt=$('navTodo'); if(nt) nt.textContent=L.todo;
+  const nm=$('navMemo'); if(nm) nm.textContent=L.memo;
+  const nc=$('navCounter'); if(nc) nc.textContent=L.eye;
+  const np=$('navPeriod'); if(np) np.textContent=L.warm;
+  const nf=$('navFarm'); if(nf) nf.textContent=L.farm;
+  document.title=L.app;
+  const meta=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(meta) meta.setAttribute('content',L.app);
+}
+function openSettings(){
+  const L=getLabels();
+  $('labApp').value=L.app;
+  $('labTodo').value=L.todo;
+  $('labMemo').value=L.memo;
+  $('labEye').value=L.eye;
+  $('labWarm').value=L.warm;
+  $('labFarm').value=L.farm;
+  $('settingsModal').hidden=false;
+  setTimeout(()=>$('labApp').focus(),50);
+}
+function closeSettings(){ $('settingsModal').hidden=true; }
+function saveLabels(){
+  const L={
+    app:$('labApp').value.trim()||DEFAULT_LABELS.app,
+    todo:$('labTodo').value.trim()||DEFAULT_LABELS.todo,
+    memo:$('labMemo').value.trim()||DEFAULT_LABELS.memo,
+    eye:$('labEye').value.trim()||DEFAULT_LABELS.eye,
+    warm:$('labWarm').value.trim()||DEFAULT_LABELS.warm,
+    farm:$('labFarm').value.trim()||DEFAULT_LABELS.farm,
+  };
+  localStorage.setItem('wbLabels', JSON.stringify(L));
+  applyLabels();
+  closeSettings();
+  toast('名称已保存 ✓');
+  // 同步到云端（手机电脑实时一致）：存到 app_settings 的 'labels' 行
+  if(sb){ cloudLabelsStr=JSON.stringify(L); saveSettings('labels',L).then(ok=>{ if(!ok) toast('云端同步未成功，稍后会自动重试'); }); }
+}
+function resetLabels(){
+  if(!confirm('确定要恢复全部默认名称吗？')) return;
+  localStorage.removeItem('wbLabels');
+  applyLabels();
+  openSettings();
+  toast('已恢复默认');
+  if(sb){ cloudLabelsStr=null; saveSettings('labels',null).then(ok=>{ if(!ok) toast('云端同步未成功'); }); }
+}
+applyLabels(); // 启动时立即用 localStorage 覆盖默认
+$('settingsBtn').onclick=openSettings;
+$('labCancel').onclick=closeSettings;
+$('labSave').onclick=saveLabels;
+$('labReset').onclick=resetLabels;
+$('settingsModal').addEventListener('click',e=>{ if(e.target===$('settingsModal')) closeSettings(); });
+
+/* supabase 全局应在 ./supabase.min.js 加载完之后才可用 */
+let sb=null;
+
+/* 引导：app_settings 表缺失时显示，用户跑完这段 SQL 即可启用跨设备名称/周期同步 */
+const APP_SETTINGS_GUIDE=
+  '⚠️ <b>还没连上「跨设备同步」表（app_settings）。</b>自定义名称与月经周期无法在手机和电脑之间同步。<br><br>'+
+  '👉 请到 Supabase 控制台 → <b>SQL 编辑器</b> → 新建查询 → 粘贴下面这段 → 点 <b>Run</b> → 回来刷新本页面：<br>'+
+  '<textarea readonly style="width:100%;height:200px;margin-top:8px;font-size:11px;font-family:ui-monospace,Consolas,monospace;background:#fff8e6;border:1px solid #f1c97c;border-radius:8px;padding:8px;color:#333" onclick="this.select()">'+
+  '-- 先删再重建，避免老表残留配置\n'+
+  'drop table if exists public.app_settings cascade;\n'+
+  'create table public.app_settings (\n'+
+  '  key text primary key,\n'+
+  '  value jsonb,\n'+
+  '  updated_at timestamptz default now()\n'+
+  ');\n'+
+  '-- 强制关 RLS（关键！单 disable 可能被项目级策略盖回去）\n'+
+  'alter table public.app_settings disable row level security;\n'+
+  'alter table public.app_settings force row level security;\n'+
+  'alter table public.app_settings disable row level security;\n'+
+  'grant insert, update, delete, select on table public.app_settings to anon;\n'+
+  '-- 验证（应该返回 relrowsecurity=f）\n'+
+  'select relname, relrowsecurity from pg_class where relname=\'app_settings\';\n'+
+  'alter publication supabase_realtime add table public.app_settings;'
+  +'</textarea>';
+
+if(typeof supabase==='undefined' || !supabase.createClient){
+  // 本地预览 / 未引入 supabase.min.js 时不崩溃，仅提示；UI 交互（输入框自适应等）照常可用
+  showBanner('ℹ️ 本地预览模式：未连上云端，数据不会保存。输入框自适应等交互照常可用。');
+}else{
+  try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false}}); }
+  catch(e){ sb=null; showBanner('⚠️ 云端连接初始化失败：'+(e.message||e)); }
+}
+
+let todos=[], memos=[], drops=[], pet=null, filter='open', view='todo', editId=null, setupError=false;
+
+/* 全局错误兜底：把任何 JS 异常显示到顶部 banner，方便诊断 */
+function showFatal(msg){
+  try{
+    const b=$('banner'); if(!b) return;
+    b.innerHTML='<b>⚠️ 系统异常：</b> '+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
+      +' <button onclick="this.parentNode.hidden=true" style="margin-left:8px;padding:2px 8px;border:1px solid #c33;background:#fff;color:#c33;border-radius:6px;cursor:pointer">关闭</button>';
+    b.hidden=false;
+  }catch(e){}
+}
+window.addEventListener('error',e=>{ showFatal(e.message+' ('+(e.filename||'')+':'+(e.lineno||'')+')'); });
+window.addEventListener('unhandledrejection',e=>{ const r=e.reason; showFatal((r&&r.message)||String(r)); });
+
+function $(id){return document.getElementById(id);}
+function todayStr(){const d=new Date();const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
+function showModErr(viewId,msg){
+  const v=$(viewId); if(!v) {toast(msg);return;}
+  let bar=v.querySelector('.mod-error');
+  if(!bar){ bar=document.createElement('div'); bar.className='mod-error'; bar.innerHTML='<span></span><button type="button">×</button>';
+    bar.querySelector('button').onclick=()=>bar.hidden=true;
+    v.insertBefore(bar,v.firstChild);
+  }
+  bar.querySelector('span').textContent='⚠️ '+msg;
+  bar.hidden=false;
+}
+function showBanner(html){const b=document.getElementById('banner');if(!b)return;b.innerHTML=html;b.hidden=false;}
+function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
+
+/* 日期 */
+$('date').textContent=new Date().toLocaleDateString('zh-CN',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+
+/* 导航 */
+function switchView(v){
+  view=v;
+  $('viewTodo').hidden=v!=='todo';
+  $('viewMemo').hidden=v!=='memo';
+  $('viewCounter').hidden=v!=='counter';
+  $('viewFarm').hidden=v!=='farm';
+  ['navTodo','navMemo','navCounter','navPeriod','navFarm'].forEach(id=>$(id).classList.toggle('active',id==='nav'+capitalize(v)));
+  $('viewPeriod').hidden=v!=='period';
+  if(v==='todo') loadTodos();
+  if(v==='memo'){ loadMemos(); refreshAllMemoHeightsSoon(); }
+  if(v==='counter') loadDrops();
+  if(v==='period') loadPeriod();
+  if(v==='farm') loadFarm();
+  if(v!=='farm'){ closeBag(); closePop(); }
+}
+$('navTodo').onclick=()=>switchView('todo');
+$('navMemo').onclick=()=>switchView('memo');
+$('navCounter').onclick=()=>switchView('counter');
+$('navPeriod').onclick=()=>switchView('period');
+$('navFarm').onclick=()=>switchView('farm');
+
+/* 自动增高 */
+function autoResize(ta){ ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }
+function fmtTime(iso){
+  if(!iso) return '';
+  const d=new Date(iso);
+  if(isNaN(d)) return '';
+  return `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+/* ---------- 待办 ---------- */
+async function loadTodos(){
+  if(!sb){ todos=[]; $('banner').hidden=true; renderStats(); renderList(); return; }
+  const {data,error}=await sb.from('todos').select('*').order('created_at',{ascending:false});
+  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
+  // 仅在 banner 不是 app_settings 引导时才隐藏（避免抢走错误信息显示时间）
+  $('banner').hidden=true; setupError=false;
+  todos=data||[];
+  renderStats(); renderList();
+}
+function renderStats(){
+  const open=todos.filter(t=>!t.done);
+  const today=todayStr();
+  const done=todos.filter(t=>t.done).length;
+  const card=(label,num,hint,key,warn)=>`<div class="card stat ${filter===key?'active':''}" data-k="${key}"><div class="label">${label}</div><div class="num" style="color:${warn&&num>0?'var(--red)':'var(--accent)'}">${num}</div><div class="hint">${hint}</div></div>`;
+  $('stats').innerHTML=
+    card('未完成',open.length,'还有这些要处理','open')+
+    card('已完成',done,'搞定 ✓','done');
+  [...$('stats').children].forEach(c=>c.onclick=()=>{filter=c.dataset.k;renderStats();renderList();});
+}
+function filtered(){
+  const today=todayStr();
+  let list=[...todos];
+  if(filter==='open') list=list.filter(t=>!t.done);
+  else if(filter==='done') list=list.filter(t=>t.done);
+  list.sort((a,b)=>{
+    if(filter==='done'){ const da=a.done_at||'',db=b.done_at||''; return db.localeCompare(da); }
+    if(a.done!==b.done) return a.done?1:-1;
+    const da=a.due||'9999',db=b.due||'9999'; return da.localeCompare(db);
+  });
+  return list;
+}
+function renderList(){
+  const list=filtered();
+  const titles={open:'未完成',done:'已完成'};
+  $('listTitle').textContent=titles[filter]||'';
+  const box=$('list');
+  if(!list.length){box.innerHTML='<div class="empty"><div class="big">✅</div>这里空空如也</div>';return;}
+  box.innerHTML=list.map(t=>{
+    const today=todayStr();
+    const overdue=!t.done&&t.due&&t.due<today;
+    const istoday=!t.done&&t.due===today;
+    const collapsed=!t.expanded;
+    return `<div class="todo-item ${t.done?'done':''}">
+      <div class="todo-check" data-act="toggle" data-id="${t.id}">${t.done?'✓':''}</div>
+      <div class="todo-main">
+        <div class="todo-title todo-text ${collapsed?'collapsed':''}">${esc(t.title)}</div>
+        <div class="todo-meta">
+          ${t.due?`<span class="badge ${overdue?'b-red':(istoday?'b-orange':'b-gray')}">📅 ${esc(t.due)}</span>`:''}
+          ${t.note?`<span class="m">${esc(t.note)}</span>`:''}
+          ${fmtTime(t.created_at)?`<span class="time">${fmtTime(t.created_at)}</span>`:''}
+          ${(t.title||'').split('\n').length>3||(t.title||'').length>90?`<button class="badge b-gray" data-act="expand" data-id="${t.id}" style="cursor:pointer;border:none;background:#eef0f5">${collapsed?'展开 ↓':'收起 ↑'}</button>`:''}
+        </div>
+      </div>
+      <div class="row-actions">
+        <button class="btn ghost sm" data-act="edit" data-id="${t.id}">编辑</button>
+        <button class="btn danger sm" data-act="del" data-id="${t.id}">删</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+async function addTodo(){
+  const title=$('qTitle').value.trim(); if(!title){toast('先写点内容');return;}
+  if(!sb){ toast('本地预览模式：未连接云端，无法保存'); return; }
+  const qd=$('qDue').value;
+  await sb.from('todos').insert({title,due:qd||null});
+  $('qTitle').value=''; $('qDue').value=''; filter='open'; toast('已添加'); loadTodos();
+  fitTitleBox();
+}
+$('qAdd').onclick=addTodo;
+// 回车=换行（textarea 默认行为），需要添加时点「添加」按钮
+// 待办输入框自适应高度：写多长显示多长，永不折叠、不出滚动条（手机端滑动/点按钮失焦也不会被压扁）
+function fitTitleBox(){
+  const ta=$('qTitle'); if(!ta)return;
+  ta.style.height='auto';
+  ta.style.height=Math.max(44,ta.scrollHeight)+'px';
+  ta.style.overflowY='hidden';
+}
+$('qTitle').addEventListener('input',fitTitleBox);
+$('qTitle').addEventListener('focus',fitTitleBox);
+$('qTitle').addEventListener('blur',fitTitleBox);
+fitTitleBox();
+requestAnimationFrame(fitTitleBox);
+$('list').onclick=async e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return;
+  const id=b.dataset.id, act=b.dataset.act, t=todos.find(x=>x.id===id); if(!t) return;
+  if(act==='toggle'){ await sb.from('todos').update({done:!t.done,done_at:t.done?null:new Date().toISOString()}).eq('id',id); if(!t.done) filter='done'; loadTodos(); }
+  else if(act==='del'){ if(confirm('确定删除这条待办吗？')){ await sb.from('todos').delete().eq('id',id); toast('已删除'); loadTodos(); } }
+  else if(act==='edit'){ openEdit(t); }
+  else if(act==='expand'){ t.expanded=!t.expanded; renderList(); }
+};
+function openEdit(t){
+  editId=t.id; $('eTitle').value=t.title||''; $('modal').hidden=false;
+  requestAnimationFrame(()=>{ autoResize($('eTitle')); $('eTitle').focus(); });
+}
+$('eCancel').onclick=()=>{$('modal').hidden=true;editId=null;};
+$('eSave').onclick=async()=>{
+  const title=$('eTitle').value.trim(); if(!title){toast('内容不能为空');return;}
+  // 只更新内容，保留原有的 due / note 字段不被清空
+  await sb.from('todos').update({title}).eq('id',editId);
+  $('modal').hidden=true;editId=null;toast('已保存');loadTodos();
+};
+$('modal').addEventListener('input',e=>{ const ta=e.target.closest('textarea'); if(ta) autoResize(ta); });
+
+/* ---------- 备忘录 ---------- */
+const MEMO_COLLAPSED_PX=60; // ~3 行
+function refreshMemoHeight(ta){
+  const card=ta.closest('.memo-card');
+  if(!card) return;
+  const focused=document.activeElement===ta;
+  // 默认收起；只有用户主动点了「展开 ↓」或正在编辑时才展开。session 内有效。
+  const userExpanded=card.dataset.userExpanded==='1';
+  ta.style.height='auto';
+  const sh=ta.scrollHeight;
+  if(!userExpanded && !focused){
+    ta.style.height=MEMO_COLLAPSED_PX+'px';
+    ta.style.overflow='hidden';
+    card.classList.add('collapsed');
+  }else{
+    ta.style.height=sh+'px';
+    ta.style.overflow='';
+    card.classList.remove('collapsed');
+  }
+  const btn=card.querySelector('.memo-toggle');
+  if(btn){
+    btn.style.display=sh>MEMO_COLLAPSED_PX?'':'none';
+    btn.textContent=(!userExpanded && !focused)?'展开 ↓':'收起 ↑';
+  }
+}
+async function loadMemos(){
+  if(!sb){ memos=[]; $('banner').hidden=true; renderMemos(); return; }
+  const {data,error}=await sb.from('memos').select('*').order('created_at',{ascending:false});
+  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
+  $('banner').hidden=true; setupError=false;
+  memos=data||[]; renderMemos();
+}
+function renderMemos(){
+  const box=$('memoList');
+  const active=document.activeElement;
+  const activeId=active&&active.dataset&&active.dataset.id?active.dataset.id:null;
+  const activeVal=activeId?active.value:null;
+  const activeStart=active&&active.selectionStart;
+  if(!memos.length){box.innerHTML='<div class="empty"><div class="big">📝</div>还没有备忘录，点「新建备忘录」记一条吧</div>';return;}
+  box.innerHTML=memos.map(m=>{
+    const imgs=Array.isArray(m.images)?m.images:[];
+    // 默认收起；不再用 m.expanded（旧字段没存过），状态记在 dataset.userExpanded
+    return `<div class="memo-card" data-card="${m.id}">
+      <button class="memo-del" data-del="${m.id}" title="删除">×</button>
+      <textarea class="memo" data-id="${m.id}" placeholder="随手记下客户信息、账号、临时想法…（可粘贴图片）">${esc(m.text)}</textarea>
+      ${imgs.length?`<div class="thumbs">${imgs.map((im,i)=>`<div class="thumb-wrap"><img src="${im.data}" data-view="${m.id}" data-i="${i}" title="点击查看大图"/><button class="x" data-imgdel="${m.id}" data-i="${i}" title="删除图片">×</button></div>`).join('')}</div>`:''}
+      <div class="memo-foot">
+        <button class="memo-toggle" data-toggle="${m.id}" style="display:none">展开 ↓</button>
+        ${fmtTime(m.created_at)?`<div class="memo-time">${fmtTime(m.created_at)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  if(activeId){
+    const ta=box.querySelector(`.memo[data-id="${activeId}"]`);
+    if(ta){ ta.value=activeVal; ta.focus(); try{ta.setSelectionRange(activeStart,activeStart);}catch(e){} }
+  }
+  // 高度计算必须在 memo 视图可见时进行：视图隐藏时 textarea 的 scrollHeight 不可靠，
+  // 若在后台（realtime 推送）渲染会算出错的折叠高度，切到可见时残留 → 出现「先折叠几秒再展开」。
+  // 故视图不可见时跳过同步计算，交给 switchView 切换到 memo 时的兜底重算。
+  const memoVisible=!$('viewMemo').hidden;
+  box.querySelectorAll('.memo-card').forEach(card=>{
+    const ta=card.querySelector('.memo');
+    if(!ta) return;
+    if(memoVisible){ refreshMemoHeight(ta); }
+    else { requestAnimationFrame(()=>{ if(!$('viewMemo').hidden) refreshMemoHeight(ta); }); }
+  });
+  if(memoVisible){
+    requestAnimationFrame(()=>{
+      box.querySelectorAll('.memo-card').forEach(card=>{
+        const ta=card.querySelector('.memo');
+        if(!ta) return;
+        refreshMemoHeight(ta);
+      });
+    });
+  }
+}
+function refreshAllMemoHeights(){
+  const box=$('memoList'); if(!box) return;
+  box.querySelectorAll('.memo-card').forEach(card=>{
+    const ta=card.querySelector('.memo');
+    if(ta) refreshMemoHeight(ta);
+  });
+}
+// 切到备忘录模块时，视图刚变可见，且 loadMemos 是异步（网络返回后才 render），
+// 这里两道兜底确保不残留隐藏态算错的折叠高度。
+function refreshAllMemoHeightsSoon(){
+  requestAnimationFrame(refreshAllMemoHeights);
+  setTimeout(refreshAllMemoHeights,350);
+  setTimeout(refreshAllMemoHeights,900);
+}
+async function addMemo(text){
+  if(!sb){ toast('本地预览模式：未连接云端，无法保存'); return; }
+  const {data}=await sb.from('memos').insert({text:text||''}).select();
+  if(data && data.length) memos=data.concat(memos);
+  renderMemos();
+  // 不自动 focus —— 新建的卡片默认收起，用户自己想编辑再点「展开」或点卡片内文
+}
+$('memoAdd').onclick=()=>{ const v=_memoQuick?_memoQuick.value:''; if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } addMemo(v); };
+// 顶部快速输入框：回车=换行（textarea 默认行为），需要添加时点击「＋ 新建」按钮
+const _memoQuick=$('memoQuick');
+// 输入框自适应：写多长显示多长，不出滚动条
+const _fitMemoQuick=()=>{
+  if(!_memoQuick)return;
+  _memoQuick.style.height='auto';
+  const sh=_memoQuick.scrollHeight;
+  _memoQuick.style.height=Math.max(88,sh)+'px';
+};
+_memoQuick&&_memoQuick.addEventListener('input',_fitMemoQuick);
+_fitMemoQuick();
+$('memoList').addEventListener('input',async e=>{
+  const ta=e.target.closest('.memo'); if(!ta) return;
+  const id=ta.dataset.id, m=memos.find(x=>x.id===id); if(!m) return;
+  m.text=ta.value;
+  refreshMemoHeight(ta);
+  clearTimeout(m._t); m._t=setTimeout(async()=>{
+    const {error}=await sb.from('memos').update({text:m.text}).eq('id',id);
+    if(error) showModErr('viewMemo','备忘录云端保存失败（'+error.message+'）');
+  },500);
+});
+$('memoList').addEventListener('focusin',e=>{
+  const ta=e.target.closest('.memo'); if(!ta) return;
+  refreshMemoHeight(ta);
+});
+$('memoList').addEventListener('focusout',e=>{
+  const ta=e.target.closest('.memo'); if(!ta) return;
+  // 异步等待 activeElement 切换完成再算
+  setTimeout(()=>{ if(document.activeElement!==ta) refreshMemoHeight(ta); },0);
+});
+$('memoList').addEventListener('click',async e=>{
+  const del=e.target.closest('[data-del]');
+  if(del){ if(confirm('确定删除这条备忘录吗？')){ const {error}=await sb.from('memos').delete().eq('id',del.dataset.del); if(error) showModErr('viewMemo','备忘录删除失败（'+error.message+'）'); loadMemos(); } return; }
+  const tg=e.target.closest('[data-toggle]');
+  if(tg){
+    const card=tg.closest('.memo-card');
+    if(!card) return;
+    // 切换本卡的「用户主动展开」状态（session 内有效，不持久化到云端）
+    card.dataset.userExpanded = card.dataset.userExpanded==='1' ? '' : '1';
+    refreshMemoHeight(card.querySelector('.memo'));
+    return;
+  }
+  const im=e.target.closest('[data-imgdel]');
+  if(im){ const m=memos.find(x=>x.id===im.dataset.imgdel); if(m){ m.images=m.images.filter((_,i)=>i!=im.dataset.i); const {error}=await sb.from('memos').update({images:m.images}).eq('id',m.id); if(error) showModErr('viewMemo','备忘录图片删除失败（'+error.message+'）'); renderMemos(); } return; }
+  const view=e.target.closest('[data-view]');
+  if(view){ const m=memos.find(x=>x.id===view.dataset.view); const im2=m.images[+view.dataset.i]; if(im2){ $('overlayImg').src=im2.data; $('overlay').hidden=false; } }
+});
+$('memoList').addEventListener('paste',async e=>{
+  const ta=e.target.closest('.memo'); if(!ta) return;
+  const item=[...(e.clipboardData||window.clipboardData).items].find(it=>it.type.indexOf('image')>-1);
+  if(!item) return;
+  e.preventDefault();
+  const file=item.getAsFile(); if(!file) return;
+  const dataUrl=await compressImage(file,900,0.7);
+  const id=ta.dataset.id, m=memos.find(x=>x.id===id); if(!m) return;
+  m.images=[...(m.images||[]),{name:file.name,data:dataUrl}];
+  const {error}=await sb.from('memos').update({images:m.images}).eq('id',id); if(error) showModErr('viewMemo','备忘录图片保存失败（'+error.message+'）');
+  renderMemos();
+  const ta2=document.querySelector(`#memoList .memo[data-id="${id}"]`); if(ta2) ta2.focus();
+});
+
+/* ---------- 护眼记 ---------- */
+async function loadDrops(){
+  const {data,error}=await sb.from('drops').select('*').order('date',{ascending:false}).limit(30);
+  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 护眼记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>create table if not exists public.drops (id uuid primary key default gen_random_uuid(), date text not null unique, count int not null default 0, max_count int not null default 10, created_at timestamptz default now());<br>alter table public.drops disable row level security;<br>grant insert, update, delete, select on table public.drops to anon;');} return; }
+  $('banner').hidden=true; setupError=false;
+  drops=data||[]; renderDrops();
+}
+function comfortState(count){
+  if(count<=2) return {cls:'ok', face:'😊', text:'眼睛舒适', color:'linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%)', height:100, tip:'今天用眼很轻松，继续保持！'};
+  if(count<=5) return {cls:'mid', face:'🙂', text:'状态正常', color:'linear-gradient(180deg,#93c5fd 0%,#60a5fa 100%)', height:78, tip:'用眼强度一般，注意休息。'};
+  if(count<=8) return {cls:'tired', face:'😐', text:'眼睛疲劳', color:'linear-gradient(180deg,#fdba74 0%,#fb923c 100%)', height:55, tip:'滴得有点多了，建议闭眼休息或远眺。'};
+  return {cls:'bad', face:'😫', text:'需要休息', color:'linear-gradient(180deg,#fca5a5 0%,#f87171 100%)', height:35, tip:'已接近上限，让眼睛好好放松。'};
+}
+function renderDrops(){
+  const today=todayStr();
+  let rec=drops.find(d=>d.date===today);
+  if(!rec){ rec={date:today,count:0,max_count:10}; }
+  const count=Math.min(rec.count||0, rec.max_count||10);
+  const full=count>=10;
+  const st=comfortState(count);
+  const numEl=$('dropCount');
+  numEl.innerHTML=count+'<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ 10</span>';
+  numEl.classList.toggle('warn',full);
+  $('poolFace').textContent=st.face;
+  $('poolWater').style.height=st.height+'%';
+  $('poolWater').style.background=st.color;
+  const statusEl=$('dropStatus');
+  statusEl.className='status '+st.cls;
+  statusEl.textContent=st.face+' '+st.text;
+  const history=[...drops];
+  if(!history.find(d=>d.date===today)) history.unshift(rec);
+  history.sort((a,b)=>b.date.localeCompare(a.date));
+  $('dropHistory').innerHTML=history.slice(0,7).map(d=>{
+    const isToday=d.date===today;
+    const label=isToday?'今天':d.date.slice(5);
+    // 今天用 rec.count（实时），其他日期用 d.count（数据库值）
+    const cnt=isToday?rec.count:(d.count||0);
+    const s=comfortState(cnt);
+    const txt={ok:'眼睛舒适',mid:'状态正常',tired:'眼睛疲劳',bad:'需要休息'}[s.cls];
+    return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${d.max_count||10}</div></div>`;
+  }).join('');
+  $('dropHistory').querySelectorAll('.history-item').forEach(el=>{
+    el.onclick=()=>{
+      const date=el.dataset.date;
+      const currentDate=$('dropDetail').dataset.date;
+      if(!$('dropDetail').hidden && currentDate===date){
+        $('dropDetail').hidden=true;
+        return;
+      }
+      const d=drops.find(x=>x.date===date) || {date:date,count:0,max_count:10};
+      const s=comfortState(d.count);
+      const label=date===today?'今天':date;
+      $('detailDate').textContent=`${label} · 滴了 ${d.count} 次`;
+      $('detailBody').innerHTML=`<span class="status ${s.cls}" style="display:inline-flex;margin-bottom:8px;">${s.face} ${s.text}</span><br>${s.tip}${d.count<=2?'<br><strong>真棒！今天用眼很健康。</strong>':''}`;
+      $('dropDetail').dataset.date=date;
+      $('dropDetail').hidden=false;
+    };
+  });
+}
+// × 关闭按钮
+$('detailClose').onclick=()=>{$('dropDetail').hidden=true;};
+// 点外面关闭详情
+document.addEventListener('click',(e)=>{
+  const d=$('dropDetail');
+  if(d.hidden) return;
+  if(e.target.closest('.history-item')) return; // history-item 自己处理 toggle
+  if(e.target.closest('.history-detail')) return; // 点详情内部不关
+  if(e.target.closest('.pool')) return; // 点水池不关
+  d.hidden=true;
+});
+async function addDrop(){
+  const today=todayStr();
+  let rec=drops.find(d=>d.date===today);
+  if(rec){
+    if(rec.count>=10){toast('今天已经滴满 10 次了');return;}
+    rec.count++;
+    renderDrops(); // 立即刷新（水池+今天格子+详情都跟着变）
+    const {error}=await sb.from('drops').update({count:rec.count}).eq('id',rec.id);
+    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');rec.count--;renderDrops();return;}
+  }else{
+    rec={date:today,count:1,max_count:10};
+    drops.unshift(rec);
+    renderDrops(); // 立即刷新
+    const {data,error}=await sb.from('drops').insert({date:today,count:1,max_count:10}).select();
+    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');drops.shift();renderDrops();return;}
+    if(data&&data[0]) rec.id=data[0].id;
+  }
+  toast('已记录');
+}
+$('dropPool').onclick=async(e)=>{
+  const today=todayStr();
+  let rec=drops.find(d=>d.date===today);
+  if(rec&&rec.count>=10){toast('今天已经滴满 10 次了');return;}
+  const rect=$('dropPool').getBoundingClientRect();
+  const x=e.clientX-rect.left, y=e.clientY-rect.top;
+  const ripple=document.createElement('div');
+  ripple.className='ripple';
+  ripple.style.left=(x-25)+'px';
+  ripple.style.top=(y-25)+'px';
+  ripple.style.width=ripple.style.height='50px';
+  $('dropPool').appendChild(ripple);
+  setTimeout(()=>ripple.remove(),700);
+  await addDrop();
+};
+
+/* 图片压缩 */
+function compressImage(file,maxDim,quality){return new Promise((res,rej)=>{
+  const r=new FileReader();
+  r.onload=()=>{const img=new Image();img.onload=()=>{
+    let w=img.width,h=img.height;
+    if(w>h&&w>maxDim){h=h*maxDim/w;w=maxDim;} else if(h>maxDim){w=w*maxDim/h;h=maxDim;}
+    const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+    res(c.toDataURL('image/jpeg',quality));
+  };img.onerror=rej;img.src=r.result;};
+  r.onerror=rej;r.readAsDataURL(file);
+});}
+$('overlay').onclick=()=>{$('overlay').hidden=true;};
+
+/* ---------- 实时同步 ---------- */
+
+/* ---------- 暖记 ---------- */
+const PERIOD_SEED=[
+  {date:'2026-01-06',time:'10:00'},
+  {date:'2026-02-04',time:'10:00'},
+  {date:'2026-04-09',time:'10:00'},
+  {date:'2026-05-08',time:'22:00'},
+  {date:'2026-07-07',time:'12:30'},
+];
+let periodRecs=[];
+let periodLastTap=0;
+let periodRowId=null;
+let periodCycleLen=null;       // 用户设定的周期（null=未设定，用默认或自动）
+let cloudLabelsStr=null;       // 最近一次从云端拉到的 labels JSON 字符串，用来判断是否真的变了
+
+function periodAvgCycleFromRecords(){
+  // 历史 ≥2 条时，用最近几段间隔的中位数估算，自动避开 >60 的离群值
+  if(periodRecs.length<2) return null;
+  const ts=periodRecs.map(r=>r.ts).sort((a,b)=>a-b);
+  const gaps=[];
+  for(let i=1;i<ts.length;i++){ const g=Math.round((ts[i]-ts[i-1])/86400000); if(g>=15&&g<=60) gaps.push(g); }
+  if(gaps.length<1) return null;
+  gaps.sort((a,b)=>a-b);
+  return Math.round(gaps[Math.floor(gaps.length/2)]);
+}
+function periodNextDate(){
+  // 上一次开始日 = 最近一次记录（按时序倒序数组里的第 0 个之前的"过去"那条）
+  const past=periodRecs.filter(r=>r.date!==periodTodayStr());
+  const lastPast=past[0]||periodRecs[0];
+  if(!lastPast) return null;
+  let cycle=periodCycleLen;
+  if(!cycle) cycle=periodAvgCycleFromRecords()||28;
+  cycle=Math.max(18,Math.min(60,cycle|0));
+  const t=new Date(lastPast.date+'T00:00:00');
+  t.setDate(t.getDate()+cycle);
+  return t;
+}
+async function loadPeriod(){
+  // 拉取共享行（取最新一条）
+  const {data,error}=await sb.from('period_log').select('*').order('updated_at',{ascending:false}).limit(1);
+  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
+  $('banner').hidden=true; setupError=false;
+  const row=data&&data[0]?data[0]:null;
+  periodRowId=row?row.id:null;
+  periodRecs=(row&&Array.isArray(row.records))?row.records:[];
+  // 首次为空时 seed 历史
+  if(!periodRecs.length){
+    periodRecs=PERIOD_SEED.map(s=>{
+      const ts=new Date(s.date+'T'+s.time+':00').getTime();
+      return {id:'r'+ts+'_'+Math.random().toString(36).slice(2,6),date:s.date,time:s.time,ts};
+    });
+    await savePeriod();
+  }
+  renderPeriod();
+}
+async function savePeriod(){
+  const payload={records:periodRecs,updated_at:new Date().toISOString()};
+  if(periodRowId){
+    const {error}=await sb.from('period_log').update(payload).eq('id',periodRowId);
+    if(error){ showModErr('viewPeriod','暖记云端保存失败（'+error.message+'）'); return false; }
+  }else{
+    const {data,error}=await sb.from('period_log').insert(payload).select();
+    if(error){ showModErr('viewPeriod','暖记云端保存失败（'+error.message+'）'); return false; }
+    if(data&&data[0]) periodRowId=data[0].id;
+  }
+  return true;
+}
+function periodTodayStr(d=new Date()){
+  const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),da=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${da}`;
+}
+function periodTimeStr(d=new Date()){
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function periodFmtDT(date,time){
+  const [y,m,d]=date.split('-');
+  return `${y}.${m*1}.${d*1} ${time}`;
+}
+function periodDayDiff(a,b){
+  const A=new Date(a+'T00:00:00'),B=new Date(b+'T00:00:00');
+  return Math.round((B-A)/86400000);
+}
+$('periodPool').onclick=async()=>{
+  const now=Date.now();
+  if(now-periodLastTap<1200) return;
+  periodLastTap=now;
+  const d=new Date();
+  periodRecs.push({id:'r'+now,date:periodTodayStr(d),time:periodTimeStr(d),ts:now});
+  const pool=$('periodPool');
+  pool.textContent='💗';
+  pool.classList.remove('flash');void pool.offsetWidth;pool.classList.add('flash');
+  const r=document.createElement('div');r.className='ripple';
+  const sz=40+Math.random()*30;r.style.width=r.style.height=sz+'px';
+  r.style.left=(Math.random()*(170-sz))+'px';r.style.top=(Math.random()*(170-sz))+'px';
+  pool.appendChild(r);setTimeout(()=>r.remove(),900);
+  setTimeout(()=>{pool.textContent='🌷'},800);
+  toast('已记录 ✨');
+  renderPeriod();
+  await savePeriod();
+};
+$('periodList').addEventListener('click',async e=>{
+  const btn=e.target.closest('[data-del]'); if(!btn) return;
+  e.stopPropagation();
+  const id=btn.dataset.del;
+  if(!confirm('删除这条记录？')) return;
+  periodRecs=periodRecs.filter(r=>r.id!==id);
+  renderPeriod();
+  await savePeriod();
+});
+function renderPeriod(){
+  periodRecs.sort((a,b)=>b.ts-a.ts);
+  const today=periodTodayStr();
+  const todayList=periodRecs.filter(r=>r.date===today);
+  $('periodTodayInfo').innerHTML=todayList.length?`今天已记 <b>${todayList.length}</b> 次（${todayList[0].time}）`:`这个月还没记录`;
+  const past=periodRecs.filter(r=>r.date!==today);
+  if(past.length){
+    const last=past[0];
+    const gap=periodDayDiff(last.date,today);
+    $('periodLastGap').textContent=gap===0?'今天':`${gap} 天前`;
+    $('periodLastWhen').textContent=periodFmtDT(last.date,last.time);
+  }else if(periodRecs.length){
+    const last=periodRecs[0];
+    $('periodLastGap').textContent='今天';
+    $('periodLastWhen').textContent=periodFmtDT(last.date,last.time);
+  }else{
+    $('periodLastGap').textContent='—';
+    $('periodLastWhen').textContent='还没有记录';
+  }
+  const tipEl=$('periodTip');
+  if(past.length>=1){
+    const gap=periodDayDiff(past[0].date,today);
+    tipEl.style.display='inline-flex';
+    tipEl.className='tip '+(gap<21?'short':gap>40?'long':'normal');
+    tipEl.textContent=gap<21?`⚠️ 距上次 ${gap} 天，注意休息`:gap>40?`💛 距上次 ${gap} 天，多保重身体`:`🌷 距上次 ${gap} 天，节奏平稳`;
+  }else{
+    tipEl.style.display='none';
+  }
+  const list=$('periodList');
+  if(!periodRecs.length){
+    list.innerHTML='<div class="empty">还没有记录。点上面粉色大圆记一笔 ✨</div>';
+  }else{
+    list.innerHTML=periodRecs.map(r=>{
+      const isToday=r.date===today;
+      return `<div class="row ${isToday?'today':''}" data-id="${r.id}">
+        <div class="date">${periodFmtDT(r.date,r.time)}${isToday?'<span class="tag">今天</span>':''}</div>
+        <button class="del" data-del="${r.id}" title="删除">×</button>
+      </div>`;
+    }).join('');
+  }
+  $('periodHistRight').textContent=`共 ${periodRecs.length} 条`;
+  $('periodCntTotal').textContent=periodRecs.length;
+  const sorted=[...periodRecs].sort((a,b)=>a.ts-b.ts);
+  // 平均间隔（保留原有逻辑）
+  if(sorted.length>=2){
+    let total=0,cnt=0;
+    for(let i=1;i<sorted.length;i++){ total+=periodDayDiff(sorted[i-1].date,sorted[i].date); cnt++; }
+    $('periodAvgGap').textContent=(total/cnt).toFixed(1);
+  }else{
+    $('periodAvgGap').textContent='—';
+  }
+  // 距下次月经 倒计时卡片
+  renderPeriodCountdown();
+}
+function renderPeriodCountdown(){
+  const card=$('periodNextCard');
+  const n=$('periodNextDays');
+  const l=$('periodNextLbl');
+  const h=$('periodCycleHint');
+  if(!card||!n||!l) return;
+  const next=periodNextDate();
+  if(!next){
+    card.classList.remove('overdue');
+    n.textContent='—'; l.textContent='记一笔再算';
+    if(h){h.style.display='';h.textContent='至少需要 1 条记录';}
+    return;
+  }
+  const today=new Date(); today.setHours(0,0,0,0);
+  const diff=Math.round((next-today)/86400000); // 可能为负（已逾期）
+  card.classList.toggle('overdue',diff<0);
+  if(h) h.style.display='none';
+  l.textContent='距离下次天数';
+  if(diff===0){ n.textContent='今天'; }
+  else if(diff>0){ n.textContent=diff; }
+  else{ n.textContent=`逾期 ${-diff}`; }
+}
+/* 周期调节 modal */
+$('periodNextCard').onclick=openCycleModal;
+$('cycleCancel').onclick=()=>{$('cycleModal').hidden=true;};
+$('cycleSave').onclick=saveCycleLen;
+$('cycleAutoBtn').onclick=()=>{
+  const auto=periodAvgCycleFromRecords();
+  if(!auto){ toast('至少需要 2 条历史记录才能自动算'); return; }
+  $('cycleInput').value=auto;
+  $('cycleAutoHint').textContent=`按历史中位数自动估算：${auto} 天`;
+};
+$('cycleModal').addEventListener('click',e=>{ if(e.target===$('cycleModal')) $('cycleModal').hidden=true; });
+function openCycleModal(){
+  const cur=periodCycleLen||periodAvgCycleFromRecords()||28;
+  $('cycleInput').value=cur;
+  const auto=periodAvgCycleFromRecords();
+  $('cycleAutoHint').textContent=auto?`历史自动估算：${auto} 天（不输入直接保存 = 用此值）`:'历史不足，使用默认 28 天（保存后生效）';
+  $('cycleModal').hidden=false;
+  setTimeout(()=>$('cycleInput').focus(),50);
+}
+async function saveCycleLen(){
+  let v=parseInt($('cycleInput').value,10);
+  if(!Number.isFinite(v)) v=periodAvgCycleFromRecords()||28;
+  v=Math.max(18,Math.min(60,v));
+  periodCycleLen=v;
+  $('cycleModal').hidden=true;
+  renderPeriod();
+  const ok=await saveSettings('cycle_len',v);
+  toast(ok?'周期已保存（手机电脑同步） ✓':'保存失败，请稍后再试');
+}
+
+/* ---------- app_settings：跨设备同步 labels + cycle_len ---------- */
+// 单行 key='labels' 存 {app,todo,memo,eye,warm,farm}；单行 key='cycle_len' 存 18-60 整数
+async function loadSettings(){
+  if(!sb) return;
+  const {data,error}=await sb.from('app_settings').select('*').in('key',['labels','cycle_len']);
+  if(error){
+    // 42P01 = 表不存在，给出明确引导
+    if(/relation .* does not exist|app_settings/i.test(error.message||'')){
+      if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
+    }else if(!setupError){
+      setupError=true;
+      showBanner('⚠️ 加载 app_settings 失败：<b>'+(error.message||error)+'</b><br>当前请求的 Supabase 项目：<code>'+SUPABASE_URL+'</code><br>请把这条错误截图发给 AI。');
+    }
+    // banner 短延迟重置，给当前错误留出展示时间，但不再阻塞后续 loadXxx 的 hide
+    setTimeout(()=>{ setupError=false; }, 2500);
+    return;
+  }
+  // 拉到设置时清掉 banner（如果用户已经建好表了）
+  $('banner').hidden=true; setupError=false;
+  const byKey={};
+  (data||[]).forEach(r=>{ byKey[r.key]=r.value; });
+  // labels：以云端为准，本地立刻套用（手机电脑实时一致）
+  if(byKey.labels){
+    const newStr=JSON.stringify(byKey.labels);
+    if(newStr!==cloudLabelsStr){
+      cloudLabelsStr=newStr;
+      try{ localStorage.setItem('wbLabels',newStr); }catch(e){}
+      applyLabels();
+    }
+  }else{
+    cloudLabelsStr=null;
+  }
+  // cycle_len
+  const cl=byKey.cycle_len;
+  if(typeof cl==='number'&&cl>=18&&cl<=60){
+    periodCycleLen=cl;
+    renderPeriod();
+  }else if(cl!==undefined && cl!==null){
+    periodCycleLen=null; // 云端值非法就退回默认/自动
+    renderPeriod();
+  }
+}
+async function saveSettings(key, value){
+  if(!sb) return false;
+  const payload={key,value:value===null?null:JSON.parse(JSON.stringify(value)),updated_at:new Date().toISOString()};
+  // 优先 upsert：先 select 一次拿 id；不行再 insert
+  const {data:rows,error:se}=await sb.from('app_settings').select('id').eq('key',key).limit(1);
+  if(se){
+    if(/relation .* does not exist|app_settings/i.test(se.message||'')){
+      if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
+    }else{
+      toast('云端设置失败：'+(se.message||se));
+    }
+    return false;
+  }
+  if(rows&&rows.length){
+    const {error}=await sb.from('app_settings').update(payload).eq('id',rows[0].id);
+    if(error){
+      if(/relation .* does not exist|app_settings/i.test(error.message||'')){ if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);} }
+      else toast('云端设置失败：'+(error.message||error));
+      return false;
+    }
+  }else{
+    const {error}=await sb.from('app_settings').insert(payload);
+    if(error){
+      if(/relation .* does not exist|app_settings/i.test(error.message||'')){ if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);} }
+      else toast('云端设置失败：'+(error.message||error));
+      return false;
+    }
+  }
+  return true;
+}
+
+/* ---------- 实时同步（带防爆+防抖：避免 publication 重建期间事件风暴） ---------- */
+const SAFE_LIMITS={}; // table -> { last:number, timer:null }
+function safeReload(table,fn){
+  if(!SAFE_LIMITS[table]) SAFE_LIMITS[table]={last:0,timer:null};
+  const now=Date.now();
+  // 200ms 内只跑最后一次
+  if(SAFE_LIMITS[table].timer) return;
+  SAFE_LIMITS[table].timer=setTimeout(()=>{
+    SAFE_LIMITS[table].timer=null;
+    try{ fn(); }catch(e){ showFatal('realtime['+table+']: '+(e.message||e)); }
+  },200);
+}
+sb.channel('todos-rt').on('postgres_changes',{event:'*',schema:'public',table:'todos'},()=>safeReload('todos',loadTodos)).subscribe();
+sb.channel('memos-rt').on('postgres_changes',{event:'*',schema:'public',table:'memos'},()=>safeReload('memos',loadMemos)).subscribe();
+sb.channel('drops-rt').on('postgres_changes',{event:'*',schema:'public',table:'drops'},()=>{ if(view==='counter') safeReload('drops',loadDrops); }).subscribe();
+sb.channel('period-rt').on('postgres_changes',{event:'*',schema:'public',table:'period_log'},()=>{ safeReload('period',loadPeriod); }).subscribe();
+sb.channel('farm-rt').on('postgres_changes',{event:'*',schema:'public',table:'farm'},()=>{
+  if(Date.now()-farmPushAt<1500) return;
+  safeReload('farm',()=>pullFarm(true));
+}).subscribe();
+// app_settings 任何变化都重拉（手机电脑同步 labels / cycle_len）
+if(sb){
+  try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>safeReload('settings',loadSettings)).subscribe(); }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); } });
+
+/* ---------- 我的农场 v5：自由农场 ---------- */
+const FARM_KEY='suixin_farm_v3';
+const FARM_LAYOUTS={
+  desktop:{GRID:76,PATCH:66,PAD:24,OFFSET:5,COLS:5},
+  mobile :{GRID:58,PATCH:48,PAD:10,OFFSET:3,COLS:5},
+};
+let farmLayout=FARM_LAYOUTS.desktop;
+function updateFarmLayout(){
+  farmLayout=window.innerWidth<=560?FARM_LAYOUTS.mobile:FARM_LAYOUTS.desktop;
+}
+
+/* 种子库：stages 生长阶段数(4-5)；cost 种植花费金币；reward 收获获得金币 */
+const SEEDS={
+  cucumber:{name:'黄瓜',emoji:'🥒',stages:4,cost:3,reward:8},
+  tomato:{name:'番茄',emoji:'🍅',stages:5,cost:5,reward:12},
+  corn:{name:'玉米',emoji:'🌽',stages:4,cost:4,reward:10},
+  watermelon:{name:'西瓜',emoji:'🍉',stages:5,cost:10,reward:22},
+  strawberry:{name:'草莓',emoji:'🍓',stages:4,cost:3,reward:8},
+  eggplant:{name:'茄子',emoji:'🍆',stages:4,cost:4,reward:10},
+  potato:{name:'土豆',emoji:'🥔',stages:4,cost:3,reward:8},
+  carrot:{name:'胡萝卜',emoji:'🥕',stages:4,cost:3,reward:8},
+  pepper:{name:'辣椒',emoji:'🌶️',stages:5,cost:4,reward:11},
+  pumpkin:{name:'南瓜',emoji:'🎃',stages:5,cost:6,reward:15},
+  grape:{name:'葡萄',emoji:'🍇',stages:5,cost:5,reward:13},
+  blueberry:{name:'蓝莓',emoji:'🫐',stages:4,cost:4,reward:11},
+};
+/* 种下后无需手动加速，到达此时间自动成熟（默认 5 分钟） */
+const AUTO_GROW_MS=5*60*1000;
+const THEMES={
+  green:{name:'草地',bg:'linear-gradient(180deg,#d7f0c2,#b8e08e)',dot:'#b8e08e'},
+  dusk:{name:'黄昏',bg:'linear-gradient(180deg,#ffe3c2,#f6b88a)',dot:'#f6b88a'},
+  sky:{name:'晴空',bg:'linear-gradient(180deg,#cfeaff,#a9d4f5)',dot:'#a9d4f5'},
+  night:{name:'夜色',bg:'linear-gradient(180deg,#cfd6f5,#9aa6e0)',dot:'#9aa6e0'},
+};
+
+let farm=null, selSeed=null, popEl=null, farmBound=false, dragSeed=null, seedPopEl=null, seedPopTimer=null, farmPushAt=0;
+let farmId=null, farmPushTimer=null;
+
+function defaultFarm(){return {coins:100, plots:[], inventory:{}, theme:'green', last:Date.now(), rev:Date.now(), deleted:[]};}
+function loadFarm(){
+  updateFarmLayout();
+  let hasLocal=false;
+  try{const raw=localStorage.getItem(FARM_KEY); if(raw){farm=JSON.parse(raw);hasLocal=true;} else {farm=defaultFarm();}}catch(e){farm=defaultFarm();}
+  if(!farm.plots)farm.plots=[];
+  if(!farm.inventory)farm.inventory={};
+  if(typeof farm.coins!=='number')farm.coins=100;
+  if(!farm.theme||!THEMES[farm.theme])farm.theme='green';
+  if(!Array.isArray(farm.deleted))farm.deleted=[];
+  if(typeof farm.rev!=='number')farm.rev=Date.now();
+  if(!farm.plots.length) addStarterPlots();
+  normalizePositions();
+  renderFarm();
+  pullFarm(hasLocal).then(()=>{ if(farmId===null) schedulePushFarm(); });
+}
+function addStarterPlots(){
+  updateFarmLayout();
+  const cols=groundCols();
+  for(let i=0;i<3;i++) farm.plots.push({id:uid(),crop:null,stage:0,plantedAt:Date.now(),gx:i%cols,gy:Math.floor(i/cols),rev:Date.now()});
+}
+function groundCols(){
+  const ground=$('farmGround');
+  if(!ground)return farmLayout.COLS;
+  return Math.max(3,Math.floor((ground.clientWidth-2*farmLayout.PAD)/farmLayout.GRID));
+}
+function groundRows(){return Math.max(1,Math.ceil(farm.plots.length/groundCols()));}
+function autoArrangePlots(){
+  const cols=groundCols();
+  farm.plots.forEach((p,i)=>{p.gx=i%cols;p.gy=Math.floor(i/cols);});
+}
+/* 消除坐标冲突：把落在同一格的田顺延到下一个空格，保证每块田都能被点中、可拖动 */
+function normalizePositions(){
+  const cols=groundCols();
+  const taken=new Set();
+  farm.plots.forEach(p=>{
+    let gx=Math.max(0,p.gx||0), gy=Math.max(0,p.gy||0);
+    if(taken.has(gx+','+gy)){
+      let found=false;
+      for(let y=0;y<300&&!found;y++){ for(let x=0;x<cols&&!found;x++){ if(!taken.has(x+','+y)){ gx=x;gy=y;found=true; } } }
+    }
+    p.gx=gx; p.gy=gy; taken.add(gx+','+gy);
+  });
+}
+function saveFarm(){farm.rev=Date.now();farm.last=farm.rev;try{localStorage.setItem(FARM_KEY,JSON.stringify(farm));}catch(e){} schedulePushFarm();}
+function schedulePushFarm(){ if(farmPushTimer)clearTimeout(farmPushTimer); farmPushTimer=setTimeout(pushFarm,500); }
+/* 农场合并：按每块田的版本号 rev 取胜（谁改得晚谁赢），删除用 deleted 集合传播 */
+function farmSig(f){ return JSON.stringify({p:(f.plots||[]).map(x=>({i:x.id,c:x.crop,s:x.stage,r:x.rev})), c:f.coins, inv:f.inventory, t:f.theme, d:f.deleted}); }
+function mergeFarm(local, remote){
+  const byId=new Map();
+  for(const p of (local.plots||[])) byId.set(p.id,{...p});
+  for(const p of (remote.plots||[])){
+    const ex=byId.get(p.id);
+    if(!ex) byId.set(p.id,{...p});
+    else if((p.rev||0)>(ex.rev||0)) byId.set(p.id,{...p});
+  }
+  let plots=[...byId.values()];
+  const del=new Set([...(local.deleted||[]),...(remote.deleted||[])]);
+  plots=plots.filter(p=>!del.has(p.id));
+  const lr=local.rev||0, rr=remote.rev||0;
+  let coins,inventory,theme;
+  if(rr>=lr){coins=remote.coins;inventory={...remote.inventory};theme=remote.theme;}
+  else {coins=local.coins;inventory={...local.inventory};theme=local.theme;}
+  const allIds=new Set([...(local.plots||[]).map(p=>p.id), ...(remote.plots||[]).map(p=>p.id)]);
+  const prunedDel=[...del].filter(id=>allIds.has(id));
+  const merged={plots,coins:typeof coins==='number'?coins:100,inventory:inventory||{},theme:theme||'green',deleted:prunedDel,rev:Math.max(lr,rr)};
+  const changed = farmSig(local)!==farmSig(merged);
+  return {merged,changed};
+}
+async function pushFarm(){
+  if(!farm)return;
+  try{
+    const {data:remoteRows,error:re}=await sb.from('farm').select('*').order('updated_at',{ascending:false}).limit(1);
+    if(re) throw re;
+    if(remoteRows&&remoteRows.length){
+      const remoteRow=remoteRows[0];
+      const remoteFarm=typeof remoteRow.data==='string'?JSON.parse(remoteRow.data):remoteRow.data;
+      if(remoteFarm){
+        const {merged,changed}=mergeFarm(farm, remoteFarm);
+        farm.plots=merged.plots; farm.coins=merged.coins; farm.inventory=merged.inventory; farm.theme=merged.theme; farm.deleted=merged.deleted;
+        farm.rev=Date.now();
+        if(changed){ normalizePositions(); try{localStorage.setItem(FARM_KEY,JSON.stringify(farm));}catch(e){} renderFarm(); }
+        if(farmId===null||farmId===undefined) farmId=remoteRow.id;
+      }
+    }
+    const payload={data:JSON.stringify(farm),updated_at:new Date().toISOString()};
+    if(farmId!==null&&farmId!==undefined){
+      const {error}=await sb.from('farm').update(payload).eq('id',farmId);
+      if(error)throw error;
+    }else{
+      const {data,error}=await sb.from('farm').insert(payload).select();
+      if(error)throw error;
+      if(data&&data[0])farmId=data[0].id;
+    }
+    farmPushAt=Date.now();
+    const fe=document.querySelector('#viewFarm .mod-error'); if(fe) fe.hidden=true;
+  }catch(e){
+    console.warn('农场云端同步失败（将自动重试）：',e);
+    showModErr('viewFarm','农场云端同步失败：'+(e.message||e)+'，将自动重试');
+    setTimeout(pushFarm,5000);
+  }
+}
+async function pullFarm(hasLocal){
+  try{
+    const {data,error}=await sb.from('farm').select('*').order('updated_at',{ascending:false}).limit(1);
+    if(error||!data||!data.length)return;
+    const row=data[0];
+    const remote=typeof row.data==='string'?JSON.parse(row.data):row.data;
+    if(!remote)return;
+    farmId=row.id;
+    if(hasLocal===false){
+      // 首次启动：直接套用远端为基线
+      farm.plots=Array.isArray(remote.plots)?remote.plots:[];
+      farm.inventory=remote.inventory||{};
+      farm.coins=typeof remote.coins==='number'?remote.coins:100;
+      farm.theme=remote.theme||farm.theme||'green';
+      farm.deleted=Array.isArray(remote.deleted)?remote.deleted:[];
+      farm.rev=Date.now();
+    }else{
+      const {merged,changed}=mergeFarm(farm, remote);
+      if(!changed){ return; } // 已是最新，不回写，避免 pull→push→pull 抖动风暴
+      farm.plots=merged.plots; farm.coins=merged.coins; farm.inventory=merged.inventory; farm.theme=merged.theme; farm.deleted=merged.deleted;
+      farm.rev=Date.now();
+    }
+    if(!Array.isArray(farm.plots))farm.plots=[];
+    if(!farm.inventory||typeof farm.inventory!=='object')farm.inventory={};
+    if(typeof farm.coins!=='number')farm.coins=100;
+    if(!farm.theme||!THEMES[farm.theme])farm.theme='green';
+    if(!Array.isArray(farm.deleted))farm.deleted=[];
+    if(!farm.plots.length)addStarterPlots();
+    normalizePositions();
+    try{localStorage.setItem(FARM_KEY,JSON.stringify(farm));}catch(e){}
+    renderFarm();
+  }catch(e){}
+}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function addInv(key,n=1){farm.inventory[key]=(farm.inventory[key]||0)+n;}
+function invTotal(){return Object.values(farm.inventory||{}).reduce((a,b)=>a+b,0);}
+function expandCost(){return 5; /* 每块固定 5 金币 */}
+
+function stageEmoji(seed,i){
+  if(i>=seed.stages-1) return '<span class="crop-cluster"><span>'+seed.emoji+'</span><span>'+seed.emoji+'</span></span>';
+  const seq=['🌱','🌿','🌿','🌸','🌼'];
+  return seq[Math.min(i,seq.length-1)];
+}
+function stageLabel(seed,i){
+  if(i===0) return '播种';
+  if(i>=seed.stages-1) return '成熟';
+  const mid=['','发芽','长叶','开花','结果'];
+  return mid[i]||'生长中';
+}
+
+function farmToast(m){
+  const t=$('farmToast');
+  if(!t)return;
+  t.textContent=m; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+function bindFarmEvents(){
+  if(farmBound)return; farmBound=true;
+  $('addPlot').onclick=()=>{
+    const cost=expandCost();
+    if(farm.coins<cost){farmToast('金币不够，收获作物赚金币 💰');return;}
+    farm.coins-=cost;
+    farm.plots.push({id:uid(),crop:null,stage:0,plantedAt:Date.now(),gx:0,gy:0,rev:Date.now()});
+    autoArrangePlots(); saveFarm(); renderFarm(); farmToast('开垦了一块新田 🟫（花费 '+cost+' 金币）');
+  };
+  // 收田：直接删最后一块田（任意状态，无 confirm — 弹窗里也能单选收回）
+  $('removePlot').onclick=()=>{
+    if(!farm.plots.length){farmToast('已经没有田了');return;}
+    const p=farm.plots[farm.plots.length-1];
+    farm.plots.splice(farm.plots.length-1,1);
+    farm.deleted=farm.deleted||[]; if(!farm.deleted.includes(p.id))farm.deleted.push(p.id);
+    autoArrangePlots(); saveFarm(); renderFarm();
+    farmToast('已收回 1 块田（剩 '+farm.plots.length+' 块）');
+  };
+  /* 一键排列整齐：把田按从左到右、从上到下自动排成网格（保留各自作物/阶段） */
+  $('arrangeAll').onclick=()=>{
+    if(!farm.plots.length){farmToast('还没有田');return;}
+    autoArrangePlots();
+    farm.plots.forEach(p=>p.rev=Date.now());
+    saveFarm(); renderFarm();
+    farmToast('已经排成整齐的网格 ⛳');
+  };
+  $('harvestAll').onclick=harvestAll;
+  $('openBag').onclick=openBag;
+  $('closeBag').onclick=closeBag;
+  $('sellAllBag').onclick=sellAll;
+  $('bagPanel').onclick=e=>{if(e.target===$('bagPanel'))closeBag();};
+  $('plantAll').onclick=plantAllEmpty;
+  $('boostAll').onclick=boostAll;
+  $('seedBar').addEventListener('click',e=>{
+    const s=e.target.closest('.seed'); if(!s)return;
+    const k=s.dataset.seed;
+    if(selSeed===k){ selSeed=null; dragSeed=null; closeSeedPop(); }
+    else { selSeed=k; dragSeed=k; openSeedPop(k,s); }
+    renderSeedBar(); renderPlantBtn(); renderBoostBtn();
+  });
+  $('seedBar').addEventListener('dragstart',e=>{
+    const s=e.target.closest('.seed'); if(!s)return;
+    dragSeed=s.dataset.seed; selSeed=dragSeed;
+    try{e.dataTransfer.setData('text/plain',dragSeed);e.dataTransfer.effectAllowed='copy';}catch(_){}
+  });
+  $('farmGround').addEventListener('dragover',e=>{
+    const plot=e.target.closest('.plot'); if(plot&&!plot.classList.contains('empty')){return;}
+    if(plot){e.preventDefault();plot.classList.add('dragover');}
+  });
+  $('farmGround').addEventListener('dragleave',e=>{
+    const plot=e.target.closest('.plot'); if(plot)plot.classList.remove('dragover');
+  });
+  $('farmGround').addEventListener('drop',e=>{
+    const plot=e.target.closest('.plot'); if(!plot)return;
+    plot.classList.remove('dragover');
+    if(!plot.classList.contains('empty')){return;}
+    e.preventDefault();
+    const key=dragSeed||(e.dataTransfer&&e.dataTransfer.getData('text/plain'))||selSeed;
+    if(!key){toast('请先选一种种子');return;}
+    const idx=+plot.dataset.idx;
+    plantPlot(farm.plots[idx],key);
+  });
+  $('themeRow').addEventListener('click',e=>{
+    const d=e.target.closest('.theme-dot'); if(!d)return;
+    farm.theme=d.dataset.theme; saveFarm(); applyTheme(); renderThemeRow(); farmToast('已切换背景：'+THEMES[farm.theme].name);
+  });
+  window.addEventListener('resize',()=>{ renderField(); });
+  document.addEventListener('click',e=>{
+    if(popEl && !popEl.contains(e.target) && !e.target.closest('.plot')) closePop();
+  });
+}
+
+function applyTheme(){ $('farmGround').style.setProperty('--farm-bg', THEMES[farm.theme].bg); }
+
+function renderFarm(){ renderCoins(); renderSeedBar(); renderField(); renderThemeRow(); renderPlantBtn(); renderBoostBtn(); renderHarvestBtn(); }
+function renderHarvestBtn(){
+  const btn=$('harvestAll');
+  const n=farm.plots.filter(p=>p.crop && p.stage>=SEEDS[p.crop].stages-1).length;
+  btn.disabled=n===0;
+  btn.textContent='🌾 一键收获'+(n?'('+n+'块)':'');
+}
+
+function emptyCount(){return farm.plots.filter(p=>!p.crop).length;}
+function growableCount(){return farm.plots.filter(p=>p.crop && p.stage<SEEDS[p.crop].stages-1).length;}
+function renderPlantBtn(){
+  const btn=$('plantAll'); const n=emptyCount();
+  btn.disabled=!selSeed||n===0;
+  btn.textContent='🌱 一键播种'+(selSeed?'(空'+n+'块)':'');
+}
+function renderBoostBtn(){
+  const btn=$('boostAll'); const n=growableCount();
+  btn.disabled=n===0;
+  btn.textContent='⏩ 一键加速('+(n)+'块)';
+}
+function showSeedHint(html){const h=$('seedHint');h.innerHTML=html;h.classList.add('show');}
+
+function renderCoins(){
+  $('coinBadge').textContent='💰 '+farm.coins;
+  $('expandCost').textContent='('+expandCost()+'金)';
+}
+
+function renderSeedBar(){
+  const bar=$('seedBar');
+  let h='<div class="seed-bar-title">🌱 种子栏（点种子选种 → 点空地播种 / 拖到田里 / 点田里的「收回」单选收田）</div>';
+  h+='<div class="seed-hint" id="seedHint"></div>';
+  h+=Object.entries(SEEDS).map(([k,s])=>'<button class="seed '+(selSeed===k?'active':'')+'" draggable="true" data-seed="'+k+'" title="'+s.name+' · 种 '+s.cost+' / 收 '+s.reward+' 金"><span class="emoji">'+s.emoji+'</span><span>'+s.name+'</span></button>').join('');
+  bar.innerHTML=h;
+  // 选中种子时，弹出小信息卡（跟地块弹窗同款）
+  if(selSeed && SEEDS[selSeed]){
+    const card=bar.querySelector('.seed.active');
+    if(card)openSeedPop(selSeed, card);
+  }
+}
+
+function renderThemeRow(){
+  const row=$('themeRow');
+  let h='<span class="tl">🎨 装饰背景</span>';
+  h+=Object.entries(THEMES).map(([k,t])=>'<div class="theme-dot '+(farm.theme===k?'active':'')+'" data-theme="'+k+'" title="'+t.name+'" style="background:'+t.dot+'"></div>').join('');
+  row.innerHTML=h;
+}
+
+let plotDivById={};
+function renderField(){
+  updateFarmLayout();
+  const {GRID,PATCH,PAD,OFFSET}=farmLayout;
+  applyTheme();
+  const ground=$('farmGround');
+  ground.style.setProperty('--patch',PATCH+'px');
+  ground.style.setProperty('--grid',GRID+'px');
+  // 网格线和田的真实位置对齐（田的左上角 = PAD + OFFSET）
+  ground.style.setProperty('--grid-inset',(PAD+OFFSET)+'px');
+  // 取消固定 minWidth，让农场面板按父容器宽度自适应（避免小屏横向溢出）
+  ground.style.minWidth='';
+  // 高度按当前布局的行数计算
+  const cols=groundCols();
+  const maxX=Math.max(cols, farm.plots.reduce((m,p)=>Math.max(m,p.gx+1),3));
+  const maxY=Math.max(3, farm.plots.reduce((m,p)=>Math.max(m,p.gy+1),1));
+  // 高度按行数 + 安全余量 12px（避免手机端字号/缩放下视觉溢出）
+  ground.style.minHeight=(PAD*2+Math.max(3,maxY)*GRID+12)+'px';
+  ground.querySelectorAll('.pet-tip').forEach(t=>t.remove());
+  if(!farm.plots.length){
+    // 全部清空时移除所有田的 div
+    Object.values(plotDivById).forEach(d=>d.remove()); plotDivById={};
+    const tip=document.createElement('div');
+    tip.className='pet-tip';
+    tip.style.cssText='position:absolute;inset:0;display:flex;align-items:center;justify-content:center;';
+    tip.textContent='还没有田，点「开垦新田」开始种地 🌱';
+    ground.appendChild(tip);
+    return;
+  }
+  // 移除已经不存在的田对应的 div（避免回收后被遗留）
+  const liveIds=new Set(farm.plots.map(p=>p.id));
+  Object.keys(plotDivById).forEach(id=>{ if(!liveIds.has(id)){ plotDivById[id].remove(); delete plotDivById[id]; } });
+  farm.plots.forEach((p,i)=>{
+    let div=plotDivById[p.id];
+    const isDrag=(div && div===draggingDiv);
+    if(!div){
+      // 首次出现：创建并绑定一次拖拽/点击事件（之后复用，不再重复绑定）
+      div=document.createElement('div');
+      div.dataset.id=p.id;
+      // 事件里按 id 实时查「活着的」田对象，避免闭包捕获到同步后被替换掉的旧引用
+      div.onclick=e=>{e.stopPropagation(); const cur=farm.plots.find(q=>q.id===div.dataset.id); if(cur) onPlotClick(cur, farm.plots.indexOf(cur), div);};
+      enablePlotDrag(div);
+      plotDivById[p.id]=div;
+      ground.appendChild(div);
+    }
+    div.dataset.idx=i;
+    const mature = p.crop && SEEDS[p.crop] && p.stage>=SEEDS[p.crop].stages-1;
+    div.className='plot'+(p.crop?'':' empty')+(mature?' ready':'');
+    if(p.crop && SEEDS[p.crop]){
+      const s=SEEDS[p.crop];
+      const m2=p.stage>=s.stages-1;
+      let timerHtml='';
+      if(!m2){
+        const remain=Math.max(0,AUTO_GROW_MS-(Date.now()-p.plantedAt));
+        timerHtml='<div class="growth-timer">'+fmtGrow(remain)+'</div>';
+      }
+      div.innerHTML='<div class="crop">'+stageEmoji(s,p.stage)+'</div><div class="stage-label">'+s.name+'</div>'+(m2?'<div class="badge-grow">🧺 可收</div>':timerHtml);
+    }else{
+      div.innerHTML='';
+    }
+    // 正在拖拽的田不重设位置，避免被打断 / 弹回
+    if(!isDrag){
+      div.style.left=(PAD+p.gx*GRID+OFFSET)+'px';
+      div.style.top=(PAD+p.gy*GRID+OFFSET)+'px';
+    }
+  });
+}
+
+/* 把剩余毫秒格式化成「X分Y秒后熟」 */
+function fmtGrow(ms){
+  const sec=Math.max(0,Math.ceil(ms/1000));
+  if(sec>=60){const m=Math.floor(sec/60),r=sec%60;return '🌱'+m+'分'+r+'秒后熟';}
+  return '🌱'+sec+'秒后熟';
+}
+
+/* 每秒检查：种下满 AUTO_GROW_MS 的作物自动成熟（无需手动加速） */
+function tickFarm(){
+  if(!farm)return;
+  const now=Date.now();
+  let matured=false;
+  farm.plots.forEach(p=>{
+    if(p.crop){
+      const s=SEEDS[p.crop];
+      if(p.stage<s.stages-1 && now-p.plantedAt>=AUTO_GROW_MS){ p.stage=s.stages-1; p.rev=Date.now(); matured=true; }
+    }
+  });
+  if(matured){ saveFarm(); renderField(); renderBoostBtn(); renderHarvestBtn(); return; }
+  // 未变化时只更新倒计时文本，不打断拖拽
+  const ground=$('farmGround');
+  if(!ground)return;
+  ground.querySelectorAll('.plot').forEach(div=>{
+    const t=div.querySelector('.growth-timer'); if(!t)return;
+    const p=farm.plots.find(q=>q.id===div.dataset.id);
+    if(!p||!p.crop)return;
+    const s=SEEDS[p.crop];
+    if(p.stage>=s.stages-1)return;
+    t.textContent=fmtGrow(Math.max(0,AUTO_GROW_MS-(now-p.plantedAt)));
+  });
+}
+
+function onPlotClick(p,i,div){
+  closePop();
+  if(!p.crop){
+    if(!selSeed){farmToast('先在下方选一种种子');return;}
+    plantPlot(p,selSeed); return;
+  }
+  openPlotPop(p,i,div,SEEDS[p.crop]);
+}
+
+let draggingDiv=null;
+function enablePlotDrag(div){
+  let startX,startY,origLeft,origTop,moved=false,dragging=false;
+  let lastGx=0,lastGy=0; // 拖动期间最新的目标格，pointerup 直接用它，避免瞬时布局抖动导致算回原位
+  // 按 id 实时查「活着的」田对象：同步后 farm.plots 可能被替换成新对象，闭包捕获旧引用会失效
+  const getP=()=>farm.plots.find(q=>q.id===div.dataset.id);
+  const computeCell=(rect,ground)=>{
+    // 关键修正：ground 有 border，getBoundingClientRect 包含 border，
+    // 但田的 left/top 是相对 padding box 的，所以要扣掉 borderLeft/Top
+    const gRect=ground.getBoundingClientRect();
+    const bl=ground.clientLeft, bt=ground.clientTop;
+    const cx=rect.left-(gRect.left+bl)+rect.width/2;
+    const cy=rect.top-(gRect.top+bt)+rect.height/2;
+    const {GRID,PAD}=farmLayout;
+    return {gx:Math.max(0,Math.round((cx-PAD-GRID/2)/GRID)), gy:Math.max(0,Math.round((cy-PAD-GRID/2)/GRID))};
+  };
+  const showTarget=(gx,gy)=>{
+    const t=$('dragTarget'); if(!t)return;
+    const {GRID,PAD,OFFSET}=farmLayout;
+    t.style.display='block';
+    t.style.left=(PAD+gx*GRID+OFFSET)+'px';
+    t.style.top=(PAD+gy*GRID+OFFSET)+'px';
+  };
+  const hideTarget=()=>{ const t=$('dragTarget'); if(t) t.style.display='none'; };
+  const place=()=>{
+    const p=getP(); if(!p)return;
+    if(!moved)return;
+    moved=false; div._justDragged=true;
+    // 优先用 lastGx/lastGy（pointermove 已确认正确）；若 move 尚未触发过则 fallback 当前 rect
+    let gx=lastGx, gy=lastGy;
+    const ground=$('farmGround');
+    if(!ground)return;
+    if(gx===0 && gy===0 && !p.gx && !p.gy){
+      const r=computeCell(div.getBoundingClientRect(),ground);
+      gx=r.gx; gy=r.gy;
+    }
+    const myIdx=farm.plots.indexOf(p);
+    // 如果目标位置已有其它地块，则交换位置
+    const target=farm.plots.find((q,j)=>j!==myIdx && q.gx===gx && q.gy===gy);
+    if(target){ const tx=target.gx,ty=target.gy; target.gx=p.gx; target.gy=p.gy; target.rev=Date.now(); p.gx=tx; p.gy=ty; }
+    else { p.gx=gx; p.gy=gy; }
+    p.rev=Date.now();
+    // 先保存数据，再渲染，最后清 draggingDiv —— 让 renderField 在重置 div 位置时知道这块田刚被拖过
+    saveFarm();
+    renderField();
+    draggingDiv=null;
+    // 落位后强制对齐到目标格（去掉拖动的像素偏移），保证视觉与数据一致
+    const {GRID,PAD,OFFSET}=farmLayout;
+    div.style.left=(PAD+p.gx*GRID+OFFSET)+'px';
+    div.style.top=(PAD+p.gy*GRID+OFFSET)+'px';
+  };
+  const finish=(e)=>{
+    if(!dragging)return;
+    dragging=false;
+    try{ div.releasePointerCapture(e.pointerId); }catch(_){}
+    div.classList.remove('dragging');
+    hideTarget();
+    place();
+  };
+  // 拖动被系统打断时（页面切走、电话打断），当作取消：把田放回原位
+  const cancelDrag=()=>{
+    if(!dragging)return;
+    dragging=false; moved=false;
+    div.classList.remove('dragging');
+    try{ div.releasePointerCapture(0); }catch(_){}
+    hideTarget();
+    div.style.left=origLeft+'px';
+    div.style.top=origTop+'px';
+    draggingDiv=null;
+  };
+  div.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='mouse' && e.button!==0) return;
+    e.preventDefault();
+    startX=e.clientX; startY=e.clientY;
+    origLeft=parseFloat(div.style.left)||0; origTop=parseFloat(div.style.top)||0;
+    moved=false; dragging=true; draggingDiv=div;
+    div.classList.add('dragging');
+    try{ div.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  div.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    const dx=e.clientX-startX, dy=e.clientY-startY;
+    if(Math.abs(dx)+Math.abs(dy)>4)moved=true;
+    div.style.left=(origLeft+dx)+'px';
+    div.style.top=(origTop+dy)+'px';
+    // 实时显示目标格高亮，让用户清楚知道田会落在哪
+    const ground=$('farmGround');
+    if(ground){
+      const r=computeCell(div.getBoundingClientRect(),ground);
+      lastGx=r.gx; lastGy=r.gy;
+      showTarget(r.gx,r.gy);
+    }
+  });
+  div.addEventListener('pointerup',finish);
+  // iOS 系统手势/电话打断时会发 pointercancel —— 取消放手，不调用 place（松手才落位）
+  div.addEventListener('pointercancel',cancelDrag);
+  // 拖动结束后若发生了移动，吃掉随后的 click，避免"拖完自动弹窗"
+  div.addEventListener('click',e=>{ if(div._justDragged){ e.stopPropagation(); e.preventDefault(); div._justDragged=false; } },true);
+}
+
+function plantPlot(p,seed){
+  if(p.crop)return;
+  const sd=SEEDS[seed];
+  if(farm.coins<sd.cost){farmToast('金币不够，'+sd.name+'需 '+sd.cost+' 金 💰');return;}
+  farm.coins-=sd.cost;
+  p.crop=seed; p.stage=0; p.plantedAt=Date.now(); p.rev=Date.now();
+  saveFarm(); renderField(); renderCoins(); renderPlantBtn(); renderBoostBtn();
+  farmToast('种下了 '+sd.name+' 🌱（-'+sd.cost+'金）');
+}
+
+function plantAllEmpty(){
+  if(!selSeed){farmToast('请先选一种种子');return;}
+  const empties=farm.plots.filter(p=>!p.crop);
+  if(!empties.length){farmToast('没有空地了');return;}
+  const sd=SEEDS[selSeed]; const cost=sd.cost*empties.length;
+  if(farm.coins<cost){farmToast('金币不够，需 '+cost+' 金（'+empties.length+'块×'+sd.cost+'）');return;}
+  empties.forEach(p=>{p.crop=selSeed;p.stage=0;p.plantedAt=Date.now();p.rev=Date.now();});
+  farm.coins-=cost;
+  saveFarm(); renderField(); renderCoins(); renderPlantBtn(); renderBoostBtn();
+  farmToast('一键种下 '+empties.length+' 块 '+sd.name+'（-'+cost+'金）');
+}
+
+function boostAll(){
+  let n=0;
+  farm.plots.forEach(p=>{
+    if(p.crop){ const s=SEEDS[p.crop]; if(p.stage<s.stages-1){ p.stage=s.stages-1; p.rev=Date.now(); n++; } }
+  });
+  if(n){ saveFarm(); renderField(); renderBoostBtn(); renderHarvestBtn(); farmToast('一键加速了 '+n+' 块作物，全部成熟！'); }
+  else farmToast('没有可加速的作物');
+}
+
+function openPlotPop(p,i,div,s){
+  closePop();
+  const mature=p.stage>=s.stages-1;
+  const left=p.stage, remain=s.stages-1-left;
+  const pop=document.createElement('div');
+  pop.className='plot-pop plot-pop-fixed';
+  pop.innerHTML=
+    '<div class="pp-title">'+s.emoji+' '+s.name+'</div>'+
+    '<div class="pp-stage">阶段：'+stageLabel(s,p.stage)+'（'+left+'/'+(s.stages-1)+'）'+(mature?' · 已成熟':'')+'</div>'+
+    '<div class="pp-btns">'+
+      (mature?'':'<button class="sbtn" id="popWater">💧 浇水</button>')+
+      (mature?'':'<button class="sbtn primary" id="popFert">🧪 施肥（3金）</button>')+
+      '<button class="sbtn" id="popDetail">🔍 查看详情</button>'+
+      (mature?'<button class="sbtn" id="popHarvest">🧺 收获</button>':'')+
+      '<button class="sbtn warn" id="popDelete">🗑 收回这块田</button>'+
+    '</div>'+
+    '<div class="pp-detail" id="ppDetail" hidden></div>';
+  $('farmGround').appendChild(pop);
+  popEl=pop;
+  const water=pop.querySelector('#popWater'); if(water)water.onclick=()=>{waterPlot(p,i);closePop();};
+  const fert=pop.querySelector('#popFert'); if(fert)fert.onclick=()=>{fertilizePlot(p,i);closePop();};
+  const del=pop.querySelector('#popDelete'); if(del)del.onclick=()=>{deletePlot(i);closePop();};
+  const det=pop.querySelector('#popDetail');
+  if(det)det.onclick=()=>{
+    const d=pop.querySelector('#ppDetail');
+    d.hidden=!d.hidden;
+    if(!d.hidden){
+      let growTip='已成熟，可收获';
+      if(!mature){
+        const remainMs=Math.max(0,AUTO_GROW_MS-(Date.now()-p.plantedAt));
+        const sec=Math.ceil(remainMs/1000);
+        const mm=Math.floor(sec/60), rr=sec%60;
+        growTip='约 '+mm+' 分 '+rr+' 秒后自动成熟（也可浇水/施肥立即催熟）';
+      }
+      d.innerHTML='作物：<b>'+s.emoji+s.name+'</b><br>当前阶段：<b>'+stageLabel(s,p.stage)+'</b>（第 '+left+' / '+(s.stages-1)+' 阶段）<br>'+growTip+'<br>收获可得：<b>+'+s.reward+' 金币</b>';
+    }
+  };
+  const hv=pop.querySelector('#popHarvest'); if(hv)hv.onclick=()=>{harvestPlot(p,i);closePop();};
+}
+function closePop(){ if(popEl){popEl.remove();popEl=null;} }
+function closeSeedPop(){ if(seedPopTimer){clearTimeout(seedPopTimer);seedPopTimer=null;} if(seedPopEl){seedPopEl.remove();seedPopEl=null;} }
+function openSeedPop(key, card){
+  closeSeedPop();
+  if(!SEEDS[key])return;
+  const s=SEEDS[key];
+  const pop=document.createElement('div');
+  pop.className='seed-pop';
+  pop.innerHTML=
+    '<div class="pp-title">'+s.emoji+' '+s.name+'</div>'+
+    '<div class="pp-stage">💰 种植 '+s.cost+' 金　🧺 收获 +'+s.reward+' 金<br>⏱ 约 5 分钟自动成熟（也可浇水 / 施肥立刻催熟）</div>';
+  // 定位到种子卡片附近（offsetParent 在某些布局下可能为 null，回落到 body）
+  const cardRect=card.getBoundingClientRect();
+  const parent=card.offsetParent || document.body;
+  const parentRect=parent.getBoundingClientRect();
+  const top=cardRect.bottom-parentRect.top+6;
+  const left=Math.max(0, cardRect.left-parentRect.left);
+  pop.style.top=top+'px';
+  pop.style.left=left+'px';
+  parent.appendChild(pop);
+  seedPopEl=pop;
+  // 外部点击自动关闭；同时几秒后自动收起，想看再点即可（不影响选中）
+  if(seedPopTimer)clearTimeout(seedPopTimer);
+  seedPopTimer=setTimeout(closeSeedPop, 3000);
+}
+// 全局点其他位置自动关闭
+document.addEventListener('click',e=>{
+  if(!seedPopEl)return;
+  if(e.target.closest('.seed-pop'))return;
+  if(e.target.closest('.seed'))return; // 点击种子由它自己的 handler 处理
+  closeSeedPop();
+});
+function waterPlot(p,i){
+  const s=SEEDS[p.crop];
+  if(p.stage<s.stages-1){ p.stage++; p.rev=Date.now(); saveFarm(); renderField(); renderBoostBtn(); farmToast(s.name+' 浇了水，长到 '+stageLabel(s,p.stage)+' 💧'); }
+}
+function fertilizePlot(p,i){
+  const s=SEEDS[p.crop];
+  if(p.stage>=s.stages-1){farmToast(s.name+' 已经成熟了');return;}
+  if(farm.coins<3){farmToast('金币不够，施肥需 3 金 💰');return;}
+  farm.coins-=3;
+  p.stage=s.stages-1; p.rev=Date.now();
+  saveFarm(); renderField(); renderCoins(); renderBoostBtn();
+  farmToast(s.name+' 施了肥，直接成熟啦 🧪（-3金）');
+}
+
+function deletePlot(i){
+  const p=farm.plots[i]; if(!p)return;
+  // 已点了这块田，再点「收回这块田」就直接收回，不再 confirm
+  farm.plots.splice(i,1);
+  farm.deleted=farm.deleted||[]; if(!farm.deleted.includes(p.id))farm.deleted.push(p.id);
+  autoArrangePlots(); saveFarm(); renderFarm();
+  farmToast('已收回这块田（剩 '+farm.plots.length+' 块）');
+}
+function harvestPlot(p,i){
+  const s=SEEDS[p.crop];
+  addInv(p.crop,1);
+  farm.coins+=s.reward;
+  p.crop=null; p.stage=0; p.rev=Date.now();
+  saveFarm(); renderField(); renderCoins(); renderBoostBtn(); renderHarvestBtn(); renderPlantBtn();
+  farmToast('收获 '+s.name+s.emoji+' +'+s.reward+'金币 💰');
+}
+function harvestAll(){
+  let n=0;
+  farm.plots.forEach(p=>{
+    if(p.crop){ const s=SEEDS[p.crop]; if(p.stage>=s.stages-1){ addInv(p.crop,1); farm.coins+=s.reward; p.crop=null; p.stage=0; p.rev=Date.now(); n++; } }
+  });
+  if(n){ saveFarm(); renderField(); renderCoins(); renderBoostBtn(); renderHarvestBtn(); renderPlantBtn(); farmToast('一键收获 '+n+' 块成熟作物！'); }
+  else farmToast('没有可收获的作物');
+}
+
+function openBag(){ renderBag(); $('bagPanel').hidden=false; }
+function closeBag(){ $('bagPanel').hidden=true; }
+function renderBag(){
+  const body=$('bagBody');
+  const keys=Object.keys(farm.inventory).filter(k=>(farm.inventory[k]||0)>0);
+  if(!keys.length){ body.innerHTML='<div class="wh-empty">背包空空，去收获作物吧 🧺</div>'; return; }
+  body.innerHTML=keys.map(k=>{
+    const s=SEEDS[k]; const price=s?s.reward:2;
+    return '<div class="wh-item-wrap"><div class="wh-item"><span class="count">'+farm.inventory[k]+'</span><span class="emoji">'+(s?s.emoji:'❓')+'</span><span class="name">'+(s?s.name:k)+'</span><button class="sell" data-sell="'+k+'">出售 +'+price+'金</button></div></div>';
+  }).join('');
+  body.querySelectorAll('[data-sell]').forEach(b=>b.onclick=()=>sellCrop(b.dataset.sell));
+}
+function sellCrop(k){
+  const n=farm.inventory[k]||0; if(!n)return;
+  const s=SEEDS[k]; const price=s?s.reward:2;
+  delete farm.inventory[k];
+  farm.coins+=price*n;
+  saveFarm(); renderBag(); renderCoins();
+  farmToast('出售 '+(s?s.name:k)+' ×'+n+'，+'+price*n+' 金币 💰');
+}
+function sellAll(){
+  const keys=Object.keys(farm.inventory).filter(k=>(farm.inventory[k]||0)>0);
+  if(!keys.length){farmToast('背包里没有作物');return;}
+  let total=0;
+  keys.forEach(k=>{
+    const n=farm.inventory[k]||0;
+    const s=SEEDS[k]; const price=s?s.reward:2;
+    total+=price*n;
+    delete farm.inventory[k];
+  });
+  farm.coins+=total;
+  saveFarm(); renderBag(); renderCoins();
+  farmToast('一键出售全部作物，+'+total+' 金币 💰');
+}
+
+bindFarmEvents();
+
+/* 初始加载（任一失败不影响其它，先把 UI 框架渲染出来） */
+// 本地预览（sb 为 null）也要先把 stats/列表框架渲染出来，避免打开一片空白
+try{ renderStats(); renderList(); }catch(e){}
+(async()=>{
+  if(!sb){ toast('ℹ️ 本地预览模式：数据不会保存，输入框/tab 切换仍可用'); return; }
+  try{await loadTodos();}catch(e){showFatal('loadTodos: '+(e.message||e));}
+  try{await loadMemos();}catch(e){showFatal('loadMemos: '+(e.message||e));}
+  try{await loadFarm();}catch(e){showFatal('loadFarm: '+(e.message||e));}
+  // 拉一次设置：拿到云端 labels 和 cycle_len，手机电脑即时同步名称/倒计时
+  try{await loadSettings();}catch(e){}
+  // 拉一次暖记：拿到历史记录
+  try{await loadPeriod();}catch(e){showFatal('loadPeriod: '+(e.message||e));}
+})();
+setInterval(tickFarm,1000);
+</script>
+</body>
+</html>
