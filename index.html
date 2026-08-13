@@ -36,6 +36,13 @@
   - 喝水记录行间距加大（点 12a「记录挤一块」）
   - 折叠按钮 ⇤/⇥ 跟随侧栏新宽度定位
 -->
+<!-- 版本：rechen-v2026-08-13-v17.17-fix-pool-emoji-leak
+  修复：水池顶端出现"↑↑/小人"图标（点 3 反馈"这里不就多了字吗"）
+  - 原因1: 水池中央 emoji 元素（.pool .face / .water-pool .pool-face）虽然 body CSS 设了 display:none，但某次 CDN 缓存或 specificity 漏过导致 emoji 在池中央露出
+  - 原因2: .pool::before/.pool::after 是 240%×240% 旋转的大椭圆，被池的 overflow:hidden 裁切后，在某些动画帧顶部会露出"两个小人"形状
+  - 修复: inline <head> 追加 .pool .face / .water-pool .pool-face / .pool-hint / .water-pool-hint 五层 hide（display:none + visibility:hidden + width/height/font-size:0 + pointer-events:none，全部 !important）；
+         .pool::before/.pool::after 和 .water-pool::before/.water-pool::after 从 240%×240% 缩到 130%×60%、top:60%→75%、不透明度 .35→.18，避免溢出池外被裁成奇怪的图形
+-->
 <!-- 版本：rechen-v2026-08-13-v17.13-fix-all-11
   修复 11 条反馈：
   1. 护眼/喝水水池颜色不对 → 删 inline !important 蓝色 linear-gradient，改让 JS 的 comfortState 颜色生效 + 池背景浅绿 + 外圈 #22c55e 双层描边（实线 + 外发光）
@@ -90,6 +97,8 @@
     .sb-toggle{right:10px;left:auto;width:26px;height:26px;font-size:13px;}
     .app.collapsed .sb-toggle{left:8px;}
   }
+  /* v17.17: 强力兜底 — 水池中央所有 emoji 元素 100% 不可见，CDN 缓存或 CSS 优先级漏过也不会露出图标 */
+  .pool .face,.water-pool .pool-face,.pool-hint,.water-pool-hint{display:none !important;visibility:hidden !important;width:0 !important;height:0 !important;font-size:0 !important;overflow:hidden !important;pointer-events:none !important;}
 </style>
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <script src="./supabase.min.js"></script>
@@ -296,8 +305,8 @@
   .pool-wrap{display:flex;flex-direction:column;gap:18px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
   .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
   .pool:active{transform:scale(.97);}
-  .pool::before,.pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
-  .pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
+  .pool::before,.pool::after{content:'';position:absolute;left:50%;top:75%;width:130%;height:60%;border-radius:42%;background:rgba(255,255,255,.18);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
+  .pool::after{background:rgba(255,255,255,.12);animation:wave 10s linear infinite reverse;}
   @keyframes wave{0%{transform:translate(-50%,-50%) rotate(0);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
   .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%);transition:height .6s ease, background .6s ease;z-index:0;}
   .pool .face{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
@@ -483,8 +492,8 @@
   .water-pool-wrap{display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
   .water-pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
   .water-pool:active{transform:scale(.97);}
-  .water-pool::before,.water-pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.4);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
-  .water-pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
+  .water-pool::before,.water-pool::after{content:'';position:absolute;left:50%;top:75%;width:130%;height:60%;border-radius:42%;background:rgba(255,255,255,.22);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
+  .water-pool::after{background:rgba(255,255,255,.14);animation:wave 10s linear infinite reverse;}
   @keyframes wave{from{transform:translate(-50%,-50%) rotate(0);}to{transform:translate(-50%,-50%) rotate(360deg);}}
   @keyframes ripple{from{transform:scale(0);opacity:.9;}to{transform:scale(4);opacity:0;}}
   .water-pool .pool-water{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
