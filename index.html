@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17.8-inline-all-styles （强制 inline .hc/.hc-time/.hc-left 子元素/.hc-add/.site-foot 全部带 !important 兜底，并 desktop+mobile 全局隐藏 header .settings-btn；解决用户反映"每个界面都错 + 右上角设置还在 + 鼓励语不显示"） -->
+<!-- 版本：rechen-v2026-08-13-v17.9-foot-no-border （底部鼓励语去掉边框/背景/阴影/圆角，只保留 position:fixed 贴屏底显示文字，加 text-shadow 让字在浅绿底上更清晰；其余 v17.8 inline 兜底样式保持不动） -->
 <!-- 版本：rechen-v2026-08-13-v17.6-fix-bindfarm-null （修复农场 UI 已删但 bindFarmEvents() 顶层调用导致 null.onclick 报错：注释掉顶层调用 + 函数开头加 !addPlot 防御） -->
 <!-- 版本：rechen-v2026-08-13-v17.5-iterate （删整个农场模块 [侧栏+设置+viewFarm+JS+CSS+tickFarm 暂停]；鼓励语 fixed 永远屏底 + 一天一句按 day-of-year；备忘改成跟待办一样的 add-row 布局；护眼水池满→少→空+>10 破口 + 今日 count 已改 7；首页待办 6 条+卡片高度自适应；天气去外圈+时间 36px；喝水 ml 字号 20px+三行间距；删"× 清空今日"；banner 加红框样式不再无样式；settings → 侧栏图标已确认连通）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
@@ -37,10 +37,10 @@
   .hc-add{width:74px !important;height:74px !important;background:#22c55e !important;border-radius:50% !important;color:#fff !important;font-size:22px !important;font-weight:700 !important;box-shadow:0 4px 10px rgba(34,197,94,.3) !important;border:none !important;cursor:pointer !important;}
   .hc-sun{font-size:46px !important;background:transparent !important;border:none !important;}
   .hc-face{font-size:42px !important;}
-  /* v17.8: footer 兜底强制显示在所有页面 */
-  .site-foot{position:fixed !important;left:96px !important;right:8px !important;bottom:6px !important;text-align:center !important;padding:10px 12px !important;background:rgba(220,252,231,.95) !important;border:1px solid #86efac !important;border-radius:12px !important;z-index:999 !important;box-shadow:0 2px 12px rgba(34,197,94,.2) !important;}
-  .site-foot .cn{font-size:14px !important;color:#16a34a !important;font-weight:600 !important;}
-  .site-foot .en{font-size:11.5px !important;color:#6b7280 !important;margin-top:3px !important;}
+  /* v17.9: footer 鼓励语 — 只显示文字，无边框无背景无阴影 */
+  .site-foot{position:fixed !important;left:96px !important;right:8px !important;bottom:8px !important;text-align:center !important;padding:6px 0 !important;background:transparent !important;border:none !important;border-radius:0 !important;z-index:999 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
+  .site-foot .cn{font-size:14px !important;color:#16a34a !important;font-weight:600 !important;text-shadow:0 1px 2px rgba(255,255,255,.7) !important;}
+  .site-foot .en{font-size:11.5px !important;color:#6b7280 !important;margin-top:3px !important;text-shadow:0 1px 2px rgba(255,255,255,.7) !important;}
 </style>
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <script src="./supabase.min.js"></script>
@@ -383,10 +383,10 @@
   .todo-summary-row .tx{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
   /* footer 鼓励语 sticky bottom */
-  /* v17.5: 鼓励语 — 移到 .main 外面，固定贴屏底，跨 view 永远显示 */
-  .site-foot{position:fixed;left:96px;right:8px;bottom:6px;text-align:center;padding:10px 12px;background:rgba(220,252,231,.85);border:1px solid #86efac;border-radius:12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:50;pointer-events:none;}
-  .site-foot .cn{font-size:14px;color:#16a34a;font-weight:600;line-height:1.4;}
-  .site-foot .en{font-size:11.5px;color:#6b7280;margin-top:3px;letter-spacing:.4px;}
+  /* v17.9: 鼓励语 — 移到 .main 外面，固定贴屏底，跨 view 永远显示，无边框无背景只显示文字 */
+  .site-foot{position:fixed;left:96px;right:8px;bottom:8px;text-align:center;padding:6px 0;background:transparent;border:none;border-radius:0;z-index:999;pointer-events:none;}
+  .site-foot .cn{font-size:14px;color:#16a34a;font-weight:600;line-height:1.4;text-shadow:0 1px 2px rgba(255,255,255,.7);}
+  .site-foot .en{font-size:11.5px;color:#6b7280;margin-top:3px;letter-spacing:.4px;text-shadow:0 1px 2px rgba(255,255,255,.7);}
   /* 内容区避开底部 footer 不遮挡 */
   .main{padding-bottom:72px;}
 
