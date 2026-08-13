@@ -1,6 +1,6 @@
 {
-  "name": "热忱工作台",
-  "short_name": "热忱工作台",
+  "name": "GrowTime",
+  "short_name": "GrowTime",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

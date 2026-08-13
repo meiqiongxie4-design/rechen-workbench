@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
+<!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync （iOS 桌面图标名只从服务器原始 manifest.json 读，运行时 Blob 注入无效。现把部署目录 manifest.json 同步为最新名字 GrowTime，并在 applyLabels 改名后给用户提示：iOS 需长按旧桌面图标删除后重新添加）-->
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
@@ -642,6 +643,11 @@ function refreshManifest(appName){
   let link=document.querySelector('link[rel="manifest"]');
   if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link);}
   link.href=url;
+  // v12: iOS 桌面图标名只从服务器原始 manifest.json 读取，运行时 Blob 注入对 iOS "添加到主屏幕" 无效。
+  // 改名后用 console 提醒用户：需长按旧桌面图标删除后重新添加才生效。manifest.json 静态文件需手动同步。
+  if(/iPhone|iPad|iPod/i.test(navigator.userAgent)){
+    console.log('[v12] 应用内标题已更新为「'+appName+'」。iOS 桌面图标名取自服务器 manifest.json，删除旧桌面图标后重新添加即可看到新名字。');
+  }
 }
 function openSettings(){
   const L=getLabels();
