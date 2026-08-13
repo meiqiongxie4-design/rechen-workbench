@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17.9-foot-no-border （底部鼓励语去掉边框/背景/阴影/圆角，只保留 position:fixed 贴屏底显示文字，加 text-shadow 让字在浅绿底上更清晰；其余 v17.8 inline 兜底样式保持不动） -->
+<!-- 版本：rechen-v2026-08-13-v17.10-full-inline-layout （把 .app/.sidebar/.sb-item/.main 全套布局+ header 隐藏齿轮也加进 head inline 兜底，包括手机端 media query 缩放；解决用户截图看到"侧栏在顶部横排、卡片无样式、右上角齿轮还在"——原 CSS 块在 body 后加载，CDN/缓存滞后时 inline 兜底只盖到 .hc/.site-foot，其余布局样式全失效。CSS 现在不分先来后到，inline 兜底就是终态。）-->
 <!-- 版本：rechen-v2026-08-13-v17.6-fix-bindfarm-null （修复农场 UI 已删但 bindFarmEvents() 顶层调用导致 null.onclick 报错：注释掉顶层调用 + 函数开头加 !addPlot 防御） -->
 <!-- 版本：rechen-v2026-08-13-v17.5-iterate （删整个农场模块 [侧栏+设置+viewFarm+JS+CSS+tickFarm 暂停]；鼓励语 fixed 永远屏底 + 一天一句按 day-of-year；备忘改成跟待办一样的 add-row 布局；护眼水池满→少→空+>10 破口 + 今日 count 已改 7；首页待办 6 条+卡片高度自适应；天气去外圈+时间 36px；喝水 ml 字号 20px+三行间距；删"× 清空今日"；banner 加红框样式不再无样式；settings → 侧栏图标已确认连通）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
@@ -23,11 +23,34 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<!-- v17.7: 兜底强制首页卡片样式（不依赖 var()、带 !important），确保即便 CDN/缓存了旧 CSS，新加载也能直接生效 -->
+<!-- v17.10: 兜底强制全局布局+首页卡片+侧栏（含桌面+手机）全部带 !important。原先只有 .hc/.site-foot 兜底，但 .app/.sidebar 没兜底时，CDN/缓存滞后导致侧栏变成横向铺开、卡片无边框。包含：基础变量、布局、侧栏、卡片、footer、手机端缩放 -->
 <style>
-  .hc{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;height:130px !important;display:flex !important;justify-content:space-between !important;align-items:center !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;}
+  :root{--bg:#dcfce7;--surface:#ffffff;--surface-2:#ecfdf5;--line:#86efac;--text:#1f2937;--muted:#6b7280;--accent:#22c55e;--accent-soft:#dcfce7;--red:#dc2626;--orange:#f59e0b;--green:#16a34a;--gray:#9ca3af;--shadow:0 4px 18px rgba(34,197,94,.15);}
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg) !important;color:var(--text) !important;font-size:14px;}
+  .wrap{max-width:none;margin:0 auto;padding:14px 24px 60px;min-height:100vh;display:flex;flex-direction:column;}
+  header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
+  /* v17.10: 全局隐藏 header 右上角 ⚙️（已搬到侧栏底部） — 双保险：原 CSS 块已加，再次 inline 防 CDN 漏下 */
+  header .settings-btn{display:none !important;}
+  /* v17.10: app 容器 — 左右两列，侧栏左、main 右 */
+  .app{display:flex !important;flex-direction:row !important;gap:14px !important;align-items:stretch !important;}
+  /* v17.10: 侧栏固定左侧 */
+  .sidebar{width:84px !important;flex-shrink:0 !important;background:#dcfce7 !important;border-right:1px solid #86efac !important;border-radius:14px !important;padding:14px 0 !important;display:flex !important;flex-direction:column !important;gap:8px !important;align-items:center !important;align-self:stretch !important;min-height:calc(100vh - 90px) !important;}
+  .sb-item{width:60px !important;display:flex !important;flex-direction:column !important;align-items:center !important;gap:4px !important;background:transparent !important;border:none !important;cursor:pointer !important;padding:4px 0 !important;border-radius:10px !important;color:var(--muted) !important;transition:.15s !important;}
+  .sb-item .ic{width:48px !important;height:48px !important;background:#fff !important;border:1px solid #bbf7d0 !important;border-radius:12px !important;display:flex !important;align-items:center !important;justify-content:center !important;font-size:22px !important;line-height:1 !important;}
+  .sb-item .lb{font-size:10.5px !important;color:#16a34a !important;font-weight:600 !important;letter-spacing:.3px !important;}
+  .sb-item.active .ic{background:#22c55e !important;border-color:#22c55e !important;box-shadow:0 4px 10px rgba(34,197,94,.3) !important;}
+  .sb-item.active .lb{color:#166534 !important;font-weight:700 !important;}
+  .sb-item:active .ic{transform:scale(.94);}
+  .sb-spacer{flex:1 !important;background:transparent !important;cursor:default !important;}
+  .sidebar-foot{margin-top:auto !important;display:flex !important;flex-direction:column !important;gap:4px !important;}
+  .main{flex:1 !important;min-width:0 !important;min-height:0 !important;display:flex !important;flex-direction:column !important;gap:12px !important;padding-bottom:72px !important;}
+  /* v17.10: 首页 4 卡片（双保险） */
+  .home-cards{display:flex !important;flex-direction:column !important;gap:12px !important;}
+  .hc{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;height:auto !important;min-height:110px !important;display:flex !important;justify-content:space-between !important;align-items:center !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;flex:1 !important;}
   .todo-summary{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;}
-  /* v17.8: 强制 .hc 内子元素样式 */
+  .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-time{font-size:36px !important;font-weight:600 !important;color:#166534 !important;letter-spacing:1px !important;line-height:1 !important;font-feature-settings:'tnum' !important;}
   .hc-date{font-size:12.5px !important;color:#6b7280 !important;}
   .hc-greet{font-size:13px !important;color:#16a34a !important;font-weight:500 !important;}
@@ -37,10 +60,29 @@
   .hc-add{width:74px !important;height:74px !important;background:#22c55e !important;border-radius:50% !important;color:#fff !important;font-size:22px !important;font-weight:700 !important;box-shadow:0 4px 10px rgba(34,197,94,.3) !important;border:none !important;cursor:pointer !important;}
   .hc-sun{font-size:46px !important;background:transparent !important;border:none !important;}
   .hc-face{font-size:42px !important;}
-  /* v17.9: footer 鼓励语 — 只显示文字，无边框无背景无阴影 */
+  /* v17.10: footer 鼓励语 — 只显示文字，无边框无背景无阴影 */
   .site-foot{position:fixed !important;left:96px !important;right:8px !important;bottom:8px !important;text-align:center !important;padding:6px 0 !important;background:transparent !important;border:none !important;border-radius:0 !important;z-index:999 !important;box-shadow:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;}
   .site-foot .cn{font-size:14px !important;color:#16a34a !important;font-weight:600 !important;text-shadow:0 1px 2px rgba(255,255,255,.7) !important;}
   .site-foot .en{font-size:11.5px !important;color:#6b7280 !important;margin-top:3px !important;text-shadow:0 1px 2px rgba(255,255,255,.7) !important;}
+  /* v17.10: 手机端适配（max-width:640px） */
+  @media (max-width:640px){
+    .app{flex-direction:row !important;gap:6px !important;align-items:stretch !important;}
+    .sidebar{width:64px !important;padding:8px 0 !important;gap:6px !important;border-radius:10px !important;height:auto !important;min-height:calc(100vh - 90px) !important;}
+    .sb-item{width:48px !important;gap:2px !important;padding:2px 0 !important;}
+    .sb-item .ic{width:38px !important;height:38px !important;font-size:18px !important;border-radius:9px !important;}
+    .sb-item .lb{font-size:9.5px !important;letter-spacing:0 !important;}
+    .sb-spacer{display:none !important;}
+    .sidebar-foot{margin-top:0 !important;gap:4px !important;}
+    .hc{min-height:90px !important;padding:10px 14px !important;}
+    .hc-time{font-size:30px !important;}
+    .hc-left{gap:6px !important;}
+    .hc-left .num{font-size:18px !important;}
+    .hc-left .lb{font-size:12px !important;}
+    .hc-face{font-size:36px !important;}
+    .hc-add{width:60px !important;height:60px !important;font-size:18px !important;}
+    .wrap{padding:14px 14px 50px !important;}
+    .site-foot{left:76px !important;}
+  }
 </style>
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <script src="./supabase.min.js"></script>
