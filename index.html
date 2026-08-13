@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v10-sync-pwa-manifest （applyLabels 同步更新 PWA 清单，让重新添加到桌面时图标名跟随当前 app 名字；toast 提示桌面图标需重新添加）-->
+<!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
@@ -182,6 +182,12 @@
 
   /* 全局 toast 浮层（之前缺样式导致一直显示在文档底部） */
   .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(0,0,0,.82);color:#fff;font-size:14px;font-weight:600;padding:10px 20px;border-radius:999px;pointer-events:none;transition:opacity .25s,transform .25s;z-index:300;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.2);}
+  /* v11: 常驻错误条，任何同步错误都持久显示，不再一闪而过 */
+  .debug-bar{position:fixed;left:8px;right:8px;bottom:8px;z-index:400;background:#fff4f4;border:1px solid #f3b4b4;border-radius:12px;color:#c0392b;font-size:13px;line-height:1.5;padding:10px 12px;box-shadow:0 6px 22px rgba(0,0,0,.18);cursor:pointer;}
+  .debug-bar .db-head{font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .debug-bar .db-head .db-copy{font-size:11px;color:#fff;background:#c0392b;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;}
+  .debug-bar .db-body{margin-top:6px;white-space:pre-wrap;word-break:break-word;max-height:40vh;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#9b2c2c;}
+  .debug-bar[hidden]{display:none;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   [hidden]{display:none!important;}
 
@@ -386,6 +392,7 @@
   </header>
 
   <div id="banner" class="banner" hidden></div>
+  <div id="debugBar" class="debug-bar" hidden></div>
 
   <div class="nav">
     <button id="navTodo" class="active">📋 待办事项</button>
@@ -748,6 +755,29 @@ function showModErr(viewId,msg){
   bar.hidden=false;
 }
 function showBanner(html){const b=document.getElementById('banner');if(!b)return;b.innerHTML=html;b.hidden=false;}
+/* v11: 把错误持久化到 localStorage，并常驻显示底部错误条（不再一闪而过，手机可随时截图） */
+function recordError(tag, detail){
+  try{
+    const entry={t:Date.now(), tag, detail:String(detail||'')};
+    localStorage.setItem('rechen_debug', JSON.stringify(entry));
+    const bar=$('debugBar'); if(!bar) return;
+    bar.innerHTML='<div class="db-head"><span>⚠️ 同步出错（'+tag+'）</span><button class="db-copy" type="button">复制</button></div><div class="db-body">'+esc(entry.detail)+'\n\n时间：'+new Date(entry.t).toLocaleString('zh-CN')+'</div>';
+    bar.hidden=false;
+    bar.querySelector('.db-copy').onclick=(ev)=>{ ev.stopPropagation(); const txt=bar.querySelector('.db-body').innerText; if(navigator.clipboard) navigator.clipboard.writeText(txt); else prompt('复制下面内容发给我：',txt); };
+    bar.querySelector('.db-body').hidden=false;
+  }catch(e){}
+}
+function restoreDebugBar(){
+  try{
+    const raw=localStorage.getItem('rechen_debug'); if(!raw) return;
+    const e=JSON.parse(raw);
+    if(Date.now()-e.t > 24*3600*1000) return; // 只显示 24 小时内的
+    const bar=$('debugBar'); if(!bar) return;
+    bar.innerHTML='<div class="db-head"><span>⚠️ 上次同步出错（'+e.tag+'）</span><button class="db-copy" type="button">复制</button></div><div class="db-body">'+esc(e.detail)+'\n\n时间：'+new Date(e.t).toLocaleString('zh-CN')+'</div>';
+    bar.hidden=false;
+    bar.querySelector('.db-copy').onclick=(ev)=>{ ev.stopPropagation(); const txt=bar.querySelector('.db-body').innerText; if(navigator.clipboard) navigator.clipboard.writeText(txt); else prompt('复制下面内容发给我：',txt); };
+  }catch(e){}
+}
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 
 /* 日期 */
@@ -1394,6 +1424,7 @@ async function loadSettings(){
       setupError=true;
       showBanner('⚠️ 加载 app_settings 失败：<b>'+(error.message||error)+'</b><br>当前请求的 Supabase 项目：<code>'+SUPABASE_URL+'</code><br>请把这条错误截图发给 AI。');
     }
+    recordError('loadSettings', (error.message||error)+' @ '+SUPABASE_URL);
     // banner 短延迟重置，给当前错误留出展示时间，但不再阻塞后续 loadXxx 的 hide
     setTimeout(()=>{ setupError=false; }, 2500);
     return;
@@ -1431,6 +1462,7 @@ async function saveSettings(key, value){
   const {data:rows,error:se}=await sb.from('app_settings').select('key').eq('key',key).limit(1);
   if(se){
     console.error('[saveSettings] select error:',se);
+    recordError('saveSettings.select', (se.message||se)+' @ key='+key);
     if(/relation .* does not exist|app_settings/i.test(se.message||'')){
       if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
     }else{
@@ -1448,6 +1480,7 @@ async function saveSettings(key, value){
   }
   if(error){
     console.error('[saveSettings] write error:',error);
+    recordError('saveSettings.write', (error.message||error)+' @ key='+key);
     if(/relation .* does not exist|app_settings/i.test(error.message||'')){
       if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
     }else{
@@ -2195,6 +2228,7 @@ bindFarmEvents();
 try{ renderStats(); renderList(); }catch(e){}
 (async()=>{
   if(!sb){ toast('ℹ️ 本地预览模式：数据不会保存，输入框/tab 切换仍可用'); return; }
+  restoreDebugBar(); // v11: 有上次错误就常驻显示，不再一闪而过
   try{await loadTodos();}catch(e){showFatal('loadTodos: '+(e.message||e));}
   try{await loadMemos();}catch(e){showFatal('loadMemos: '+(e.message||e));}
   try{await loadFarm();}catch(e){showFatal('loadFarm: '+(e.message||e));}
