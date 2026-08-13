@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v17.7b-fallback-card-style （首屏 head 里 inline 一段带 !important 的 .hc / .todo-summary 白底+绿描边+深阴影兜底样式，并加 Cache-Control:no-cache 三件套 meta，避免用户浏览器用旧版 CSS 看到无边框卡片） -->
+<!-- 版本：rechen-v2026-08-13-v17.8-inline-all-styles （强制 inline .hc/.hc-time/.hc-left 子元素/.hc-add/.site-foot 全部带 !important 兜底，并 desktop+mobile 全局隐藏 header .settings-btn；解决用户反映"每个界面都错 + 右上角设置还在 + 鼓励语不显示"） -->
 <!-- 版本：rechen-v2026-08-13-v17.6-fix-bindfarm-null （修复农场 UI 已删但 bindFarmEvents() 顶层调用导致 null.onclick 报错：注释掉顶层调用 + 函数开头加 !addPlot 防御） -->
 <!-- 版本：rechen-v2026-08-13-v17.5-iterate （删整个农场模块 [侧栏+设置+viewFarm+JS+CSS+tickFarm 暂停]；鼓励语 fixed 永远屏底 + 一天一句按 day-of-year；备忘改成跟待办一样的 add-row 布局；护眼水池满→少→空+>10 破口 + 今日 count 已改 7；首页待办 6 条+卡片高度自适应；天气去外圈+时间 36px；喝水 ml 字号 20px+三行间距；删"× 清空今日"；banner 加红框样式不再无样式；settings → 侧栏图标已确认连通）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
@@ -27,6 +27,20 @@
 <style>
   .hc{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;height:130px !important;display:flex !important;justify-content:space-between !important;align-items:center !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;}
   .todo-summary{background:#ffffff !important;border:1px solid #86efac !important;border-radius:14px !important;padding:14px 18px !important;box-shadow:0 4px 18px rgba(34,197,94,.15) !important;margin-bottom:8px !important;}
+  /* v17.8: 强制 .hc 内子元素样式 */
+  .hc-time{font-size:36px !important;font-weight:600 !important;color:#166534 !important;letter-spacing:1px !important;line-height:1 !important;font-feature-settings:'tnum' !important;}
+  .hc-date{font-size:12.5px !important;color:#6b7280 !important;}
+  .hc-greet{font-size:13px !important;color:#16a34a !important;font-weight:500 !important;}
+  .hc-left .lb{font-size:14px !important;color:#374151 !important;font-weight:600 !important;}
+  .hc-left .num{font-size:22px !important;font-weight:700 !important;color:#166534 !important;line-height:1.2 !important;white-space:nowrap !important;}
+  .hc-left .sub{font-size:12px !important;color:#6b7280 !important;line-height:1.4 !important;}
+  .hc-add{width:74px !important;height:74px !important;background:#22c55e !important;border-radius:50% !important;color:#fff !important;font-size:22px !important;font-weight:700 !important;box-shadow:0 4px 10px rgba(34,197,94,.3) !important;border:none !important;cursor:pointer !important;}
+  .hc-sun{font-size:46px !important;background:transparent !important;border:none !important;}
+  .hc-face{font-size:42px !important;}
+  /* v17.8: footer 兜底强制显示在所有页面 */
+  .site-foot{position:fixed !important;left:96px !important;right:8px !important;bottom:6px !important;text-align:center !important;padding:10px 12px !important;background:rgba(220,252,231,.95) !important;border:1px solid #86efac !important;border-radius:12px !important;z-index:999 !important;box-shadow:0 2px 12px rgba(34,197,94,.2) !important;}
+  .site-foot .cn{font-size:14px !important;color:#16a34a !important;font-weight:600 !important;}
+  .site-foot .en{font-size:11.5px !important;color:#6b7280 !important;margin-top:3px !important;}
 </style>
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
 <script src="./supabase.min.js"></script>
@@ -285,6 +299,10 @@
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
   /* 齿轮按钮 */
   .settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;transition:transform .25s, background .15s, border-color .15s;padding:0;flex-shrink:0;}
+  .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
+  .settings-btn:active{transform:scale(.94);}
+  /* v17.8: 全局隐藏 header 右上角 ⚙️（已在侧栏底部留入口），用户反馈"原来右上角的设置还在" */
+  header .settings-btn{display:none !important;}
   .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
   .settings-btn:active{transform:scale(.94);}
   .detail-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
