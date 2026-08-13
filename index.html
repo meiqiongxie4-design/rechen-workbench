@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-13-v9-select-update-or-insert （v8 的 upsert 仍 409 主键冲突，改回 select-then-PATCH-or-INSERT，唯一稳妥写法）-->
+<!-- 版本：rechen-v2026-08-13-v10-sync-pwa-manifest （applyLabels 同步更新 PWA 清单，让重新添加到桌面时图标名跟随当前 app 名字；toast 提示桌面图标需重新添加）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
@@ -612,6 +612,29 @@ function applyLabels(){
   const nf=$('navFarm'); if(nf) nf.textContent=L.farm;
   document.title=L.app;
   const meta=document.querySelector('meta[name="apple-mobile-web-app-title"]'); if(meta) meta.setAttribute('content',L.app);
+  // v10: 同步更新 PWA manifest 为 Blob URL，让重新安装的桌面快捷方式用最新名字
+  try{ refreshManifest(L.app); }catch(e){}
+}
+function refreshManifest(appName){
+  const manifest={
+    name:appName,
+    short_name:appName,
+    start_url:'./index.html',
+    scope:'./',
+    display:'standalone',
+    background_color:'#63e4be',
+    theme_color:'#63e4be',
+    icons:[
+      {src:'favicon-192.png',sizes:'192x192',type:'image/png',purpose:'any maskable'},
+      {src:'favicon-512.png',sizes:'512x512',type:'image/png',purpose:'any maskable'},
+      {src:'apple-touch-icon.png',sizes:'180x180',type:'image/png'}
+    ]
+  };
+  const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
+  const url=URL.createObjectURL(blob);
+  let link=document.querySelector('link[rel="manifest"]');
+  if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link);}
+  link.href=url;
 }
 function openSettings(){
   const L=getLabels();
@@ -642,7 +665,7 @@ async function saveLabels(){
   // 关键修复：等云端确认再 toast，避免误导（v7-accurate-sync-toast）
   const ok=await saveSettings('labels',L);
   console.log('[saveLabels v7] cloud write ok=',ok);
-  toast(ok?'✅ 名称已保存，手机电脑同步 ✓':'⚠️ 本地已保存，云端写入失败');
+  toast(ok?'✅ 名称已保存，手机电脑同步 ✓\n📌 桌面图标名字不会自动变，长按桌面图标删除后重新"添加到主屏幕"即可同步新名字':'⚠️ 本地已保存，云端写入失败');
   if(!ok){
     showBanner('⚠️ 名称只在本地保存了，云端同步失败。请刷新页面后到 ⚙ 设置再点一次「保存」。<br>如果还失败，按 F12 把 Console 红字截图发我。');
     setTimeout(()=>{ setupError=false; },12000);
