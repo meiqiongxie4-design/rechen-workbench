@@ -3,10 +3,23 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.25</title>
+<title>GrowTime · v17.26</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
+<!-- v17.26 (8/14 反馈): 首页 3 件事
+  1. 3 张顶卡（时间/喝水/护眼）严格同高 — .home-left{flex:1;min-height:0} + .hc{flex:1;min-height:88px;max-height:124px}，
+     时间卡最高，三张 .hc 都被拉伸到时间卡高度
+  2. 待办卡 content-size — .todo-summary{flex:0 0 auto;min-height:0} 不再 flex:1 撑满，
+     有几个 todo 显示多高，空白在 todo 和鼓励语之间（鼓励语永远贴底，margin-top:auto）
+  3. 首页 ↔ 喝水/护眼 实时同步 — 之前两边不联动：
+     a) 喝水：localStorage 没有监听机制。v17.26 加 CustomEvent('water:changed')，
+        addWaterCup / 删一条 / 清空 / 改目标 / 改每杯 ml 都 emit 一次，
+        监听器同时调 renderHomeCards() + renderWater()（哪个 DOM 存在就刷哪个）
+     b) 护眼：Supabase realtime 之前只在 view==='counter' 时拉数据，home 收不到。
+        改成 drops-rt 永远调 loadDrops()，loadDrops 末尾 renderHomeCards()；
+        addDrop 立即 renderHomeCards()（不依赖 realtime 回环）
+-->
 <!-- v17.25 (8/14 反馈): 首页 4 个布局问题
   1. 3 张顶卡（时间/喝水/护眼）太高 → .hc{flex:0 0 auto;min-height:88px} 不再 stretch
   2. 待办跟眼药水没空隙挤一起 → .home-cards gap:14 → 18
@@ -459,12 +472,12 @@
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
-  /* 首页 4 卡片 - v17.25 单列堆叠：3 张顶卡 content-size 不再 flex:1 撑满；待办卡 flex:1 撑剩余空间；home-cards gap 18 让待办跟眼药水有空隙；.app flex:1 让侧栏/鼓励语到底 */
+  /* 首页 4 卡片 - v17.26: 3 张顶卡同高（以最高时间卡为准）、.todo-summary content-size 不再填满 */
   .home-cards{display:flex;flex-direction:column;gap:18px;flex:1;min-height:0;}
-  .home-left{display:flex;flex-direction:column;gap:12px;}
+  .home-left{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;}
   .home-right{display:flex;flex-direction:column;flex:1;min-height:0;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:88px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
-  .todo-summary{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:1;min-height:88px;max-height:124px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
+  .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
@@ -1246,7 +1259,7 @@ function renderHomeCards(){
   `;
 
   // 事件绑定
-  const addBtn=$('hcWaterAdd'); if(addBtn) addBtn.onclick=()=>{ addWaterCup(today); renderHomeCards(); };
+  const addBtn=$('hcWaterAdd'); if(addBtn) addBtn.onclick=()=>{ addWaterCup(today); /* emitWaterChange 会重渲两个 view */ };
   const todoCard=box.querySelector('.todo-summary');
   if(todoCard) todoCard.onclick=()=>switchView('todo');
 }
@@ -1282,6 +1295,16 @@ function rotateFoot(){
   const en=$('footEN'); if(en) en.textContent=FOOT_LINES[idx].en;
 }
 
+/* ============ v17.26: 喝水事件（首页 + 喝水 view 实时同步） ============ */
+function emitWaterChange(){
+  document.dispatchEvent(new CustomEvent('water:changed'));
+}
+// 监听水变化事件，同时刷新首页卡和喝水 view（哪边 DOM 存在就刷哪边，不需要 if view==='home'）
+document.addEventListener('water:changed',()=>{
+  try{ if($('homeCards')) renderHomeCards(); }catch(e){}
+  try{ if($('waterBig')) renderWater(); }catch(e){}
+});
+
 /* ============ v17: 喝水打卡（localStorage） ============ */
 function getWaterLog(){
   try{ return JSON.parse(localStorage.getItem('wbWaterLog')||'{}'); }catch(e){ return {}; }
@@ -1299,6 +1322,7 @@ function addWaterCup(day){
   o[day].push(`${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`);
   setWaterLog(o);
   toast('✅ 已记录一杯 250 ml');
+  emitWaterChange();  // v17.26: 通知首页 / 喝水 view 同时刷新
 }
 function renderWater(){
   const today=todayStr();
@@ -1346,8 +1370,7 @@ function renderWater(){
       o[today].splice(idx,1);
       if(o[today].length===0) delete o[today];
       setWaterLog(o);
-      renderWater();
-      if(view==='home') renderHomeCards();
+      emitWaterChange();  // v17.26: 同步首页
     };
   });
 }
@@ -1362,9 +1385,7 @@ $('waterPool').onclick=async(e)=>{
   ripple.style.width=ripple.style.height='50px';
   $('waterPool').appendChild(ripple);
   setTimeout(()=>ripple.remove(),900);
-  addWaterCup(todayStr());
-  renderWater();
-  if(view==='home') renderHomeCards();
+  addWaterCup(todayStr());  // emitWaterChange 会重渲两个 view
 };
 // 清空今日
 $('waterClearToday').onclick=()=>{
@@ -1372,8 +1393,7 @@ $('waterClearToday').onclick=()=>{
   const o=getWaterLog();
   delete o[todayStr()];
   setWaterLog(o);
-  renderWater();
-  if(view==='home') renderHomeCards();
+  emitWaterChange();  // v17.26: 同步首页
   toast('✅ 已清空');
 };
 $('waterTargetBtn').onclick=()=>{
@@ -1381,7 +1401,7 @@ $('waterTargetBtn').onclick=()=>{
   if(!v||v<500){toast('⚠️ 目标至少 500 ml');return;}
   localStorage.setItem('wbWaterTarget', String(v));
   toast('✅ 目标已更新');
-  renderWater(); if(view==='home') renderHomeCards();
+  emitWaterChange();  // v17.26: 同步首页百分比
 };
 // v17.3: 自定义每杯 ml
 $('waterCupBtn').onclick=()=>{
@@ -1389,7 +1409,7 @@ $('waterCupBtn').onclick=()=>{
   if(!v||v<50||v>2000){toast('⚠️ 每杯 50~2000 ml');return;}
   localStorage.setItem('wbWaterCup', String(v));
   toast('✅ 每杯已设为 '+v+' ml');
-  renderWater(); if(view==='home') renderHomeCards();
+  emitWaterChange();  // v17.26: 同步首页（首页显示 X 杯 + 0ml，需要刷新百分比）
 };
 
 /* ============ v17: 存钱（localStorage） ============ */
@@ -1750,6 +1770,8 @@ async function loadDrops(){
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 护眼记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>create table if not exists public.drops (id uuid primary key default gen_random_uuid(), date text not null unique, count int not null default 0, max_count int not null default 10, created_at timestamptz default now());<br>alter table public.drops disable row level security;<br>grant insert, update, delete, select on table public.drops to anon;');} return; }
   $('banner').hidden=true; setupError=false;
   drops=data||[]; renderDrops();
+  // v17.26: 同步刷新首页卡（首页护眼数 = 今天 drops）
+  try{ if($('homeCards')) renderHomeCards(); }catch(e){}
 }
 function comfortState(count){
   // v17.3: 颜色统一 workbuddy 绿系（蓝/橙/红分别对应舒适/疲劳/危险）
@@ -1828,14 +1850,17 @@ async function addDrop(){
     // v17.3: ≥10 滴医生建议警告显示在水池右侧（不再 banner 弹窗）
     rec.count++;
     renderDrops(); // 立即刷新（水池+今天格子+详情都跟着变）
+    // v17.26: 同步首页护眼数（不依赖 realtime 回环，立即反映）
+    try{ if($('homeCards')) renderHomeCards(); }catch(e){}
     const {error}=await sb.from('drops').update({count:rec.count, max_count:Math.max(rec.max_count||10, rec.count)}).eq('id',rec.id);
-    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');rec.count--;renderDrops();return;}
+    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');rec.count--;renderDrops();try{if($('homeCards'))renderHomeCards();}catch(_){}return;}
   }else{
     rec={date:today,count:1,max_count:10};
     drops.unshift(rec);
     renderDrops(); // 立即刷新
+    try{ if($('homeCards')) renderHomeCards(); }catch(e){}  // v17.26: 同步首页
     const {data,error}=await sb.from('drops').insert({date:today,count:1,max_count:10}).select();
-    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');drops.shift();renderDrops();return;}
+    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');drops.shift();renderDrops();try{if($('homeCards'))renderHomeCards();}catch(_){}return;}
     if(data&&data[0]) rec.id=data[0].id;
   }
   toast(rec.count>=10?'⚠️ 已记录（已超医生建议）':'已记录');
@@ -2176,7 +2201,7 @@ function safeReload(table,fn){
 }
 sb.channel('todos-rt').on('postgres_changes',{event:'*',schema:'public',table:'todos'},()=>safeReload('todos',loadTodos)).subscribe();
 sb.channel('memos-rt').on('postgres_changes',{event:'*',schema:'public',table:'memos'},()=>safeReload('memos',loadMemos)).subscribe();
-sb.channel('drops-rt').on('postgres_changes',{event:'*',schema:'public',table:'drops'},()=>{ if(view==='counter') safeReload('drops',loadDrops); }).subscribe();
+sb.channel('drops-rt').on('postgres_changes',{event:'*',schema:'public',table:'drops'},()=>{ /* v17.26: 总是拉一次（首页 + 护眼 view 都要同步） */ loadDrops(); }).subscribe();
 sb.channel('period-rt').on('postgres_changes',{event:'*',schema:'public',table:'period_log'},()=>{ safeReload('period',loadPeriod); }).subscribe();
 sb.channel('farm-rt').on('postgres_changes',{event:'*',schema:'public',table:'farm'},()=>{
   if(Date.now()-farmPushAt<1500) return;
