@@ -4,7 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-14-v17.19-home-polish
+<!-- 版本：rechen-v2026-08-14-v17.20-home-grid-stretch-daily-greet
+  v17.20 首页打磨（基于你 8/14 反馈）：
+  1. 左 3 卡（时间/喝水/护眼）严格等分左列高度 = 右待办卡高度（用 grid-template-rows:1fr 1fr 1fr 强制等分；align-items:stretch 让两列齐高）
+  2. 去掉"喝水"和"护眼"两个标签（含原 "已喝 X 杯 · 0 ml · 已完成 0% · 每杯 250 ml" 等 sub 也精简）
+  3. 护眼 😄 表情外面去除所有可能的外圈/边框/背景（.hc-face 用 !important 兜底）
+  4. 鼓励语改为按日期 localStorage 缓存（footDate + footIdx），一天一条，刷新不变；第二天自动重选
+  5. mobile media query：.home-left 改 grid-template-columns:1fr 让手机端 3 卡也垂直堆叠（与电脑一致），去掉被忽略的旧 .hc{flex:1} 重复规则
   首页 6 项打磨：
   1. 修首页刷新闪动：<div id="viewTodo" hidden>（之前 viewTodo 没标 hidden，DOM 渲染时和 viewHome 同时显示，JS 跑 switchView('home') 后才隐藏，所以闪一下待办）
   2. 喝水/护眼 label 去掉前导 emoji：renderHomeCards 改用 ${wSplit.lb} / ${eSplit.lb}（之前 ${wSplit.ic} ${wSplit.lb} 会把 💧/👁 拼到 label 上）
@@ -431,11 +437,12 @@
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
-  /* 首页 4 卡片 */
-  .home-cards{display:grid;grid-template-columns:1fr 1.1fr;gap:12px;flex:1;min-height:0;}
-  .home-left{display:flex;flex-direction:column;gap:12px;min-height:0;}
+  /* 首页 4 卡片 - v17.20 网格 2 列；左 3 卡 grid 强制等分撑满左列高度 */
+  .home-cards{display:grid;grid-template-columns:1fr 1.1fr;gap:14px;flex:1;min-height:0;align-items:stretch;}
+  .home-left{display:grid;grid-template-rows:1fr 1fr 1fr;gap:14px;min-height:0;}
   .home-right{display:flex;flex-direction:column;min-height:0;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:1;min-height:96px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);min-height:96px;gap:12px;transition:transform .15s;}
+  .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
   .hc-left .num{font-size:22px;font-weight:700;color:#22c55e;line-height:1.2;white-space:nowrap;}
@@ -451,7 +458,8 @@
   .hc-sun.dawn{background:#fde68a;border-color:#fcd34d;}
   .hc-add{width:74px;height:74px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;box-shadow:0 4px 10px rgba(34,197,94,.3);cursor:pointer;border:none;transition:.15s;}
   .hc-add:active{transform:scale(.94);}
-  .hc-face{font-size:42px;}
+    /* v17.20: 护眼 😄 表情 - 去掉任何外圈/边框/背景，只留 emoji 本身 */
+  .hc-face{font-size:42px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;}
 
   /* 今日待办卡（首页底部） */
   .todo-summary{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:1;display:flex;flex-direction:column;min-height:0;box-shadow:var(--shadow);}
@@ -525,15 +533,15 @@
     .sb-spacer{display:none;}
     .sidebar-foot{margin-top:0;gap:2px;}
     .home-cards{grid-template-columns:1fr;gap:10px;}
-    .home-left{flex-direction:row;gap:8px;}
-    .hc{flex:1;min-height:80px;padding:10px 12px;}
+    .home-left{grid-template-columns:1fr;}
+    .hc{padding:14px 16px;min-height:80px;}
     .hc-add{width:56px;height:56px;font-size:18px;}
     .hc-time{font-size:32px;}
     .hc-left{gap:5px;}
-    .hc-left .num{font-size:16px;}
+    .hc-left .num{font-size:20px;}
     .hc-left .lb{font-size:11.5px;}
     .hc-left .sub{font-size:10.5px;}
-    .hc-face{font-size:32px;}
+    .hc-face{font-size:32px;background:none !important;border:none !important;border-radius:0 !important;box-shadow:none !important;width:auto !important;height:auto !important;padding:0 !important;}
     .todo-summary{padding:10px 12px;}
     header .settings-btn{display:none;}   /* v17.3 手机端隐藏顶部齿轮（已移到侧栏） */
     .water-pool{width:160px;height:160px;}
@@ -578,7 +586,7 @@
     </div>
     <footer class="site-foot">
       <div class="cn" id="footCN">坚持就是胜利，做完今天就休息啦。</div>
-      <div class="en">One step at a time.</div>
+      <div class="en" id="footEN">One step at a time.</div>
     </footer>
   </div>
 
@@ -1165,11 +1173,12 @@ function renderHomeCards(){
   const open=(todos||[]).filter(t=>!t.done);
   const todoRows=open.slice(0,6).map(t=>`<div class="todo-summary-row"><span class="ck"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
   const todoMore=open.length>6 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-6} 条未完成</div>` : '';
-  // 侧栏 label → home 卡图标+名字
+  // 侧栏 label 备用（v17.20 首页卡不再渲染，保留读设置不报错）
   const L=getLabels();
   const wSplit=splitEmojiLabel(L.water);
   const sSplit=splitEmojiLabel(L.saving);
-  const eSplit=splitEmojiLabel(L.eye);
+  // eSplit 不再用，v17.20 首页已去掉"护眼"标签
+  void wSplit; void sSplit;
 
   box.innerHTML = `
     <!-- 左栏：时间 + 喝水 + 护眼（3 张堆叠，高度等分） -->
@@ -1184,24 +1193,22 @@ function renderHomeCards(){
         <div class="hc-right"><div class="hc-sun ${sun.cls}" id="hcSun">${sun.face}</div></div>
       </div>
 
-      <!-- ② 喝水卡（图标 + 名字读设置） -->
+      <!-- ② 喝水卡（图标 + 名字读设置） — v17.20: 去掉 "喝水" 标签，只保留数据 -->
       <div class="hc">
         <div class="hc-left">
-          <div class="lb">${wSplit.lb}</div>
           <div class="num">已喝 ${waterCups} 杯</div>
-          <div class="sub">· ${waterMl} ml · 已完成 ${waterPct}% · 每杯 ${waterCupMl} ml</div>
+          <div class="sub">${waterMl} ml · 已完成 ${waterPct}%</div>
         </div>
         <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 ${waterCupMl} ml">+1</button></div>
       </div>
 
-      <!-- ③ 护眼卡（图标读设置，≥10 滴加 warn 样式） -->
+      <!-- ③ 护眼卡 — v17.20: 去掉 "护眼" 标签，表情外不要圈 -->
       <div class="hc">
         <div class="hc-left">
-          <div class="lb">${eSplit.lb}</div>
           <div class="num ${dropWarn?'warn':''}">${dropWarn?'⚠️ ':''}今日已滴 ${dropN} 滴</div>
-          <div class="sub">· ${dropText} · 上限 10 滴</div>
+          <div class="sub">${dropText} · 上限 10 滴</div>
         </div>
-        <div class="hc-right"><div class="hc-face" id="hcFace">${dropFace}</div></div>
+        <div class="hc-right"><span class="hc-face" id="hcFace">${dropFace}</span></div>
       </div>
     </div>
 
@@ -1235,9 +1242,24 @@ const FOOT_LINES=[
   {cn:'把大事拆成小事，一件一件做。', en:'Break it down.'},
   {cn:'你已经比昨天更厉害了。', en:'You are improving.'},
 ];
+/* v17.20: 按日期缓存鼓励语，一天一条，刷新不变 */
+const FOOT_KEY_DATE='footDate';
+const FOOT_KEY_IDX='footIdx';
 function rotateFoot(){
-  const i=Math.floor(Math.random()*FOOT_LINES.length);
-  const cn=$('footCN'); if(cn){ cn.textContent=FOOT_LINES[i].cn; }
+  const today=new Date().toDateString();
+  let idx=null;
+  try{
+    const cachedDate=localStorage.getItem(FOOT_KEY_DATE);
+    const cachedIdx=parseInt(localStorage.getItem(FOOT_KEY_IDX)||'-1',10);
+    if(cachedDate===today && cachedIdx>=0 && cachedIdx<FOOT_LINES.length){
+      idx=cachedIdx;
+    } else {
+      idx=Math.floor(Math.random()*FOOT_LINES.length);
+      try{ localStorage.setItem(FOOT_KEY_DATE,today); localStorage.setItem(FOOT_KEY_IDX,String(idx)); }catch(e){}
+    }
+  }catch(e){ idx=Math.floor(Math.random()*FOOT_LINES.length); }
+  const cn=$('footCN'); if(cn) cn.textContent=FOOT_LINES[idx].cn;
+  const en=$('footEN'); if(en) en.textContent=FOOT_LINES[idx].en;
 }
 
 /* ============ v17: 喝水打卡（localStorage） ============ */
