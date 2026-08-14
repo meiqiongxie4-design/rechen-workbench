@@ -11,7 +11,7 @@
   1. 修 v17.30 calc bug: --vvh 直接用 px (vh+'px'), wrap 改 min-height: var(--vvh, 100dvh)
      (v17.30 --vvh=(vh/innerWidth)+'px' 配 calc(...*100) = 130px 废值, flex 链全断, sidebar/footer 全部不贴底)
   2. showFatal 改走 debugBar (recordError + 持久化到 localStorage + 常驻显示)
-     原: 顶部 banner 显示后立刻被 loadXxx 成功后的 $('banner').hidden=true 关掉,用户看到"一闪就没"
+     原: 顶部 banner 显示后立刻被 loadXxx 成功后的 safeHideBanner() 关掉,用户看到"一闪就没"
      现: 走 debugBar 留痕,用户可截图或点 debugBar 复制内容发我
 -->
 <!-- v17.34 (8/14 反馈): 鼓励语对齐侧栏底 + 首页绿圈可点完成
@@ -153,7 +153,15 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- v17.87 (8/14 反馈): 左侧菜单栏内"喝水"和"设置"分开远 — 删 .sb-spacer 撑开 + sidebar-foot margin-top:0 + sidebar 不要 align-self:stretch, 8个菜单项紧凑排顶部, 设置紧跟喝水 -->
-<!-- 版本：rechen-v2026-08-15-v18.19-banner-copy-btn (v18.18 还原原始图标后, 用户反馈手机"点共享还报同步错" + 电脑图标还是比 WorkBuddy 小(其实是 PWA 缓存旧图标, 详见 v18.18 说明); 本版 banner 顶部错误条加「复制」按钮——用户看到错误时一键复制内容发给我, 比截图更快更准; 同时给 banner 补上完整 CSS 样式避免位置错乱) -->
+<!-- 版本：rechen-v2026-08-15-v18.21-banner-persist-icon-reround (1) PWA 图标 v18.20 透明角未填白(192/180 字节缩小但透明背景不变),Windows/Edge 加 padding 仍比 WorkBuddy 小一圈: 本版 Pillow 重做 180/192/512 + ICO 6 档,白底铺满+22.5%圆角+猫头居中缩 94%,四角 alpha=255 实测验证; (2) v18.20 banner「复制」按钮"一闪就没"修:loadXxx 8 处 $('banner').hidden=true 改 safeHideBanner(),banner 显示 fatal 时 loadXxx 拒绝关闭,加【×】关闭按钮,用户能真正看到错误条并复制内容给我 -->
+<!-- v18.21 (8/15 反馈): 用户抱怨"几个钟头图标还没改好+手机分享依然报错没看到诊断"
+     根因1: v18.20 脚本生成 favicon-192.png 时仍保留透明圆角描边 (Read 实测四 alpha=0),Windows PWA 加 padding 显小
+     根因2: Script error. (:) banner 一闪就被 loadXxx 成功后的 $('banner').hidden=true 误关, 用户看到的还是原始错误
+     改法:  1) Pillow 重做 favicon-192/512 + apple-touch-icon 180 + favicon.ico 64, 全画布白底+25%圆角+猫头居中 94%
+           2) loadTodos/loadMemos/loadWaterLog/loadFarm 等 8 处 hide banner 改 safeHideBanner(), 仅当 banner 没 .bn-body 时才隐藏
+           3) banner 加【×】按钮让用户主动关 + 文案改"复制诊断"更明显
+           4) manifest purpose:"any" 不变, theme/background #ffffff 不变 (v18.20 已合)
+           5) 部署后**必须删除桌面 GrowTime 快捷方式重新打开一次**才能用上新图标 (PWA 缓存老图标) -->
 <!-- v17.46 (8/14 反馈): 待办统计数字字号 32→52px 跟首页 .hc-time 一样大
   用户: 这两个字号跟首页的时间一样大, 把待办的这两个字段的字号改成跟首页的时间一样大, 不要去动首页
   改 .stat .num 32→52px (桌面), 24→40px (手机), 跟 .hc-time 桌面 52px / 手机 40px 对齐
@@ -389,6 +397,8 @@
   .banner{position:relative;background:#fff4f4;border:1px solid #f3b4b4;border-radius:10px;color:#c0392b;font-size:13px;line-height:1.5;padding:10px 12px;margin-bottom:10px;}
   .banner .bn-head{display:flex;justify-content:space-between;align-items:center;gap:8px;}
   .banner .bn-copy{font-size:11px;color:#fff;background:#c0392b;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;flex-shrink:0;}
+  .banner .bn-close{font-size:18px;line-height:1;color:#c0392b;background:transparent;border:none;border-radius:8px;padding:0 6px;cursor:pointer;flex-shrink:0;font-weight:bold;}
+  .banner .bn-close:hover{background:#ffe0e0;}
   .banner .bn-body{margin-top:6px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#9b2c2c;}
   .banner[hidden]{display:none!important;}
   /* v11: 常驻错误条，任何同步错误都持久显示，不再一闪而过 */
@@ -1391,14 +1401,25 @@ let todos=[], memos=[], drops=[], pet=null, filter='open', view='home', editId=n
 let dropClicks = {};
 
 /* 全局错误兜底：v17.31 改成走 debugBar (常驻 + localStorage 持久化) — 不再用顶部 banner
-   (原 banner 会被 loadXxx 成功后的 $('banner').hidden=true 立刻关掉,用户看到"一闪就没"诊断不到) */
+   (原 banner 会被 loadXxx 成功后的 safeHideBanner() 立刻关掉,用户看到"一闪就没"诊断不到)
+   v18.21: 修"一闪就没"——loadXxx 改 safeHideBanner(),banner 显示 fatal 时不被 loadXxx 误关;
+         banner 加【关闭】按钮, 用户点 X 或复制后诊断完后才能关 */
+let _fatalShown=false;
+function safeHideBanner(){
+  const b=$('banner');
+  if(!b) return;
+  // v18.21: 如果 banner 正在显示 fatal 错误 (有 .bn-body), 拒绝被 loadXxx 误关
+  if(b.querySelector('.bn-body')) return;
+  b.hidden=true;
+}
 function showFatal(msg){
   recordError('fatal', msg);
+  _fatalShown=true;
   try{
     const b=$('banner');
     if(b){
-      // v18.19: banner 上加「复制」按钮 — 用户一键复制错误发给我, 不用每次截图
-      b.innerHTML='<div class="bn-head"><b>⚠️ 系统异常</b><button type="button" class="bn-copy">复制</button></div><div class="bn-body">'+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</div>';
+      // v18.21: banner 头部加【关闭】按钮, 用户看完/复制后可手动关 (避免一直挡着 UI)
+      b.innerHTML='<div class="bn-head"><b>⚠️ 系统异常</b><div style="display:flex;gap:6px;flex-shrink:0;"><button type="button" class="bn-copy">复制诊断</button><button type="button" class="bn-close" title="关闭">×</button></div></div><div class="bn-body">'+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</div>';
       const btn=b.querySelector('.bn-copy');
       if(btn){ btn.onclick=()=>{
         // v18.20: 复制附加诊断 (站点/UA/时间/最近 5 条错误), 用户一键发我能定位到源头
@@ -1408,6 +1429,8 @@ function showFatal(msg){
         if(navigator.clipboard) navigator.clipboard.writeText(diag); else prompt('复制下面内容发给我：',diag);
         toast('已复制');
       }; }
+      const cls=b.querySelector('.bn-close');
+      if(cls){ cls.onclick=()=>{ b.hidden=true; _fatalShown=false; }; }
       b.hidden=false;
     }
   }catch(e){}
@@ -1794,7 +1817,7 @@ async function loadWaterCups(){
   try{
     const {data,error}=await sb.from('water_log').select('*').eq('date',today).order('ts',{ascending:true});
     if(error) throw error;
-    $('banner').hidden=true; setupError=false;
+    safeHideBanner(); setupError=false;
     // 云端已确认记录
     const cloudRows=(data||[]);
     // 本地 localStorage 记录 (可能是 pending, 还没推上云端 / 云端当前因网络还没返回)
@@ -2650,11 +2673,11 @@ function fmtTime(iso){
 
 /* ---------- 待办 ---------- */
 async function loadTodos(){
-  if(!sb){ todos=[]; $('banner').hidden=true; renderStats(); renderList(); return; }
+  if(!sb){ todos=[]; safeHideBanner(); renderStats(); renderList(); return; }
   const {data,error}=await sb.from('todos').select('*').order('created_at',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
   // 仅在 banner 不是 app_settings 引导时才隐藏（避免抢走错误信息显示时间）
-  $('banner').hidden=true; setupError=false;
+  safeHideBanner(); setupError=false;
   todos=data||[];
   renderStats(); renderList();
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}   // v17.40: 同步首页待办卡(realtime 推送让其他端首页也秒变)
@@ -2780,10 +2803,10 @@ function refreshMemoHeight(ta){
   }
 }
 async function loadMemos(){
-  if(!sb){ memos=[]; $('banner').hidden=true; renderMemos(); return; }
+  if(!sb){ memos=[]; safeHideBanner(); renderMemos(); return; }
   const {data,error}=await sb.from('memos').select('*').order('created_at',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
-  $('banner').hidden=true; setupError=false;
+  safeHideBanner(); setupError=false;
   memos=data||[]; renderMemos();
 }
 function renderMemos(){
@@ -2920,7 +2943,7 @@ async function loadDrops(){
   const sinceStr=since.toISOString().slice(0,10);
   const {data,error}=await sb.from('drops').select('*').gte('date',sinceStr).order('date',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 护眼记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>create table if not exists public.drops (id uuid primary key default gen_random_uuid(), date text not null unique, count int not null default 0, max_count int not null default 10, created_at timestamptz default now());<br>alter table public.drops disable row level security;<br>grant insert, update, delete, select on table public.drops to anon;');} return; }
-  $('banner').hidden=true; setupError=false;
+  safeHideBanner(); setupError=false;
   drops=data||[]; renderDrops();
   clearOldEyeMonths();   // v18.13: 跨月自动清掉上月及更早的护眼记录
   // v17.26: 同步刷新首页卡（首页护眼数 = 今天 drops count）
@@ -3157,7 +3180,7 @@ async function loadPeriod(){
   // 拉取共享行（取最新一条）
   const {data,error}=await sb.from('period_log').select('*').order('updated_at',{ascending:false}).limit(1);
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
-  $('banner').hidden=true; setupError=false;
+  safeHideBanner(); setupError=false;
   const row=data&&data[0]?data[0]:null;
   periodRowId=row?row.id:null;
   periodRecs=(row&&Array.isArray(row.records))?row.records:[];
@@ -3398,7 +3421,7 @@ async function loadSettings(retry=0){
     const {data,error}=await sb.from('app_settings').select('*').in('key',['labels','cycle_len']);
     if(error) throw error;
     // 拉到设置时清掉 banner（如果用户已经建好表了）
-    $('banner').hidden=true; setupError=false;
+    safeHideBanner(); setupError=false;
     const byKey={};
     (data||[]).forEach(r=>{ byKey[r.key]=r.value; });
     // labels：以云端为准，本地立刻套用（手机电脑实时一致）
