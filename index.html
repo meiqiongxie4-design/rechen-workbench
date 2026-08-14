@@ -374,11 +374,6 @@
   .debug-bar .db-head .db-copy{font-size:11px;color:#fff;background:#c0392b;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;}
   .debug-bar .db-body{margin-top:6px;white-space:pre-wrap;word-break:break-word;max-height:40vh;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#9b2c2c;}
   .debug-bar[hidden]{display:none;}
-  /* v17.84: 右下角调试日志小图标 — 默认隐藏调试栏, 用户点开才看历史 */
-  .debug-toggle{position:fixed;right:8px;bottom:8px;z-index:399;width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid #cbd5e1;color:#475569;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;padding:0;opacity:.55;transition:opacity .15s;}
-  .debug-toggle:hover{opacity:1;}
-  .debug-toggle.has-errors{opacity:1;color:#c0392b;border-color:#f3b4b4;background:#fff4f4;}
-  .debug-toggle[hidden]{display:none!important;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   [hidden]{display:none!important;}
 
@@ -859,7 +854,6 @@
 <div class="wrap">
   <div id="banner" class="banner" hidden></div>
   <div id="debugBar" class="debug-bar" hidden></div>
-  <button id="debugToggle" class="debug-toggle" type="button" title="查看同步日志(默认隐藏, 只在出问题时点开)">📋</button>
 
   <div class="app">
     <aside class="sidebar" id="sidebar">
@@ -1376,26 +1370,7 @@ function bindDebugBar(bar, entry){
   bar.querySelector('.db-copy').onclick=(ev)=>{ ev.stopPropagation(); const txt=bar.querySelector('.db-body').innerText; if(navigator.clipboard) navigator.clipboard.writeText(txt); else prompt('复制下面内容发给我：',txt); };
   bar.querySelector('.db-close').onclick=(ev)=>{ ev.stopPropagation(); closeDebugBar(); };
 }
-// v17.84: 「📋 调试日志」按钮 — 用户主动点开拉历史日志 (默认隐藏 debugBar)
-function openDebugLog(){
-  let logs=[]; try{ logs=JSON.parse(localStorage.getItem('rechen_debug_log')||'[]'); }catch(e){logs=[];}
-  const bar=$('debugBar'); if(!bar) return;
-  if(!logs.length){
-    bar.innerHTML=`<div class="db-head"><span>📋 同步日志</span><button class="db-close" type="button">×</button></div><div class="db-body" style="color:#475569;">没有同步错误记录。\n所有同步都正常。</div>`;
-  }else{
-    const items=logs.map(e=>{
-      const time=new Date(e.t).toLocaleString('zh-CN');
-      return `┌─ [${time}]\n│  标签: ${e.tag}\n└─ ${(e.detail||'').split('\n').join('\n   ')}\n`;
-    }).join('\n');
-    bar.innerHTML=`<div class="db-head"><span>📋 同步日志 (${logs.length} 条)</span><button class="db-close" type="button">×</button><button class="db-copy" type="button">复制全部</button></div><div class="db-body">${items}</div>`;
-    const close=bar.querySelector('.db-close');
-    if(close) close.onclick=(ev)=>{ev.stopPropagation(); bar.hidden=true;};
-    const cp=bar.querySelector('.db-copy');
-    if(cp) cp.onclick=(ev)=>{ev.stopPropagation(); const txt=bar.querySelector('.db-body').innerText; if(navigator.clipboard) navigator.clipboard.writeText(txt); else prompt('复制下面内容发给我：',txt);};
-  }
-  bar.hidden=false;
-}
-// v17.84: silent=true 不弹 debugBar UI, 仅写 localStorage (供「查看日志」按钮拉出历史)
+// v17.84: 同步错误仍记录在 localStorage (rechen_debug / rechen_debug_log), 出错时自动弹红色错误条 (showErrorBar); 主动查看日志入口(📋按钮)已移除
 function recordError(tag, detail, silent){
   try{
     const entry={t:Date.now(), tag, detail:String(detail||'')};
@@ -1418,7 +1393,7 @@ function restoreDebugBar(){
     const raw=localStorage.getItem('rechen_debug');
     const e=raw ? JSON.parse(raw) : null;
     if(e && Date.now()-e.t <= 24*3600*1000){
-      const toggle=$('debugToggle'); if(toggle) toggle.classList.add('has-errors');
+      // 历史错误记录仍保留在 localStorage（供排查），右下角日志入口已移除
     }
     // 兼容老调用方 — 但不再自动显示 debugBar
   }catch(err){}
@@ -1926,8 +1901,6 @@ function reflectWaterInputsToUI(){
 document.addEventListener('DOMContentLoaded', ()=>{
   setTimeout(reflectWaterInputsToUI, 50);   // 等 input 元素 ready
   setTimeout(reflectWaterInputsToUI, 800);  // 等可能的 autocomplete 跑完再覆盖
-  // v17.84: 绑定 📋 调试日志按钮
-  const tog=$('debugToggle'); if(tog){ tog.onclick=()=>openDebugLog(); }
 });
 function renderWater(){
   // v17.78: input 永远显示已保存值 (用户键入/启航后保留显示) — 不再强制清空
