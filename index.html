@@ -494,6 +494,8 @@
   .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#bbf7d0 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
   .pool .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;text-shadow:0 2px 6px rgba(255,255,255,.6);}
   .pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
+  /* v18.12: 护眼 — 滴一滴蓝药水的小动画 (位置/旋转由 dropSplash 的 WAAPI 控制, 这里只定基础形) */
+  .pool .drop-anim{position:absolute;left:50%;top:2%;width:14px;height:18px;border-radius:0 50% 50% 50%;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%);transform:translateX(-50%) rotate(45deg);z-index:4;pointer-events:none;box-shadow:0 2px 8px rgba(56,189,248,.5);}
   @keyframes ripple{to{transform:scale(7);opacity:0;}}
   /* v17.90: 水池超 10 滴 — 红色背景胶囊, 紧贴表情下方, 显著警示 */
   .pool .warn-text{position:absolute;left:50%;top:calc(50% + 42px);transform:translateX(-50%);text-align:center;font-size:13px;font-weight:800;color:#fff;background:linear-gradient(180deg,#f87171 0%,#dc2626 100%);padding:5px 12px;border-radius:999px;border:1px solid rgba(190,18,60,.55);box-shadow:0 2px 6px rgba(220,38,38,.35);z-index:3;pointer-events:none;letter-spacing:.5px;white-space:nowrap;animation:warnPulse 1.6s ease-in-out infinite;}
@@ -2188,6 +2190,71 @@ function waterSplash(){
     };
   }catch(e){}
 }
+// v18.12: 护眼 — WebAudio 合成"滴眼药水"音效 (清脆短"滴" + 极短水花嗒)
+function playDropSound(){
+  const ctx=_ensureAudio(); if(!ctx) return;
+  try{
+    if(ctx.state==='suspended') ctx.resume();
+    const t=ctx.currentTime;
+    // 主音: 高频正弦波短促"滴" (1900→1250Hz 轻微下滑, 0.12s)
+    const osc=ctx.createOscillator(); const g=ctx.createGain();
+    osc.type='sine'; osc.connect(g); g.connect(ctx.destination);
+    osc.frequency.setValueAtTime(1900, t);
+    osc.frequency.exponentialRampToValueAtTime(1250, t+0.09);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.22, t+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.12);
+    osc.start(t); osc.stop(t+0.13);
+    // 极短"嗒"水花 — 高通噪声 0.04s
+    const nlen=Math.floor(ctx.sampleRate*0.04);
+    const nbuf=ctx.createBuffer(1, nlen, ctx.sampleRate);
+    const nd=nbuf.getChannelData(0);
+    for(let i=0;i<nlen;i++){ nd[i]=(Math.random()*2-1)*Math.pow(1 - i/nlen, 2); }
+    const ns=ctx.createBufferSource(); ns.buffer=nbuf;
+    const nf=ctx.createBiquadFilter(); nf.type='highpass'; nf.frequency.value=2000;
+    const ng=ctx.createGain(); ng.gain.value=0.06;
+    ns.connect(nf); nf.connect(ng); ng.connect(ctx.destination);
+    ns.start(t); ns.stop(t+0.04);
+  }catch(e){/* 忽略 */}
+}
+// v18.12: 护眼 — 滴一滴眼药水的小动画 (类似喝水 waterSplash): 蓝药水从顶部落入 + 落点涟漪 + 表情/水池弹动
+function dropSplash(){
+  const pool=$('dropPool'); if(!pool) return;
+  try{
+    const drop=document.createElement('div');
+    drop.className='drop-anim';
+    pool.appendChild(drop);
+    const fall=drop.animate([
+      { transform:'translate(-50%,-30px) rotate(45deg)', opacity:0 },
+      { transform:'translate(-50%,0px) rotate(45deg)', opacity:1, offset:0.2 },
+      { transform:'translate(-50%,66px) rotate(45deg)', opacity:1 }
+    ], { duration:400, easing:'cubic-bezier(.5,.02,.7,.5)', fill:'forwards' });
+    fall.onfinish=()=>{
+      try{ drop.remove(); }catch(e){}
+      const r=document.createElement('div');
+      r.className='ripple';
+      r.style.left='50%'; r.style.top='64%'; r.style.width=r.style.height='46px';
+      r.style.marginLeft=r.style.marginTop='-23px';
+      pool.appendChild(r);
+      setTimeout(()=>{ try{ r.remove(); }catch(e){} }, 900);
+      const face=$('poolFace');
+      if(face){
+        face.style.transformOrigin='center';
+        face.animate([
+          { transform:'translateY(0) scale(1)' },
+          { transform:'translateY(7px) scale(.9)', offset:0.45 },
+          { transform:'translateY(0) scale(1.08)', offset:0.78 },
+          { transform:'translateY(0) scale(1)' }
+        ], { duration:360, easing:'ease-out' });
+      }
+      pool.animate([
+        { transform:'scale(1)' },
+        { transform:'scale(1.03)', offset:0.4 },
+        { transform:'scale(1)' }
+      ], { duration:360, easing:'ease-out' });
+    };
+  }catch(e){}
+}
 function coinBurst(amount){
   // v17.55: 每次存款金币"多一点" — 金额越大金币越多, 1元最少3枚, 封顶40枚让罐子能装满
   // 算法: round(amount/20), 100元=5, 500元=25, 1000元=40封顶
@@ -2934,6 +3001,8 @@ document.addEventListener('click',(e)=>{
   d.hidden=true;
 });
 async function addDrop(){
+  playDropSound();   // v18.12: 滴一滴眼药水 → 清脆"滴"音效 (WebAudio 合成)
+  dropSplash();      // v18.12: 滴一滴眼药水 → 蓝药水落入水池小动画
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
   /* v17.92: 每次点击记录真实时间戳 — 存到 dropClicks map (app_settings key='drop_clicks', 无需 ALTER drops 表) */
