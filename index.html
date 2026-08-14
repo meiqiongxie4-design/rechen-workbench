@@ -519,7 +519,7 @@
   .pool-info .max{font-size:13px;color:var(--muted);margin-top:14px;}
   .history-section{margin-top:14px;padding-top:6px;}   /* v17.91: 加 padding-top, 标题与上方分离 */
   .history-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:18px;margin-top:4px;}   /* v18.02: margin-top 4, 标题跟上方内联统计条拉一点点距 */
-  .history-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
+  .history-list{display:flex;flex-direction:column;gap:10px;}
   .history-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px 8px;text-align:center;min-width:0;cursor:pointer;transition:.15s;position:relative;}   /* v17.89: padding 12 6 → 14 8, 行间隙大一点 */
   .history-item:hover{border-color:var(--accent);transform:translateY(-2px);}
   .history-item.today{background:#eef1fe;border-color:var(--accent);}
@@ -531,9 +531,14 @@
   .history-item .badge.mid{background:#3b82f6;}
   .history-item .badge.tired{background:#f97316;}
   .history-item .badge.bad{background:#ef4444;}
+  /* v18.13: 护眼历史按月分组 + 可折叠 (替代旧的 7 列平铺; 整月天数都展示) */
+  .eye-month-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:13px;font-weight:700;color:#16a34a;padding:8px 2px 4px;border-top:1px dashed var(--line);margin-top:6px;user-select:none;}
+  .eye-month-head:first-child{border-top:none;margin-top:0;}
+  .eye-month-head .arr{color:#9ca3af;font-size:12px;}
+  .eye-month-body{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;padding-top:14px;}
   .history-detail{margin-top:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px;animation:fadeIn .3s;position:relative;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-  @media (max-width:640px){ .history-list{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
+  @media (max-width:640px){ .eye-month-body{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
   /* 编辑待办弹窗 */
   .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;}
   .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;max-width:420px;width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,.25);}
@@ -2107,45 +2112,37 @@ function playCoinSound(opts){
     osc.start(t); osc.stop(t+dur);
   }catch(e){/* AudioContext 未激活, 静默忽略 */}
 }
-// v18.11: 喝水 — WebAudio 合成"流水"声 (持续哗啦 + 高频嘶嘶, 去掉低频"咚", 不再像敲锣)
+// v18.13: 喝水 — 缓慢持续的"流水"声 (强低通平滑噪声 + 慢起慢落增益 + LFO 涌动; 不再一瞬即逝)
 function playWaterSound(){
   const ctx=_ensureAudio(); if(!ctx) return;
   try{
     if(ctx.state==='suspended') ctx.resume();
     const t=ctx.currentTime;
-    const dur=0.55;
+    const dur=1.5;                       // 拉长到 1.5 秒, 是"一段流水"而不是"一下"
     const len=Math.floor(ctx.sampleRate*dur);
     const buf=ctx.createBuffer(1, len, ctx.sampleRate);
-    const data=buf.getChannelData(0);
+    const d=buf.getChannelData(0);
     let last=0;
     for(let i=0;i<len;i++){
-      // 低通化的白噪声 → 更"水"不"沙"
       const w=Math.random()*2-1;
-      last=last*0.55 + w*0.45;
-      data[i]=last;
+      last=last*0.94 + w*0.06;           // 强低通 → 柔和水声, 去掉沙/尖
+      d[i]=last;
     }
-    // 主层: 中频带通 ~1100Hz (哗啦)
     const src=ctx.createBufferSource(); src.buffer=buf;
-    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=450;
-    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1100; bp.Q.value=0.5;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=650; bp.Q.value=0.55;  // 主体"水"声
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=1600;
     const g=ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.17, t+0.04);
-    g.gain.setValueAtTime(0.17, t+0.34);
-    g.gain.linearRampToValueAtTime(0.13, t+0.44);
-    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
-    src.connect(hp); hp.connect(bp); bp.connect(g); g.connect(ctx.destination);
+    g.gain.linearRampToValueAtTime(0.12, t+0.4);    // 缓缓进入 (0.4s 淡入)
+    g.gain.linearRampToValueAtTime(0.09, t+0.9);    // 中段持续
+    g.gain.linearRampToValueAtTime(0.0001, t+dur);  // 缓缓收尾 (淡出)
+    // LFO 让水流有强弱涌动, 更像活水
+    const lfo=ctx.createOscillator(); lfo.type='sine'; lfo.frequency.value=2.6;
+    const lfoG=ctx.createGain(); lfoG.gain.value=0.022;
+    lfo.connect(lfoG); lfoG.connect(g.gain);
+    src.connect(bp); bp.connect(lp); lp.connect(g); g.connect(ctx.destination);
     src.start(t); src.stop(t+dur);
-    // 高频层: ~3200Hz 嘶嘶 (水流细声)
-    const src2=ctx.createBufferSource(); src2.buffer=buf;
-    const bp2=ctx.createBiquadFilter(); bp2.type='bandpass'; bp2.frequency.value=3200; bp2.Q.value=0.9;
-    const g2=ctx.createGain();
-    g2.gain.setValueAtTime(0.0001, t);
-    g2.gain.linearRampToValueAtTime(0.05, t+0.05);
-    g2.gain.setValueAtTime(0.05, t+0.30);
-    g2.gain.exponentialRampToValueAtTime(0.0001, t+dur);
-    src2.connect(bp2); bp2.connect(g2); g2.connect(ctx.destination);
-    src2.start(t); src2.stop(t+dur);
+    lfo.start(t); lfo.stop(t+dur);
   }catch(e){/* 忽略 */}
 }
 // v18.11: 喝水 — 加一杯水的小动画: 一滴水从顶部落入水池 + 落点涟漪 + 表情/水池弹动 (类似存钱金币落罐)
@@ -2902,10 +2899,40 @@ async function loadDrops(){
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 护眼记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>create table if not exists public.drops (id uuid primary key default gen_random_uuid(), date text not null unique, count int not null default 0, max_count int not null default 10, created_at timestamptz default now());<br>alter table public.drops disable row level security;<br>grant insert, update, delete, select on table public.drops to anon;');} return; }
   $('banner').hidden=true; setupError=false;
   drops=data||[]; renderDrops();
+  clearOldEyeMonths();   // v18.13: 跨月自动清掉上月及更早的护眼记录
   // v17.26: 同步刷新首页卡（首页护眼数 = 今天 drops count）
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
   /* v17.92: 加载每次点击时间 (app_settings key='drop_clicks'), 详情面板才能展示 */
   loadDropClicks().catch(e => recordError('loadDropClicks.async', (e&&e.message)||String(e)));
+}
+// v18.13: 护眼记录按月保留 — 跨月自动清除上月及更早 (到 9.1 清掉 8 月); localStorage 标记本月已清, 避免每次 load 重复删
+async function clearOldEyeMonths(){
+  if(window._eyeClearBusy) return;
+  try{
+    const now=new Date();
+    const y=now.getFullYear(), mo=now.getMonth();
+    const curMonth=y+'-'+String(mo+1).padStart(2,'0');
+    const last=localStorage.getItem('eye_cleared_month');
+    if(last===curMonth) return;          // 本月已经清过, 跳过
+    window._eyeClearBusy=true;
+    const firstStr=y+'-'+String(mo+1).padStart(2,'0')+'-01';   // 本月1号; 删 date < 此值 = 上月及更早
+    const {error}=await sb.from('drops').delete().lt('date',firstStr);
+    window._eyeClearBusy=false;
+    if(error) return;
+    localStorage.setItem('eye_cleared_month',curMonth);
+    // 顺手清掉 drop_clicks 里的旧月键 (详情面板不再引用)
+    try{
+      const {data:dc}=await sb.from('app_settings').select('value').eq('key','drop_clicks').single();
+      if(dc && dc.value){
+        const obj=dc.value; let changed=false;
+        Object.keys(obj).forEach(k=>{ if(k<firstStr){ delete obj[k]; changed=true; } });
+        if(changed) await sb.from('app_settings').update({value:obj}).eq('key','drop_clicks');
+      }
+    }catch(e){}
+    // 本地立即反映 (无需再发一次请求)
+    drops=drops.filter(d=>d.date>=firstStr);
+    renderDrops();
+  }catch(e){ if(window) window._eyeClearBusy=false; }
 }
 function comfortState(count){
   // v17.3: 颜色统一 workbuddy 绿系（蓝/橙/红分别对应舒适/疲劳/危险）
@@ -2915,6 +2942,17 @@ function comfortState(count){
   if(count<=10) return {cls:'tired', face:'😐', text:'眼睛疲劳', color:'linear-gradient(180deg,#fbbf24 0%,#f59e0b 100%)', tip:'滴得有点多了，建议闭眼休息或远眺。'};
   /* v17.90: 超 10 次 — 表情改 💔 (破碎的心), 视觉"破碎感"更直接 */
   return {cls:'bad', face:'💔', text:'需要休息', color:'linear-gradient(180deg,#f87171 0%,#dc2626 100%)', tip:'已超过医生建议 10 次/天上限。'};
+}
+// v18.13: 护眼历史按月折叠的持久化偏好 (思路同流光年份折叠)
+function eyeHistPref(){
+  try{ return JSON.parse(localStorage.getItem('eye_hist_pref')||'{"collapsed":[],"expanded":[]}'); }catch(e){ return {collapsed:[],expanded:[]}; }
+}
+function eyeHistSet(m,mode){
+  const p=eyeHistPref();
+  p.collapsed=p.collapsed.filter(x=>x!==m);
+  p.expanded=p.expanded.filter(x=>x!==m);
+  if(mode) p[mode].push(m);
+  try{ localStorage.setItem('eye_hist_pref',JSON.stringify(p)); }catch(e){}
 }
 function renderDrops(){
   const today=todayStr();
@@ -2950,17 +2988,41 @@ function renderDrops(){
   const history=[...drops];
   if(!history.find(d=>d.date===today)) history.unshift(rec);
   history.sort((a,b)=>b.date.localeCompare(a.date));
-  $('dropHistory').innerHTML=history.slice(0,7).map(d=>{
-    const isToday=d.date===today;
-    const label=isToday?'今天':d.date.slice(5);
-    // 今天用 rec.count（实时），其他日期用 d.count（数据库值）
-    const cnt=isToday?rec.count:(d.count||0);
-    // v17.49: 历史格子也固定 /10 (不再 dmax 跟 count 涨)
-    const dmax=10;
-    const s=comfortState(cnt);
-    const txt={ok:'眼睛舒适',mid:'状态正常',tired:'眼睛疲劳',bad:'需要休息'}[s.cls];
-    return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${dmax}</div></div>`;
+  // v18.13: 历史格子按月分组 + 可折叠 (去掉旧 slice(0,7) 限制, 整月天数都展示; 满一月后可折叠)
+  const groups={};
+  history.forEach(d=>{ const m=d.date.slice(0,7); (groups[m]=groups[m]||[]).push(d); });
+  const months=Object.keys(groups).sort().reverse();
+  const pref=eyeHistPref();
+  const curMonth=today.slice(0,7);
+  $('dropHistory').innerHTML=months.map(m=>{
+    const arr=groups[m];
+    const isCur=m===curMonth;
+    const expanded=pref.expanded.includes(m) || (!pref.collapsed.includes(m) && isCur);
+    const ym=m.split('-');
+    const items=arr.map(d=>{
+      const isToday=d.date===today;
+      const label=isToday?'今天':d.date.slice(5);
+      const cnt=isToday?rec.count:(d.count||0);
+      const dmax=10;
+      const s=comfortState(cnt);
+      const txt={ok:'眼睛舒适',mid:'状态正常',tired:'眼睛疲劳',bad:'需要休息'}[s.cls];
+      return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${dmax}</div></div>`;
+    }).join('');
+    return `<div class="eye-month" data-month="${m}">
+      <div class="eye-month-head" data-toggle-month="${m}" aria-expanded="${expanded?'true':'false'}"><span class="ym">${ym[0]} 年 ${ym[1]} 月</span><span class="arr">${expanded?'▾':'▸'}</span></div>
+      <div class="eye-month-body"${expanded?'':' hidden'}>${items}</div>
+    </div>`;
   }).join('');
+  // 月份折叠按钮 (持久化偏好)
+  $('dropHistory').querySelectorAll('[data-toggle-month]').forEach(head=>{
+    head.addEventListener('click',()=>{
+      const m=head.dataset.toggleMonth;
+      const body=head.nextElementSibling;
+      const expanded=head.getAttribute('aria-expanded')==='true';
+      if(expanded){ head.setAttribute('aria-expanded','false'); body.hidden=true; head.querySelector('.arr').textContent='▸'; eyeHistSet(m,'collapse'); }
+      else { head.setAttribute('aria-expanded','true'); body.hidden=false; head.querySelector('.arr').textContent='▾'; eyeHistSet(m,'expand'); }
+    });
+  });
   $('dropHistory').querySelectorAll('.history-item').forEach(el=>{
     el.onclick=()=>{
       const date=el.dataset.date;
