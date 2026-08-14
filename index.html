@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.48</title>
+<title>GrowTime · v17.49</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -199,8 +199,8 @@
   }
   *{box-sizing:border-box;}
   [hidden]{display:none !important;}
-  /* v17.18: 防御性兜底 — 水池中央所有 emoji 元素 100% 不可见，避免 CDN 滞后或 specificity 漏过 */
-  .pool .face,.water-pool .pool-face,.pool-hint,.water-pool-hint{display:none !important;visibility:hidden !important;width:0 !important;height:0 !important;font-size:0 !important;pointer-events:none !important;}
+  /* v17.18: 防御性兜底 — 水池中央所有 emoji 元素 100% 不可见，避免 CDN 滞后或 specificity 漏过 (v17.49: 取消 .pool .face 隐藏, 让水池中央表情重新可见; 保留 water-pool 兜底) */
+  .water-pool .pool-face,.pool-hint,.water-pool-hint{display:none !important;visibility:hidden !important;width:0 !important;height:0 !important;font-size:0 !important;pointer-events:none !important;}
   /* v17.18: 侧栏折叠 — .app.collapsed 隐藏整个 sidebar，sb-toggle 按钮 position:fixed 始终可见 */
   .app.collapsed .sidebar{width:0 !important;padding:0 !important;border:none !important;overflow:hidden !important;}
   .sb-toggle{position:fixed;left:96px;top:14px;width:30px;height:30px;border-radius:50%;background:#fff;border:1px solid #86efac;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:#16a34a;z-index:200;transition:left .25s;box-shadow:0 2px 8px rgba(34,197,94,.18);padding:0;}
@@ -477,15 +477,21 @@
 
 /* 护眼记 - 水池版 */
   .pool-wrap{display:flex;gap:32px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
-  .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
+  .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;border:1.5px solid var(--accent);}   /* v17.49: 外圈细边框, 颜色跟数字3同色 (var(--accent)=#22c55e) */
   .pool:active{transform:scale(.97);}
   .pool::before,.pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
   .pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
   @keyframes wave{0%{transform:translate(-50%,-50%) rotate(0);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
-  .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#7dd3fc 0%,#38bdf8 100%);transition:height .6s ease, background .6s ease;z-index:0;}
-  .pool .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
+  .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#bbf7d0 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}   /* v17.49: 绿渐变(浅绿→数字3同色), 营造动态水池感 */
+  .pool .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;text-shadow:0 2px 6px rgba(255,255,255,.6);}   /* v17.49: 取消兜底隐藏, 加 text-shadow 表情在水面上更清晰 */
   .pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
   @keyframes ripple{to{transform:scale(7);opacity:0;}}
+  /* v17.49: 水池漏水 (>10 滴) — 波浪停止 + 水色转警告 + 下方 💧 滴下动画 */
+  .pool.leaking::before,.pool.leaking::after{display:none;}
+  .pool.leaking .water{background:linear-gradient(180deg,#fed7aa 0%,#ea580c 100%);}
+  .pool .leak{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);font-size:22px;z-index:4;pointer-events:none;animation:leakDrip 1.4s ease-in infinite;}
+  .pool .leak::after{content:'💧';display:block;}
+  @keyframes leakDrip{0%{opacity:1;transform:translate(-50%,0);}100%{opacity:0;transform:translate(-50%,16px);}}
   .pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.45);z-index:2;pointer-events:none;}
   .pool-info{text-align:left;min-width:210px;}
   .pool-info .today{font-size:15px;color:var(--muted);margin-bottom:2px;}
@@ -801,6 +807,7 @@
           <div class="water" id="poolWater"></div>
           <div class="face" id="poolFace">😊</div>
           <div class="pool-hint">点水池滴一滴</div>
+          <div class="leak" id="poolLeak" hidden></div>   <!-- v17.49: 超过10滴显示漏水动画 -->
         </div>
         <div class="pool-info">
           <div class="today">今日已滴</div>
@@ -2040,19 +2047,27 @@ function renderDrops(){
   let rec=drops.find(d=>d.date===today);
   if(!rec){ rec={date:today,count:0,max_count:10}; }
   const count=rec.count||0;
-  // v17.3: max_count 跟随 count 自动涨（不再封顶）
-  const max=Math.max(rec.max_count||10, count);
-  const full=count>=max;
-  const overLimit=count>10;
+  // v17.49: max 固定 10, 不随 count 涨; 前面滴的次数不设上限
+  const max=10;
+  const overLimit=count>max;   // 超过10视为"超医生建议"
   const st=comfortState(count);
-  // 水位：按 min(count, max)/max 比例（满 100%）
-  const heightPct=Math.min(100, Math.round(Math.min(count,max)/max*100));
+  // v17.49: 水位反过来 — 0滴=100% 满, 越滴越少; 用 (max - min(count,max))/max 比例
+  const heightPct=Math.max(0, Math.round((max - Math.min(count,max))/max*100));
   const numEl=$('dropCount');
-  numEl.innerHTML=count+'<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ '+max+'</span>';
+  // v17.49: 数字旁加报警提示 (>10 时 ⚠️ + 红色 + 变红字)
+  const overBadge=overLimit?'<span style="font-size:14px;color:var(--red);margin-left:8px;font-weight:600;">⚠️ 已超 10</span>':'';
+  numEl.innerHTML=count+'<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ '+max+'</span>'+overBadge;
   numEl.classList.toggle('warn',overLimit);
   $('poolFace').textContent=st.face;
   $('poolWater').style.height=heightPct+'%';
-  $('poolWater').style.background=st.color;
+  // v17.49: 正常时绿渐变(JS 不再覆盖, 走 CSS), 超 10 时 CSS .pool.leaking 接管
+  if(!overLimit){
+    $('dropPool').classList.remove('leaking');
+    $('poolLeak').hidden=true;
+  }else{
+    $('dropPool').classList.add('leaking');
+    $('poolLeak').hidden=false;
+  }
   const statusEl=$('dropStatus');
   statusEl.className='status '+st.cls;
   statusEl.innerHTML=(overLimit?'⚠️ ':'')+st.face+' '+st.text+(overLimit?' · 已超医生建议 10 次':'');
@@ -2064,7 +2079,8 @@ function renderDrops(){
     const label=isToday?'今天':d.date.slice(5);
     // 今天用 rec.count（实时），其他日期用 d.count（数据库值）
     const cnt=isToday?rec.count:(d.count||0);
-    const dmax=Math.max(d.max_count||10, cnt);
+    // v17.49: 历史格子也固定 /10 (不再 dmax 跟 count 涨)
+    const dmax=10;
     const s=comfortState(cnt);
     const txt={ok:'眼睛舒适',mid:'状态正常',tired:'眼睛疲劳',bad:'需要休息'}[s.cls];
     return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${dmax}</div></div>`;
@@ -2107,7 +2123,7 @@ async function addDrop(){
     renderDrops(); // 立即刷新（水池+今天格子+详情都跟着变）
     // v17.26: 同步首页护眼数（不依赖 realtime 回环，立即反映）
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}
-    const {error}=await sb.from('drops').update({count:rec.count, max_count:Math.max(rec.max_count||10, rec.count)}).eq('id',rec.id);
+    const {error}=await sb.from('drops').update({count:rec.count, max_count:10}).eq('id',rec.id);   /* v17.49: max_count 固定 10, 不跟 count 涨 */
     if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');rec.count--;renderDrops();try{if($('homeCards'))renderHomeCards();}catch(_){}return;}
   }else{
     rec={date:today,count:1,max_count:10};
