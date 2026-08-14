@@ -3091,7 +3091,7 @@ async function loadSettings(retry=0){
     }
     // 重试 3 次都失败 — silent 仅写日志, 不弹 debugBar; 用户怀疑同步问题时可点「查看日志」按钮拉出
     recordError('loadSettings', msg+' @ '+SUPABASE_URL+' (3次重试后放弃)', true);
-    // 轮询兜底已经 8s 拉一次, 即使初次拉不到也不影响其他模块, 不必惊动用户
+    // 轮询兜底已经 3s 拉一次, 即使初次拉不到也不影响其他模块, 不必惊动用户
   }
 }
 async function saveSettings(key, value){
@@ -3219,9 +3219,10 @@ document.addEventListener('visibilitychange',()=>{
   if(view==='counter') loadDrops();
   if(view==='period') loadPeriod();
 });
-// v17.79: 轮询兜底 — realtime WebSocket 在某些网络/区域下连不上, 跨设备同步会完全失效
-//         页面可见时每 8s 拉一次云端 water_log + 一次 settings, 保证另一台设备写入后最多 8s 内本端同步到
-//         不打断用户操作, loadWaterCups 内部幂等 (并集去重, 不会重复/丢失)
+// v17.85: 轮询兜底 — realtime WebSocket 在某些网络/区域下连不上, 跨设备同步会完全失效
+//         页面可见时每 3s 拉一次云端 (water_log / settings / savings / water_settings),
+//         保证另一台设备删除/写入后最多 3s 内本端自动同步到 — 不依赖用户跑 SQL 加 publication
+//         也不依赖刷新页面. loadSavings 现已云端权威(删除不被复活), 3s 轮询即可达到近秒级体验
 let _syncPollTimer=null;
 (function startSyncPolling(){
   if(_syncPollTimer) return;
@@ -3232,15 +3233,15 @@ let _syncPollTimer=null;
     loadWaterCups().catch(()=>{});
     // settings (每杯/目标) 也轮询, 保证设置跨设备同步
     loadWaterSettings().catch(()=>{});
-    // v17.83: 存钱跨端自动同步 — 移除 realtime 触发后, 改用低频轮询拉云端 (loadSavings 内部已有本机较新保护, 不丢本机数据)
+    // v17.85: 存钱跨端自动同步 — realtime 兜底: 每 3s 拉云端 (loadSavings 已云端权威, 删除不被复活)
     loadSavings().catch(()=>{});
-  }, 8000);
+  }, 3000);
 })();
 // v17.79: realtime 连接诊断 — 如果 30s 内没收到 SUBSCRIBED, 在 debugBar 提示用户 (不阻塞, 轮询继续兜底)
 if(sb){
   setTimeout(()=>{
     if(!_RT_STATES.connectedAt){
-      recordError('realtime', 'WebSocket 实时通道 30s 内未连接成功 (可能网络/区域限制)。已自动切换为每 8s 定时同步兜底, 跨设备同步仍然有效 (延迟 ≤8s)。');
+      recordError('realtime', 'WebSocket 实时通道 30s 内未连接成功 (可能网络/区域限制)。已自动切换为每 3s 定时同步兜底, 跨设备同步仍然有效 (延迟 ≤3s)。');
     }
   }, 30000);
 }
