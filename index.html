@@ -2788,20 +2788,24 @@ function renderDrops(){
         $('dropDetail').hidden=true;
         return;
       }
-      const d=drops.find(x=>x.date===date) || {date:date,count:0,max_count:10};
-      const s=comfortState(d.count);
-      const label=date===today?'今天':date;
-      /* v17.96: 改回横向胶囊 (用户反馈希望跟之前 v17.92 同款); 没点击的日期整块不渲染 */
-      const clickList = getDropClicks(date);
-      const clickHtml = clickList.length > 0
-        ? `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);"><div style="font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;">点击时间（${clickList.length} 次）</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;">${clickList.map(c => `<div style="padding:5px 8px;background:#fff;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:12px;color:#475569;font-weight:600;">${esc(c.time)}</div>`).join('')}</div></div>`
-        : '';
-      $('detailDate').textContent=`${label} · 滴了 ${d.count} 次`;
-      $('detailBody').innerHTML=`<span class="status ${s.cls}" style="display:inline-flex;margin-bottom:8px;">${s.face} ${s.text}</span><br>${s.tip}${d.count<=2?'<br><strong>真棒！今天用眼很健康。</strong>':''}${clickHtml}`;
-      $('dropDetail').dataset.date=date;
-      $('dropDetail').hidden=false;
+      renderDropDetail(date);
     };
   });
+}
+/* v17.97: 抽出详情渲染函数 — 供 history-item 点击 + realtime 拉到 drop_clicks 后重渲染 (秒同步显示新时间, 不用刷新) */
+function renderDropDetail(date){
+  const d=drops.find(x=>x.date===date) || {date:date,count:0,max_count:10};
+  const s=comfortState(d.count);
+  const label=date===today?'今天':date;
+  /* v17.96: 改回横向胶囊 (用户反馈希望跟之前 v17.92 同款); 没点击的日期整块不渲染 */
+  const clickList = getDropClicks(date);
+  const clickHtml = clickList.length > 0
+    ? `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);"><div style="font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;">点击时间（${clickList.length} 次）</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;">${clickList.map(c => `<div style="padding:5px 8px;background:#fff;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:12px;color:#475569;font-weight:600;">${esc(c.time)}</div>`).join('')}</div></div>`
+    : '';
+  $('detailDate').textContent=`${label} · 滴了 ${d.count} 次`;
+  $('detailBody').innerHTML=`<span class="status ${s.cls}" style="display:inline-flex;margin-bottom:8px;">${s.face} ${s.text}</span><br>${s.tip}${d.count<=2?'<br><strong>真棒！今天用眼很健康。</strong>':''}${clickHtml}`;
+  $('dropDetail').dataset.date=date;
+  $('dropDetail').hidden=false;
 }
 // × 关闭按钮
 $('detailClose').onclick=()=>{$('dropDetail').hidden=true;};
@@ -2840,6 +2844,13 @@ async function addDrop(){
   }
   /* v17.92: 异步把点击时间戳持久化到 app_settings (fire-and-forget, 不阻塞 UI) */
   saveDropClicks().catch(e => recordError('saveDropClicks', (e&&e.message)||String(e)));
+  // v17.97: 点完后若详情面板正打开今天, 立即重渲染 (同设备秒同步显示新时间, 不用刷新)
+  try{
+    const dd=$('dropDetail');
+    if(dd && !dd.hidden && dd.dataset && dd.dataset.date===today){
+      renderDropDetail(today);
+    }
+  }catch(_){}
   toast(rec.count>=10?'⚠️ 已记录（已超医生建议）':'已记录');
 }
 $('dropPool').onclick=async(e)=>{
@@ -3216,6 +3227,13 @@ async function loadDropClicks(){
       localStorage.setItem('wbDropClicks', JSON.stringify(dropClicks));
     }
   }catch(e){recordError('loadDropClicks', e.message||String(e));}
+  // v17.97: realtime 拉到 drop_clicks 后, 若详情面板正打开该日期, 立即重渲染 (跨设备秒同步显示新时间)
+  try{
+    const dd=$('dropDetail');
+    if(dd && !dd.hidden && dd.dataset && dd.dataset.date){
+      renderDropDetail(dd.dataset.date);
+    }
+  }catch(_){}
 }
 async function saveDropClicks(){
   try{ localStorage.setItem('wbDropClicks', JSON.stringify(dropClicks)); }catch(_){}
