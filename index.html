@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.31</title>
+<title>GrowTime · v17.32</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -13,6 +13,17 @@
   2. showFatal 改走 debugBar (recordError + 持久化到 localStorage + 常驻显示)
      原: 顶部 banner 显示后立刻被 loadXxx 成功后的 $('banner').hidden=true 关掉,用户看到"一闪就没"
      现: 走 debugBar 留痕,用户可截图或点 debugBar 复制内容发我
+-->
+<!-- v17.32 (8/14 反馈): 手机端三处 layout + 恢复下拉刷新
+  1. 删 updateVVH(--vvh 动态高度 JS) — 它把 wrap 高度钉死成 visualViewport.height(偏小),反而让绿条/鼓励语够不到底;
+     改回纯 CSS: min-height:100vh → -webkit-fill-available → 100dvh (现代浏览器 100dvh 生效)
+  2. 删 touchmove 拦截 — 之前为"藏住"下拉刷新报错禁掉了整页下拉,现已恢复手机正常下拉刷新,
+     真实报错由 debugBar 常驻显示(不再一闪而过)
+  3. 手机端 @media(max-width:640px) .wrap padding-bottom 50px→0,绿条与鼓励语真正贴到屏幕底
+  4. 手机端 .sidebar-foot margin-top:auto→0,"设置"与导航项(喝水等)靠拢,消除中间大空隙;
+     绿条仍靠 flex 链 stretch 到整屏高
+  5. realtime 订阅整段包 if(sb){} — 之前 todos/memos/drops/period/farm 的 sb.channel 未判空,
+     sb 为 null 时顶层抛 TypeError(即某些情况下"顶部一闪报错"的根源之一)
 -->
 <!-- v17.28 (8/14 反馈): 时间卡加高 + 删除电脑端右上角齿轮
   1. 时间卡 .home-left>.hc:first-child 单独 min-height:128(max 148),比喝水/护眼的 88 明显高,内容更舒展
@@ -124,7 +135,7 @@
   .app.collapsed .sb-toggle{left:8px;}
   @media (max-width:640px){ .sb-toggle{left:76px;width:26px;height:26px;font-size:13px;} .app.collapsed .sb-toggle{left:8px;} }
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;min-height:100dvh;min-height:-webkit-fill-available;min-height:var(--vvh,100dvh);display:flex;flex-direction:column;}
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;display:flex;flex-direction:column;}
   header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
@@ -584,13 +595,14 @@
   .saving-card .goal-set button{padding:6px 12px;border:1px solid #fbcfe8;background:#fff;color:#be185d;border-radius:8px;font-size:12px;cursor:pointer;margin-left:8px;}
 
   @media (max-width:640px){
+    .wrap{padding:12px 12px 0;}   /* v17.32: 去掉底部 50px padding,绿条与鼓励语真正贴到屏幕底 */
     .app{flex-direction:row;gap:6px;}
     .sidebar{width:64px;padding:8px 0;gap:4px;border-radius:10px;}
     .sb-item{width:48px;gap:2px;padding:2px 0;}
     .sb-item .ic{width:38px;height:38px;font-size:18px;border-radius:9px;}
     .sb-item .lb{font-size:9.5px;letter-spacing:0;}
     .sb-spacer{display:none;}
-    .sidebar-foot{margin-top:auto;gap:2px;}   /* v17.30: 手机端也把设置按钮贴到底 (之前 0 致浮中段) */
+    .sidebar-foot{margin-top:0;gap:2px;}   /* v17.32: 手机端设置按钮与导航项靠拢,不再被 margin-top:auto 顶到最底与喝水形成大空隙 */
     .home-cards{flex-direction:column;gap:14px;}
     .home-left{flex-direction:column;gap:10px;}
     .hc{padding:12px 14px;min-height:80px;}
@@ -2220,16 +2232,16 @@ function safeReload(table,fn){
     try{ fn(); }catch(e){ showFatal('realtime['+table+']: '+(e.message||e)); }
   },200);
 }
-sb.channel('todos-rt').on('postgres_changes',{event:'*',schema:'public',table:'todos'},()=>safeReload('todos',loadTodos)).subscribe();
-sb.channel('memos-rt').on('postgres_changes',{event:'*',schema:'public',table:'memos'},()=>safeReload('memos',loadMemos)).subscribe();
-sb.channel('drops-rt').on('postgres_changes',{event:'*',schema:'public',table:'drops'},()=>{ /* v17.26: 总是拉一次（首页 + 护眼 view 都要同步） */ loadDrops(); }).subscribe();
-sb.channel('period-rt').on('postgres_changes',{event:'*',schema:'public',table:'period_log'},()=>{ safeReload('period',loadPeriod); }).subscribe();
-sb.channel('farm-rt').on('postgres_changes',{event:'*',schema:'public',table:'farm'},()=>{
-  if(Date.now()-farmPushAt<1500) return;
-  safeReload('farm',()=>pullFarm(true));
-}).subscribe();
-// app_settings 任何变化都重拉（手机电脑同步 labels / cycle_len）
 if(sb){
+  sb.channel('todos-rt').on('postgres_changes',{event:'*',schema:'public',table:'todos'},()=>safeReload('todos',loadTodos)).subscribe();
+  sb.channel('memos-rt').on('postgres_changes',{event:'*',schema:'public',table:'memos'},()=>safeReload('memos',loadMemos)).subscribe();
+  sb.channel('drops-rt').on('postgres_changes',{event:'*',schema:'public',table:'drops'},()=>{ try{ loadDrops(); }catch(e){ showFatal('realtime[drops]: '+(e.message||e)); } }).subscribe();   /* v17.26: 总是拉一次（首页 + 护眼 view 都要同步） */
+  sb.channel('period-rt').on('postgres_changes',{event:'*',schema:'public',table:'period_log'},()=>{ safeReload('period',loadPeriod); }).subscribe();
+  sb.channel('farm-rt').on('postgres_changes',{event:'*',schema:'public',table:'farm'},()=>{
+    if(Date.now()-farmPushAt<1500) return;
+    safeReload('farm',()=>pullFarm(true));
+  }).subscribe();
+  // app_settings 任何变化都重拉（手机电脑同步 labels / cycle_len）
   try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>safeReload('settings',loadSettings)).subscribe(); }catch(e){}
 }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); } });
@@ -2940,34 +2952,7 @@ function sellAll(){
 
 bindFarmEvents();
 
-/* v17.31: iOS Safari 100dvh 不可靠 — 用 visualViewport 动态设 --vvh (px),让 .wrap 高度 = 真实可视区
-   (v17.30 把 --vvh 设成 (vh/innerWidth)+'px' 然后 calc(...*100) → 130px 废值,flex 链全断,sidebar/footer 全部不贴底)
-   移动端浏览器地址栏折叠/展开时,visualViewport.height 是真实可视区,单位直接 px */
-function updateVVH(){
-  const vh=(window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  document.documentElement.style.setProperty('--vvh', vh+'px');
-}
-updateVVH();
-if(window.visualViewport){
-  window.visualViewport.addEventListener('resize', updateVVH);
-  window.visualViewport.addEventListener('scroll', updateVVH);
-}
-window.addEventListener('resize', updateVVH);
-window.addEventListener('orientationchange', ()=>setTimeout(updateVVH,200));
-
-/* v17.30: pull-to-refresh 防误触 — 在页面顶部且用户下拉时阻止默认,避免 iOS Safari 触发整页刷新时短暂空白/错误 */
-let _pullStartY=0;
-document.addEventListener('touchstart', e=>{
-  if(e.touches.length===1) _pullStartY=e.touches[0].clientY;
-},{passive:true});
-document.addEventListener('touchmove', e=>{
-  if(e.touches.length!==1) return;
-  const dy=e.touches[0].clientY-_pullStartY;
-  // 仅在顶部 + 下拉手势时阻止 (其它滚动不干涉)
-  if(window.scrollY<=0 && dy>0 && !e.target.closest('input,textarea,select,.scrollable')){
-    e.preventDefault();
-  }
-},{passive:false});
+/* v17.32: 移除 updateVVH(--vvh 动态高度) 与 touchmove 下拉拦截 — 改用纯 CSS 100dvh,恢复手机正常下拉刷新;真实报错改由 debugBar 常驻显示 */
 
 /* 初始加载（任一失败不影响其它，先把 UI 框架渲染出来） */
 // 本地预览（sb 为 null）也要先把 stats/列表框架渲染出来，避免打开一片空白
