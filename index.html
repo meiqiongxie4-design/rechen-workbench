@@ -531,14 +531,11 @@
   .history-item .badge.mid{background:#3b82f6;}
   .history-item .badge.tired{background:#f97316;}
   .history-item .badge.bad{background:#ef4444;}
-  /* v18.13: 护眼历史按月分组 + 可折叠 (替代旧的 7 列平铺; 整月天数都展示) */
-  .eye-month-head{display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:13px;font-weight:700;color:#16a34a;padding:8px 2px 4px;border-top:1px dashed var(--line);margin-top:6px;user-select:none;}
-  .eye-month-head:first-child{border-top:none;margin-top:0;}
-  .eye-month-head .arr{color:#9ca3af;font-size:12px;}
-  .eye-month-body{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;padding-top:14px;}
+  /* v18.14: 护眼历史直接平铺当前月 (去掉按月折叠), 7 列网格 */
+  .drops-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;padding-top:4px;}
   .history-detail{margin-top:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:16px;animation:fadeIn .3s;position:relative;}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
-  @media (max-width:640px){ .eye-month-body{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
+  @media (max-width:640px){ .drops-grid{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
   /* 编辑待办弹窗 */
   .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;}
   .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;max-width:420px;width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,.25);}
@@ -2943,17 +2940,7 @@ function comfortState(count){
   /* v17.90: 超 10 次 — 表情改 💔 (破碎的心), 视觉"破碎感"更直接 */
   return {cls:'bad', face:'💔', text:'需要休息', color:'linear-gradient(180deg,#f87171 0%,#dc2626 100%)', tip:'已超过医生建议 10 次/天上限。'};
 }
-// v18.13: 护眼历史按月折叠的持久化偏好 (思路同流光年份折叠)
-function eyeHistPref(){
-  try{ return JSON.parse(localStorage.getItem('eye_hist_pref')||'{"collapsed":[],"expanded":[]}'); }catch(e){ return {collapsed:[],expanded:[]}; }
-}
-function eyeHistSet(m,mode){
-  const p=eyeHistPref();
-  p.collapsed=p.collapsed.filter(x=>x!==m);
-  p.expanded=p.expanded.filter(x=>x!==m);
-  if(mode) p[mode].push(m);
-  try{ localStorage.setItem('eye_hist_pref',JSON.stringify(p)); }catch(e){}
-}
+// v18.14: 已移除按月折叠偏好 (护眼历史改为直接平铺当前月, 由 clearOldEyeMonths 次月自动清零)
 function renderDrops(){
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
@@ -2985,44 +2972,21 @@ function renderDrops(){
   const statusEl=$('dropStatus');
   statusEl.className='status '+st.cls;
   statusEl.innerHTML=(overLimit?'⚠️ ':'')+st.face+' '+st.text+(overLimit?' · 已超医生建议 10 次':'');
-  const history=[...drops];
+  // v18.14: 历史只展示当前月, 平铺 7 列网格 (不再按月分组/折叠; 次月记录由 clearOldEyeMonths 自动清零)
+  const curMonth=today.slice(0,7);
+  let history=drops.filter(d=>d.date.slice(0,7)===curMonth);
   if(!history.find(d=>d.date===today)) history.unshift(rec);
   history.sort((a,b)=>b.date.localeCompare(a.date));
-  // v18.13: 历史格子按月分组 + 可折叠 (去掉旧 slice(0,7) 限制, 整月天数都展示; 满一月后可折叠)
-  const groups={};
-  history.forEach(d=>{ const m=d.date.slice(0,7); (groups[m]=groups[m]||[]).push(d); });
-  const months=Object.keys(groups).sort().reverse();
-  const pref=eyeHistPref();
-  const curMonth=today.slice(0,7);
-  $('dropHistory').innerHTML=months.map(m=>{
-    const arr=groups[m];
-    const isCur=m===curMonth;
-    const expanded=pref.expanded.includes(m) || (!pref.collapsed.includes(m) && isCur);
-    const ym=m.split('-');
-    const items=arr.map(d=>{
-      const isToday=d.date===today;
-      const label=isToday?'今天':d.date.slice(5);
-      const cnt=isToday?rec.count:(d.count||0);
-      const dmax=10;
-      const s=comfortState(cnt);
-      const txt={ok:'眼睛舒适',mid:'状态正常',tired:'眼睛疲劳',bad:'需要休息'}[s.cls];
-      return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${dmax}</div></div>`;
-    }).join('');
-    return `<div class="eye-month" data-month="${m}">
-      <div class="eye-month-head" data-toggle-month="${m}" aria-expanded="${expanded?'true':'false'}"><span class="ym">${ym[0]} 年 ${ym[1]} 月</span><span class="arr">${expanded?'▾':'▸'}</span></div>
-      <div class="eye-month-body"${expanded?'':' hidden'}>${items}</div>
-    </div>`;
+  const items=history.map(d=>{
+    const isToday=d.date===today;
+    const label=isToday?'今天':d.date.slice(5);
+    const cnt=isToday?rec.count:(d.count||0);
+    const dmax=10;
+    const s=comfortState(cnt);
+    const txt={ok:'眼睛舒适',mid:'状态正常',tired:'眼睛疲劳',bad:'需要休息'}[s.cls];
+    return `<div class="history-item ${isToday?'today':''}" data-date="${d.date}"><div class="badge ${s.cls}"><span class="em">${s.face}</span>${txt}</div><div class="d">${label}</div><div class="n">${cnt}/${dmax}</div></div>`;
   }).join('');
-  // 月份折叠按钮 (持久化偏好)
-  $('dropHistory').querySelectorAll('[data-toggle-month]').forEach(head=>{
-    head.addEventListener('click',()=>{
-      const m=head.dataset.toggleMonth;
-      const body=head.nextElementSibling;
-      const expanded=head.getAttribute('aria-expanded')==='true';
-      if(expanded){ head.setAttribute('aria-expanded','false'); body.hidden=true; head.querySelector('.arr').textContent='▸'; eyeHistSet(m,'collapse'); }
-      else { head.setAttribute('aria-expanded','true'); body.hidden=false; head.querySelector('.arr').textContent='▾'; eyeHistSet(m,'expand'); }
-    });
-  });
+  $('dropHistory').innerHTML=`<div class="drops-grid">${items}</div>`;
   $('dropHistory').querySelectorAll('.history-item').forEach(el=>{
     el.onclick=()=>{
       const date=el.dataset.date;
