@@ -721,6 +721,8 @@
   .water-pool .pool-water{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
   .water-pool .pool-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
   .water-pool .pool-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
+  /* v18.11: 加一杯水 — 从顶部落入水池的一滴水 (位置/动画由 waterSplash 的 WAAPI 控制) */
+  .water-pool .water-drop{position:absolute;left:50%;top:2%;font-size:30px;z-index:4;pointer-events:none;}
   .water-pool-info{text-align:center;min-width:200px;}
   /* v17.68/v17.69: "已喝 X 杯"和"累计 X ml"统一字号 + 行距加大 (不再挤) */
   .water-pool-info .big{font-size:30px;font-weight:800;color:#16a34a;line-height:1.4;margin:0;}
@@ -1802,7 +1804,8 @@ async function loadWaterCups(){
 // v17.75: optimistic update — 先立即 push 到 memory + localStorage + 渲染, 再 async 同步云端
 //         点水池立刻 +1 (不等网络), 网络失败时静默回退 (不报红条, 数据已落地本地)
 async function addWaterCup(day){
-  playWaterSound();   // v18.10: 加一杯水 → 水流音效 (WebAudio 合成, 无需文件)
+  playWaterSound();   // v18.10: 加一杯水 → 流水音效 (WebAudio 合成, 无需文件)
+  waterSplash();      // v18.11: 加一杯水 → 水滴落入水池小动画
   const t=new Date(); const p=n=>String(n).padStart(2,'0');
   const tsStr=`${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`;
   // 1. 立即 push 到内存 waterRows (cloud 模式) — 让 UI 立刻 +1
@@ -2102,36 +2105,88 @@ function playCoinSound(opts){
     osc.start(t); osc.stop(t+dur);
   }catch(e){/* AudioContext 未激活, 静默忽略 */}
 }
-// v18.10: 喝水 — WebAudio 合成"加水"水流音效 (哗啦声 + 低频咕咚), 跟存钱 coin 同机制, 无需音频文件
+// v18.11: 喝水 — WebAudio 合成"流水"声 (持续哗啦 + 高频嘶嘶, 去掉低频"咚", 不再像敲锣)
 function playWaterSound(){
   const ctx=_ensureAudio(); if(!ctx) return;
   try{
     if(ctx.state==='suspended') ctx.resume();
     const t=ctx.currentTime;
-    // 1) 水流"哗啦"声 — 短促白噪声经带通滤波 (中心 ~900Hz)
-    const dur=0.32;
+    const dur=0.55;
     const len=Math.floor(ctx.sampleRate*dur);
     const buf=ctx.createBuffer(1, len, ctx.sampleRate);
     const data=buf.getChannelData(0);
+    let last=0;
     for(let i=0;i<len;i++){
-      const env=Math.pow(1 - i/len, 1.7);   // 渐弱
-      data[i]=(Math.random()*2-1)*env;
+      // 低通化的白噪声 → 更"水"不"沙"
+      const w=Math.random()*2-1;
+      last=last*0.55 + w*0.45;
+      data[i]=last;
     }
+    // 主层: 中频带通 ~1100Hz (哗啦)
     const src=ctx.createBufferSource(); src.buffer=buf;
-    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=900; bp.Q.value=0.7;
-    const ng=ctx.createGain(); ng.gain.value=0.16;
-    src.connect(bp); bp.connect(ng); ng.connect(ctx.destination);
-    src.start(t); src.stop(t+dur);
-    // 2) 低频"咕咚" — 三角波 320→150Hz 下滑
-    const osc=ctx.createOscillator(); const g=ctx.createGain();
-    osc.type='triangle'; osc.connect(g); g.connect(ctx.destination);
-    osc.frequency.setValueAtTime(320, t);
-    osc.frequency.exponentialRampToValueAtTime(150, t+0.22);
+    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=450;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1100; bp.Q.value=0.5;
+    const g=ctx.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.15, t+0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t+0.26);
-    osc.start(t); osc.stop(t+0.28);
+    g.gain.linearRampToValueAtTime(0.17, t+0.04);
+    g.gain.setValueAtTime(0.17, t+0.34);
+    g.gain.linearRampToValueAtTime(0.13, t+0.44);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    src.connect(hp); hp.connect(bp); bp.connect(g); g.connect(ctx.destination);
+    src.start(t); src.stop(t+dur);
+    // 高频层: ~3200Hz 嘶嘶 (水流细声)
+    const src2=ctx.createBufferSource(); src2.buffer=buf;
+    const bp2=ctx.createBiquadFilter(); bp2.type='bandpass'; bp2.frequency.value=3200; bp2.Q.value=0.9;
+    const g2=ctx.createGain();
+    g2.gain.setValueAtTime(0.0001, t);
+    g2.gain.linearRampToValueAtTime(0.05, t+0.05);
+    g2.gain.setValueAtTime(0.05, t+0.30);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    src2.connect(bp2); bp2.connect(g2); g2.connect(ctx.destination);
+    src2.start(t); src2.stop(t+dur);
   }catch(e){/* 忽略 */}
+}
+// v18.11: 喝水 — 加一杯水的小动画: 一滴水从顶部落入水池 + 落点涟漪 + 表情/水池弹动 (类似存钱金币落罐)
+function waterSplash(){
+  const pool=$('waterPool'); if(!pool) return;
+  try{
+    const drop=document.createElement('div');
+    drop.className='water-drop';
+    drop.textContent='💧';
+    pool.appendChild(drop);
+    const fall=drop.animate([
+      { transform:'translate(-50%,-46px)', opacity:0 },
+      { transform:'translate(-50%,-6px)', opacity:1, offset:0.18 },
+      { transform:'translate(-50%,90px)', opacity:1 }
+    ], { duration:430, easing:'cubic-bezier(.5,.02,.7,.5)', fill:'forwards' });
+    fall.onfinish=()=>{
+      try{ drop.remove(); }catch(e){}
+      // 落点涟漪 (居中)
+      const r=document.createElement('div');
+      r.className='pool-ripple';
+      r.style.left='50%'; r.style.top='64%'; r.style.width=r.style.height='46px';
+      r.style.marginLeft=r.style.marginTop='-23px';
+      pool.appendChild(r);
+      setTimeout(()=>{ try{ r.remove(); }catch(e){} }, 900);
+      // 表情轻微下沉回弹
+      const face=$('waterPoolFace');
+      if(face){
+        face.style.transformOrigin='center';
+        face.animate([
+          { transform:'translateY(0) scale(1)' },
+          { transform:'translateY(7px) scale(.9)', offset:0.45 },
+          { transform:'translateY(0) scale(1.08)', offset:0.78 },
+          { transform:'translateY(0) scale(1)' }
+        ], { duration:360, easing:'ease-out' });
+      }
+      // 水池轻弹
+      pool.animate([
+        { transform:'scale(1)' },
+        { transform:'scale(1.03)', offset:0.4 },
+        { transform:'scale(1)' }
+      ], { duration:360, easing:'ease-out' });
+    };
+  }catch(e){}
 }
 function coinBurst(amount){
   // v17.55: 每次存款金币"多一点" — 金额越大金币越多, 1元最少3枚, 封顶40枚让罐子能装满
