@@ -1400,7 +1400,14 @@ function showFatal(msg){
       // v18.19: banner 上加「复制」按钮 — 用户一键复制错误发给我, 不用每次截图
       b.innerHTML='<div class="bn-head"><b>⚠️ 系统异常</b><button type="button" class="bn-copy">复制</button></div><div class="bn-body">'+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</div>';
       const btn=b.querySelector('.bn-copy');
-      if(btn){ btn.onclick=()=>{ if(navigator.clipboard) navigator.clipboard.writeText(msg); else prompt('复制下面内容发给我：',msg); toast('已复制错误信息'); }; }
+      if(btn){ btn.onclick=()=>{
+        // v18.20: 复制附加诊断 (站点/UA/时间/最近 5 条错误), 用户一键发我能定位到源头
+        let logs=[]; try{ logs=JSON.parse(localStorage.getItem('rechen_debug_log')||'[]'); }catch(e){}
+        const recent=logs.slice(0,5).map(x=>'['+new Date(x.t).toLocaleString('zh-CN',{hour12:false})+'] '+x.tag+': '+x.detail).join('\n');
+        const diag='【GrowTime 同步错误】\n'+msg+'\n\n— 环境 —\n时间: '+new Date().toLocaleString('zh-CN',{hour12:false})+'\n站点: '+location.href+'\nUA: '+(navigator.userAgent||'').slice(0,120)+'\n\n— 最近错误日志 —\n'+(recent||'(无)');
+        if(navigator.clipboard) navigator.clipboard.writeText(diag); else prompt('复制下面内容发给我：',diag);
+        toast('已复制');
+      }; }
       b.hidden=false;
     }
   }catch(e){}
