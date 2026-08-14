@@ -182,9 +182,9 @@
 <meta name="apple-mobile-web-app-title" content="热忱工作台" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
-<meta name="theme-color" content="#63e4be" />
+<meta name="theme-color" content="#0ec8a9" />
 <link rel="icon" type="image/png" sizes="512x512" href="favicon-512.png" />
-<script src="./supabase.min.js"></script>
+<script crossorigin="anonymous" src="./supabase.min.js"></script>
 <style>
   :root{
     --bg:#dcfce7;       /* workbuddy 绿做整体底色 */
@@ -1392,7 +1392,13 @@ function showFatal(msg){
     if(b){ b.innerHTML='<b>⚠️ 系统异常：</b> '+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); b.hidden=false; }
   }catch(e){}
 }
-window.addEventListener('error',e=>{ showFatal(e.message+' ('+(e.filename||'')+':'+(e.lineno||'')+')'); });
+window.addEventListener('error',e=>{
+  // v18.17: 补充 e.error.stack 真实堆栈和 origin — 默认只能拿到 "Script error (:)" 跨域盲消息
+  let extra='';
+  if(e.error && e.error.stack){ extra=' | stack: '+String(e.error.stack).split('\n').slice(0,3).join(' / ').slice(0,500); }
+  if(e.filename && !extra){ extra=' | origin: '+e.filename; }
+  showFatal(e.message+' ('+(e.filename||'')+':'+(e.lineno||'')+')'+extra);
+});
 window.addEventListener('unhandledrejection',e=>{ const r=e.reason; showFatal((r&&r.message)||String(r)); });
 
 function $(id){return document.getElementById(id);}
