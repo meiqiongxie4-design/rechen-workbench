@@ -1802,6 +1802,7 @@ async function loadWaterCups(){
 // v17.75: optimistic update — 先立即 push 到 memory + localStorage + 渲染, 再 async 同步云端
 //         点水池立刻 +1 (不等网络), 网络失败时静默回退 (不报红条, 数据已落地本地)
 async function addWaterCup(day){
+  playWaterSound();   // v18.10: 加一杯水 → 水流音效 (WebAudio 合成, 无需文件)
   const t=new Date(); const p=n=>String(n).padStart(2,'0');
   const tsStr=`${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`;
   // 1. 立即 push 到内存 waterRows (cloud 模式) — 让 UI 立刻 +1
@@ -2100,6 +2101,37 @@ function playCoinSound(opts){
     gain.gain.exponentialRampToValueAtTime(0.0001, t+dur);
     osc.start(t); osc.stop(t+dur);
   }catch(e){/* AudioContext 未激活, 静默忽略 */}
+}
+// v18.10: 喝水 — WebAudio 合成"加水"水流音效 (哗啦声 + 低频咕咚), 跟存钱 coin 同机制, 无需音频文件
+function playWaterSound(){
+  const ctx=_ensureAudio(); if(!ctx) return;
+  try{
+    if(ctx.state==='suspended') ctx.resume();
+    const t=ctx.currentTime;
+    // 1) 水流"哗啦"声 — 短促白噪声经带通滤波 (中心 ~900Hz)
+    const dur=0.32;
+    const len=Math.floor(ctx.sampleRate*dur);
+    const buf=ctx.createBuffer(1, len, ctx.sampleRate);
+    const data=buf.getChannelData(0);
+    for(let i=0;i<len;i++){
+      const env=Math.pow(1 - i/len, 1.7);   // 渐弱
+      data[i]=(Math.random()*2-1)*env;
+    }
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=900; bp.Q.value=0.7;
+    const ng=ctx.createGain(); ng.gain.value=0.16;
+    src.connect(bp); bp.connect(ng); ng.connect(ctx.destination);
+    src.start(t); src.stop(t+dur);
+    // 2) 低频"咕咚" — 三角波 320→150Hz 下滑
+    const osc=ctx.createOscillator(); const g=ctx.createGain();
+    osc.type='triangle'; osc.connect(g); g.connect(ctx.destination);
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(150, t+0.22);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.15, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.26);
+    osc.start(t); osc.stop(t+0.28);
+  }catch(e){/* 忽略 */}
 }
 function coinBurst(amount){
   // v17.55: 每次存款金币"多一点" — 金额越大金币越多, 1元最少3枚, 封顶40枚让罐子能装满
