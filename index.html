@@ -1045,7 +1045,7 @@
       <!-- v18.04: 删「统计 ↔ 列表」分隔线 — 改由「流光记录」标题的 border-top 自带, 跟喝水完全同款（虚线→标题→列表） -->
       <!-- 下部: 列表 (喝水同款: 标题自带虚线在上方, 各自 .water-row 虚线分隔) -->
       <div class="water-list" id="periodWaterList">
-        <div class="water-list-title">流光记录 <span class="sub" id="periodHistRight">共 0 条</span></div>
+        <div class="water-list-title">流光记录</div>
         <div id="periodList"></div>
       </div>
     </div>
@@ -3038,8 +3038,6 @@ function renderPeriod(){
   }
   // 距下次月经 倒计时
   renderPeriodCountdown();
-  // 列表总数
-  $('periodHistRight').textContent=`共 ${periodRecs.length} 条`;
   // --- v18.02: 列表改为按年份分组, 当年永远展开; 其它年份累计 ≥ 12 默认折叠, 可点开 ---
   const list=$('periodList');
   if(!periodRecs.length){
@@ -3059,11 +3057,9 @@ function renderPeriod(){
     window.periodYearExpanded.add(curY);
     list.innerHTML=years.map(y=>{
       const arr=groups[y];
-      const cnt=arr.length;
       const isCur=y===curY;
       // 折叠判断: 当年永远展开; 其它年份若累计 ≥12 条, 仅在用户手动展开时显示 (默认收起)
       const expanded=isCur || window.periodYearExpanded.has(y);
-      const dateRange=arr[arr.length-1].date.slice(5).replace('-','.')+' → '+arr[0].date.slice(5).replace('-','.');
       const yearRows=arr.map(r=>{
         const isToday=r.date===today;
         const no=periodRecs.length - periodRecs.indexOf(r);  // 倒序编号: 最新=第1次 (跟喝水对齐)
@@ -3077,7 +3073,7 @@ function renderPeriod(){
       }).join('');
       return `<div class="period-year" data-year="${y}">
         <div class="period-year-head" aria-expanded="${expanded?'true':'false'}" data-toggle-year="${y}">
-          <span class="yt">${y} 年 <span class="yc">${cnt} 条 · ${dateRange}</span></span>
+          <span class="yt">${y} 年</span>
           <span class="arr">▾</span>
         </div>
         <div class="period-year-body"${expanded?'':' hidden'}>${yearRows}</div>
