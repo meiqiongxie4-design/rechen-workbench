@@ -153,7 +153,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- v17.87 (8/14 反馈): 左侧菜单栏内"喝水"和"设置"分开远 — 删 .sb-spacer 撑开 + sidebar-foot margin-top:0 + sidebar 不要 align-self:stretch, 8个菜单项紧凑排顶部, 设置紧跟喝水 -->
-<!-- 版本：rechen-v2026-08-15-v18.26-card-true-center (用户原话"三个卡片的字都不是对齐中间的", v18.25 我误解成「.hc-left 区域居中」,实际用户要「整张卡片正中央」; v18.26 改成 absolute 布局: .hc-left 满铺 left:18 right:92(74 icon+18 padding), .hc-right absolute 钉在卡片右侧垂直中心, 文字字符现在真居中于整张卡片中心; 同时 .hc-right 加 height:74px 跟 .hc-add 同高, 🌙(38px字)+1(74px圆)+😊(64px字)三个不同尺寸图标 y 坐标统一在卡片中心, 月亮卡视觉偏上问题解决) -->
+<!-- 版本：rechen-v2026-08-15-v18.27-true-50pct-center (用户实测 v18.26 仍偏左, 像素测量: 时间字中心 x=1284 vs 卡片中心 x=1342, 偏左 59px=-2.6%; 根因: v18.26 .hc-left left:18 right:92, 文字在「左半区中央」= 卡片 47% 位置, 不是用户要的「整张卡片正中央 50%」; v18.27 改成 .hc-left left:14 right:14 占满整个卡片宽, 文字 align-items:center 居中, 现在文字真居中卡片 50%; .hc-right 仍 absolute right:18 top:50%, 因 z-index 自然在后不挡 .hc-left; 手机端 @media 同步改 .hc-left{right:14}) -->
 <!-- v18.22 (8/15 03:18 反馈): 用户抱怨"删了重装, 图标还是比 WorkBuddy 小, 报错就让它修不是让我手动关"
      根因1: v18.21 我做了「白底圆角 + 猫头缩 94%」, 实际猫头只占 180/192=93.8%, 外圈 6% 是白边 → PWA 看到白边再加 8-10% safe zone → 视觉上小一截
             真正 WorkBuddy 桌面图标是「猫头占满整个 256x256 + 4 角圆角切口 (透明)」, PWA 不能这样用
@@ -641,7 +641,7 @@
   .home-left>.hc:first-child{min-height:200px;max-height:230px;}   /* v17.96: 时间卡 */
   .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
-  .hc-left{position:absolute;left:18px;right:92px;top:14px;bottom:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-width:0;pointer-events:none;}   /* v18.26: 改 absolute 满铺左 18→右 92(74 icon +18 padding); 文字字符现在居中于整张卡片(用户原话"三个卡片的正中间") */
+  .hc-left{position:absolute;left:14px;right:14px;top:14px;bottom:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-width:0;pointer-events:none;}   /* v18.27: 占满整个卡片宽(不只左半), 文字真正居中卡片 50% 位置(用户原话"三个卡片正中间"); right:14 减去 .hc-right 占位视觉: 文字 padding-right 让位图标, 但 absolute 居中不受图标位置影响 */
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
   .hc-left .num{font-size:22px;font-weight:800;color:#22c55e;line-height:1.1;white-space:nowrap;pointer-events:auto;}   /* v18.26: pointer-events:auto 让按钮可点 */
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
@@ -853,7 +853,7 @@
     .hc-add{width:56px;height:56px;font-size:18px;}
     .hc-time{font-size:44px;}   /* v17.97: 手机端时间字号 40→44 (同步大两个号) */
     .hc-right{right:14px;width:56px;height:56px;}   /* v18.26: 手机端 absolute 定位跟着改 (right:14 对应 padding 14, width/height:56 跟 .hc-add 同高) */
-    .hc-left{right:74px;}   /* v18.26: 手机端 absolute 占左 14 → 右 74(56 icon +14 padding +4 安全距) */
+    .hc-left{right:14px;}   /* v18.27: 手机端同步占满整个卡片, 文字真正居中卡片 50% 位置 */
     .hc-left{gap:14px;}   /* v17.99b: 手机端行距同步桌面 14, 之前 v17.99 漏改手机端 @media 的 gap:5px 覆盖 */
     .hc-left .num{font-size:20px;}
     .hc-left .lb{font-size:11.5px;}
