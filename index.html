@@ -662,6 +662,8 @@
   .water-list-title .sub{color:#6b7280;font-weight:500;margin-left:4px;}
   .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
   .water-row:last-child{border-bottom:none;}
+  /* v18.07: 流光列表日期时间 — 用 tabular-nums 数字等宽, 同一列「点/数字/冒号」垂直对齐, 看着齐整 */
+  .water-row .dt{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;}
   /* v18.02: 流光的删除 × — 跟日期同色 (中性灰), hover 才变红 */
   .period-row-del{background:none;border:none;color:#6b7280;font-size:14px;line-height:1;cursor:pointer;padding:0 4px;transition:color .15s;}
   /* v18.06: 修移动端删除后下一条 × 卡在 hover 红色状态不恢复 — 限定 hover 效果只在桌面鼠标 (pointer:fine) 生效, 触屏 (pointer:coarse) 永远保持灰色 */
@@ -3053,21 +3055,28 @@ function renderPeriod(){
       (groups[y]=groups[y]||[]).push(r);
     });
     const curY=today.split('-')[0];
-    const years=Object.keys(groups).sort().reverse();  // 新→旧
-    // 全局「用户手动展开」集合 — 让用户点开后跨 renderPeriod 也保持展开
-    if(typeof window.periodYearExpanded!=='object' || !window.periodYearExpanded) window.periodYearExpanded=new Set();
-    // 当年总是展开 (放入集合)
-    window.periodYearExpanded.add(curY);
+    const years=Object.keys(groups).sort().reverse();  // 新→旧 (2027 在前, 2026 在后)
+    // v18.07: 用户手动折叠 / 展开偏好 → localStorage 持久化, 跨刷新保留
+    // 存储形: {collapsed:['2025'], expanded:['2024']}; 当年不再强制展开, 用户自由 toggle
+    let pref={collapsed:[],expanded:[]};
+    try{ const raw=localStorage.getItem('period_year_pref'); if(raw) pref=JSON.parse(raw)||pref; }catch(e){}
+    const collapsedSet=new Set(pref.collapsed||[]);
+    const expandedSet=new Set(pref.expanded||[]);
+    function persistPref(){ try{ localStorage.setItem('period_year_pref', JSON.stringify({collapsed:[...collapsedSet], expanded:[...expandedSet]})); }catch(e){} }
     list.innerHTML=years.map(y=>{
       const arr=groups[y];
       const isCur=y===curY;
-      // 折叠判断: 当年永远展开; 其它年份若累计 ≥12 条, 仅在用户手动展开时显示 (默认收起)
-      const expanded=isCur || window.periodYearExpanded.has(y);
+      // 默认折叠规则: 旧年份累计 ≥12 条默认收起, 否则默认展开; 当年遵循用户偏好
+      const defExpanded=(arr.length<12) || isCur;
+      // 用户偏好优先级: 显式折叠 > 显式展开 > 默认
+      const userCollapsed=collapsedSet.has(y);
+      const userExpanded=expandedSet.has(y);
+      const expanded=userCollapsed ? false : (userExpanded || defExpanded);
       const yearRows=arr.map(r=>{
         const isToday=r.date===today;
         const no=periodRecs.length - periodRecs.indexOf(r);  // 倒序编号: 最新=第1次 (跟喝水对齐)
         return `<div class="water-row" data-id="${r.id}">
-          <span>${periodFmtDT(r.date,r.time)}${isToday?' · <span style="color:#ec4899;font-weight:600;">今天</span>':''}</span>
+          <span><span class="dt">${periodFmtDT(r.date,r.time)}</span>${isToday?' · <span style="color:#ec4899;font-weight:600;">今天</span>':''}</span>
           <span style="display:flex;align-items:center;gap:6px;">
             <span style="color:#16a34a;font-weight:600;">第 ${no} 次</span>
             <button class="period-row-del" data-del="${r.id}" title="删除这条">×</button>
@@ -3077,27 +3086,29 @@ function renderPeriod(){
       return `<div class="period-year" data-year="${y}">
         <div class="period-year-head" aria-expanded="${expanded?'true':'false'}" data-toggle-year="${y}">
           <span class="yt">${y} 年</span>
-          <span class="arr">▾</span>
+          <span class="arr">${expanded?'▾':'▸'}</span>
         </div>
         <div class="period-year-body"${expanded?'':' hidden'}>${yearRows}</div>
       </div>`;
     }).join('');
-    // 绑定折叠按钮
+    // 绑定折叠按钮 — 当年也允许手动折叠, 状态写入 localStorage
     list.querySelectorAll('[data-toggle-year]').forEach(head=>{
       head.addEventListener('click',()=>{
         const y=head.dataset.toggleYear;
-        const isCur=y===curY;
         const body=head.nextElementSibling;
-        const expanded=head.getAttribute('aria-expanded')==='true';
-        if(expanded){
+        const wasExpanded=head.getAttribute('aria-expanded')==='true';
+        if(wasExpanded){
           head.setAttribute('aria-expanded','false');
           body.hidden=true;
-          if(!isCur) window.periodYearExpanded.delete(y);  // 当年不允许折
+          head.querySelector('.arr').textContent='▸';
+          collapsedSet.add(y); expandedSet.delete(y);
         }else{
           head.setAttribute('aria-expanded','true');
           body.hidden=false;
-          window.periodYearExpanded.add(y);
+          head.querySelector('.arr').textContent='▾';
+          expandedSet.add(y); collapsedSet.delete(y);
         }
+        persistPref();
       });
     });
   }
