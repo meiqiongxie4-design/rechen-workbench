@@ -172,7 +172,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.93 (1) 详情面板点击时间排版改为最朴素 — 不加标题, 不加虚线分隔, 不加白底胶囊网格, 就是详情文案下面一行一行垂直列时间 (12px → 13px + line-height:2); (2) 修复 v17.92 阈值放宽(v17.91 ≤8 太激进 9 就被当超限)— 用户浏览器可能缓存 v17.91 显示 💔+「超过 10 次」, 硬刷 Ctrl+Shift+R 加载 v17.93 才生效 -->
+<!-- 版本：rechen-v2026-08-15-v17.94 (1) .water-pool 外框改跟 .pool 护眼水池同款细边 + 颜色 (border:1px solid var(--line) + bg var(--surface-2) + 阴影 0 6/18 vs 原 0 8/24, 不再"鼓"出来); (2) 新增 maybePurgeOldWaterLog: 每天首次进入页面 fire-and-forget DELETE water_log WHERE date<today, 次日自动清零只保留当天, 云端不再无限累积; (3) 喝水记录每行时间前补日期「MM-DD HH:MM:SS」, 跨天后历史日期一目了然 -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -683,7 +683,7 @@
 
   /* 喝水大水池（同护眼样式，绿系） */
   .water-pool-wrap{display:flex;gap:28px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
-  .water-pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}
+  .water-pool{position:relative;width:220px;height:220px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);box-shadow:inset 0 0 30px rgba(0,0,0,.05), 0 6px 18px rgba(34,197,94,.12);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}   /* v17.94: 外框改跟护眼水池同款 (border:1px solid var(--line) + bg var(--surface-2) + 阴影 0 6/18 vs 原 0 8/24) */
   .water-pool:active{transform:scale(.97);}
   /* v17.75: wave ::before/::after 必须 pointer-events:none — 否则波纹动画盖在 pool 上面会拦截点击 */
   .water-pool::before,.water-pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.4);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;pointer-events:none;}
@@ -1714,12 +1714,28 @@ function getWaterCups(day){
   return Math.max(cloudN, localN);
 }
 
+// v17.94: 次日自动清零 — 每天首次进入页面时, 删 water_log 里 date<today 的所有旧记录
+//         云端只保留当天数据; 本机 + 对方设备次日重新从 0 杯开始 (loadWaterCups 已经隐含只取当天)
+//         一天内多次 loadWaterCups 不会重复 DELETE (按 _waterPurgedDate 缓存)
+let _waterPurgedDate = null;
+async function maybePurgeOldWaterLog(){
+  if(!sb) return;
+  const today=todayStr();
+  if(_waterPurgedDate===today) return;   // 今天已经清理过, 跳过
+  try{
+    const {error} = await sb.from('water_log').delete().lt('date', today);
+    if(error){ console.warn('[water-purge] 清理历史失败:', error.message); }
+    else { _waterPurgedDate=today; }
+  }catch(e){ console.warn('[water-purge] 清理异常:', (e&&e.message)||e); }
+}
 // v17.38: 从云端拉今天的喝水记录（realtime 触发 / 切换 view / 页面启动都会调）
 // v17.79: 关键修复 — 云端 + 本地 localStorage 做「并集去重」, 永不覆盖本地 pending 记录
 //         之前云端 select 返回空 [] 时直接 waterRows=[] 且 localStorage 覆盖成空, 导致「过几秒数据全没了」
 //         现在: 云端已确认记录 + 本地尚未推上云端的 pending 记录 = 并集, 按 HH:MM:SS 去重
 async function loadWaterCups(){
   if(!sb){ waterLoaded=false; return; }   // 无 Supabase：退回 localStorage
+  // v17.94: 先清掉 <today 的旧记录 (fire-and-forget, 不阻塞 load)
+  maybePurgeOldWaterLog().catch(()=>{});
   const today=todayStr();
   try{
     const {data,error}=await sb.from('water_log').select('*').eq('date',today).order('ts',{ascending:true});
@@ -1964,7 +1980,16 @@ function renderWater(){
   else list.innerHTML = arr.slice().reverse().map((r,i)=>{
     const realIdx=arr.length-1-i;
     const cupNo=arr.length-i;   // v17.69: 第 N 杯 (今日最新一杯 = 第 1 杯)
-    const tsStr = r._local ? esc(r._local) : (r.ts? new Date(r.ts).toLocaleTimeString('zh-CN',{hour12:false}) : '—');
+    /* v17.94: 时间前补日期 — 「MM-DD HH:MM:SS」 完整戳, 跨天后看到日期一目了然 */
+    const _fmtRowTime = (r)=>{
+      const raw = r._local ? r._local : (r.ts? new Date(r.ts).toLocaleTimeString('zh-CN',{hour12:false}) : '—');
+      if(raw==='—') return '—';
+      const refDate = r.ts ? new Date(r.ts) : new Date();
+      const mm = String(refDate.getMonth()+1).padStart(2,'0');
+      const dd = String(refDate.getDate()).padStart(2,'0');
+      return `${mm}-${dd} ${raw}`;
+    };
+    const tsStr = _fmtRowTime(r);
     const delVal = r.id ? esc(r.id) : realIdx;
     const loadedFlag = r.id ? 'true' : 'false';
     return `<div class="water-row" data-idx="${realIdx}">
