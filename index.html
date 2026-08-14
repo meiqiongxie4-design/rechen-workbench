@@ -691,6 +691,11 @@
   @media(hover:hover) and (pointer:fine){
     .saving-row .saving-row-del:hover{color:#dc2626;}
   }
+  /* v18.09: 跟流光/存钱 × 统一 — .water-row-del 默认灰色, 桌面 hover 红; 字号跟流光保持一致 14px */
+  .water-row-del{background:none;border:none;color:#6b7280;font-size:14px;line-height:1;cursor:pointer;padding:0 4px;transition:color .15s;}
+  @media(hover:hover) and (pointer:fine){
+    .water-row-del:hover{color:#dc2626;}
+  }
   /* 备注输入框 — 跟金额输入框一个色系, 单独一行窄一点 */
   .save-add-note{display:block;width:100%;max-width:280px;margin:6px auto 0;padding:8px 14px;border:1.5px solid #fcd34d;border-radius:10px;font-size:14px;background:#fffbeb;outline:none;transition:border-color .15s;}
   .save-add-note:focus{border-color:#d97706;background:#fff;}
@@ -701,7 +706,7 @@
   .water-target-set input{width:80px;padding:6px 8px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:13px;text-align:center;background:#fff;color:#16a34a;font-weight:700;outline:none;transition:border-color .15s;}
   .water-target-set input:focus{border-color:#16a34a;background:#f0fdf4;}
   .water-target-set .unit{font-size:13px;font-weight:600;color:#16a34a;}
-  .water-target-set button{padding:6px 12px;min-width:60px;background:linear-gradient(180deg,#22c55e 0%,#16a34a 100%);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;box-shadow:0 2px 6px rgba(22,163,74,.25);}
+  .water-target-set button{padding:6px 12px;min-width:60px;background:linear-gradient(180deg,#22c55e 0%,#16a34a 100%);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;box-shadow:0 2px 6px rgba(22,163,74,.25);margin-left:6px;}   /* v18.09: margin-left:6px 让启航按钮跟前面 ml 之间隔开 12px (row gap:6 + 按钮 margin-left:6) */
   .water-target-set button:hover{background:linear-gradient(180deg,#16a34a 0%,#15803d 100%);}
 
   /* 喝水大水池（同护眼样式，绿系） */
@@ -2011,7 +2016,7 @@ function renderWater(){
       <span>${tsStr}</span>
       <span style="display:flex;align-items:center;gap:6px;">
         <span style="color:#16a34a;font-weight:600;">第 ${cupNo} 杯 · ${cupMl} ml</span>
-        <button class="water-row-del" data-del="${delVal}" data-loaded="${loadedFlag}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
+        <button class="water-row-del" data-del="${delVal}" data-loaded="${loadedFlag}" title="删除这条">×</button>
       </span>
     </div>`;
   }).join('');
