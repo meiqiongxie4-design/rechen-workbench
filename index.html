@@ -173,6 +173,8 @@
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
+
+<!-- 版本：rechen-v2026-08-15-v17.98 (1) 喝水/护眼卡加高: 桌面 .hc min 88→132 + max 124→186 (增加「今日已喝」高度一半 = 62px, 即 +88/2=+44min / +124/2=+62max); (2) 手机端等比加高: .hc min 80→120 (+40 = 80/2); (3) 时间卡不动 (它有独立的 .home-left>.hc:first-child 覆盖) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -602,7 +604,7 @@
   .home-cards{display:flex;flex-direction:column;gap:18px;}
   .home-left{display:flex;flex-direction:column;gap:12px;}
   .home-right{display:flex;flex-direction:column;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:88px;max-height:124px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:132px;max-height:186px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}   /* v17.98: 喝水/护眼卡加高 + 今日已喝高度一半 (88+44=132 / 124+62=186) */
   .home-left>.hc:first-child{min-height:200px;max-height:230px;}   /* v17.96: 时间卡再增加约「今日已喝 0 杯」卡片 (max 124px) 高度的一半 (62px), 即原 max 168 + 62 ≈ 230 */
   .home-left>.hc:first-child .hc-left{gap:14px;}   /* v17.97: 时间卡三行行距 8→14, 只影响时间卡(不动喝水/护眼) */
   .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
@@ -788,7 +790,7 @@
     .sidebar-foot{margin-top:0;gap:2px;}   /* v17.32: 手机端设置按钮与导航项靠拢,不再被 margin-top:auto 顶到最底与喝水形成大空隙 */
     .home-cards{flex-direction:column;gap:14px;}
     .home-left{flex-direction:column;gap:10px;}
-    .hc{padding:12px 14px;min-height:80px;}
+    .hc{padding:12px 14px;min-height:120px;}   /* v17.98: 手机端喝水/护眼卡加高 + 一半 (80+40=120) */
     .home-left>.hc:first-child{min-height:160px;max-height:188px;}   /* v17.96: 手机端时间卡等比例再加高,喝水卡 (min 80) 一半 = 40, 即原 max 148 + 40 = 188 */
     .hc-add{width:56px;height:56px;font-size:18px;}
     .hc-time{font-size:44px;}   /* v17.97: 手机端时间字号 40→44 (同步大两个号) */
