@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.75</title>
+<title>GrowTime · v17.76</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -685,7 +685,8 @@
   /* v17.68: 继续喝水按钮 — 同 #16a34a */
   .water-pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;}
   .water-pool-info .status.ok{background:#dcfce7;color:#16a34a;}
-  .water-pool-info .status.full{background:#bbf7d0;color:#16a34a;}
+  .water-pool-info .status.full{background:#bbf7d0;color:#16a34a;font-weight:700;}
+  .water-pool-info .status.tip{background:#f1f5f9;color:#94a3b8;}   /* v17.76: 未设目标的灰色提示 */
   .water-pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
 
   /* v17.54: 全局去掉 number 输入框的上下按钮（用户自己输金额） */
@@ -1027,15 +1028,14 @@
           <div class="water-target-set">
             <div class="cup-row">
               <span class="lbl">每杯</span>
-              <!-- v17.69: 默认空 placeholder, 不预填 250 (用户自己填) -->
-              <input type="number" id="waterCupInput" min="50" max="2000" step="50" placeholder="250" />
+              <!-- v17.76: 不显示"250"这类数字, 只用中文"每杯"提示 (跟旁边标签视觉一致), 用户自己填 -->
+              <input type="number" id="waterCupInput" min="50" max="2000" step="50" placeholder="每杯" autocomplete="off" />
               <span class="unit">ml</span>
               <button id="waterCupBtn">启航</button>
             </div>
             <div class="target-row">
               <span class="lbl">目标</span>
-              <!-- v17.69: 默认空 placeholder, 不预填 0 (用户自己填) -->
-              <input type="number" id="waterTargetInput" min="0" max="5000" step="100" placeholder="目标" />
+              <input type="number" id="waterTargetInput" min="0" max="5000" step="100" placeholder="目标" autocomplete="off" />
               <span class="unit">ml</span>
               <button id="waterTargetBtn">启航</button>
             </div>
@@ -1745,10 +1745,51 @@ function readTargetMl(){
   const stored=localStorage.getItem('wbWaterTarget');
   return stored===null ? 0 : parseInt(stored,10);
 }
+// v17.76: 喝水 input 强制空白 — 应用启动/切回/每次 render 三个时机都清, 用户不填 = 永远空
+//        (用户最新诉求「你不填的情况下一定要空着」, 不留 250 之类的残留)
+function clearWaterInputs(){
+  ['waterCupInput','waterTargetInput'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el || document.activeElement===el) return;
+    el.value='';
+  });
+}
+// v17.76: DOMContentLoaded 时强制清空一次 — 防浏览器 autocomplete 把旧的 250/2500 塞进 input
+document.addEventListener('DOMContentLoaded', clearWaterInputs);
+// 同时启动后 100/500ms 再清两次 (autocomplete 可能在 DOMContentLoaded 后才填入, 也可能在用户首次聚焦后才填)
+setTimeout(clearWaterInputs, 100);
+setTimeout(clearWaterInputs, 500);
+// 防 autocomplete 在用户首次 focus 后塞值: focus 时如果 input 是空的(用户没主动键入), 不保留 autocomplete
+['waterCupInput','waterTargetInput'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el || el._v17_76FocusBound) return;
+  el._v17_76FocusBound=true;
+  el.addEventListener('focus', ()=>{
+    // 延后 50ms 看 input.value 是否被 autocomplete 填了, 如果填了且用户还没开始输入, 清掉
+    setTimeout(()=>{
+      if(el.value!=='' && !el.dataset.userTyped){
+        el.value='';
+      }
+    }, 50);
+  });
+  el.addEventListener('input', ()=>{ el.dataset.userTyped='1'; });  // 用户主动键入 = 标记
+});
+// 启动时一次性绑 blur/input 事件, 用户键入 → blur 后立刻清空
+['waterCupInput','waterTargetInput'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el || el._v17_76Bound) return;
+  el._v17_76Bound=true;
+  el.addEventListener('blur', ()=>{
+    setTimeout(()=>{ el.value=''; }, 0);   // 延后一帧清, 让 :focus 样式先收起
+  });
+});
 function renderWater(){
+  // v17.76: input 永远不预填 (用户「你不填就一定要空着」), 在读 cupMl/target 前先清空
+  clearWaterInputs();
+
   const today=todayStr();
   const cups=getWaterCups(today);
-  // v17.74: 杯 ml / 目标 ml 优先用 input 当前值 (用户输入即生效, 不用点启航), localStorage 兜底
+  // v17.74: input 当前值是 source of truth — 用户输入即生效, localStorage 仅作持久化兜底
   const cupMl=readCupMl();
   const target=readTargetMl();
   const ml=cups*cupMl;
@@ -1765,32 +1806,31 @@ function renderWater(){
 //        —— 但用户本次 session 内点启航后, 由于 render 跳过 activeElement=本身, 值保留到那次 render 结束
 //        —— 但 renderWater 会在 emitWaterChange 里被调, 那时 activeElement 已不在 input 上, 会清空
 //        —— 所以启航后 input 也清空, 跟用户预期一致: input 永远不保留显示
-['waterCupInput','waterTargetInput'].forEach(id=>{
-  const el=document.getElementById(id);
-  if(!el || el._v17_75Bound) return;
-  el._v17_75Bound=true;
-  // 用户键入什么就显示什么 (focus 期间不覆盖)
-  el.addEventListener('input', ()=>{});   // 占位, 当前架构不需要 dataset.userInput
-  // blur 立刻清空, 跟用户「不要写任何字」一致
-  el.addEventListener('blur', ()=>{
-    // 延后一帧清, 让 :focus 样式先收起再擦
-    setTimeout(()=>{ el.value=''; }, 0);
+  ['waterCupInput','waterTargetInput'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el || el._v17_75Bound) return;
+    el._v17_75Bound=true;
+    el.addEventListener('blur', ()=>{ setTimeout(()=>{ el.value=''; }, 0); });
   });
-});
 
-// v17.75: input 永远不预填 + blur 后立即清空 — 应用启动时一次性清空两个 input
+  // v17.75: input 永远不预填 + blur 后立即清空 — 应用启动时一次性清空两个 input
   const cupEl=$('waterCupInput'), tgtEl=$('waterTargetInput');
   // 只在 input 不是 activeElement 时清空 (用户正在输入不要打断)
   if(document.activeElement!==cupEl) cupEl.value='';
   if(document.activeElement!==tgtEl) tgtEl.value='';
   $('waterCountTxt').textContent = cups>0?`(${cups} 杯 · ${ml.toLocaleString()} ml · 每杯 ${cupMl} ml)`:'';
-  // 水池水位 + 表情 (没设目标水池不满, 一直显示水位 0; 满后再超)
-  const heightPct=target>0 ? Math.min(100, Math.round(ml/target*100)) : 0;
+  // v17.76: 水池水位 — 设目标时按比例涨; 没设目标但已喝水 ≥1 杯也给点水 (10% ~ 30% 阶梯), 用户至少看到「水进来了」
+  let heightPct;
+  if(target>0) heightPct = Math.min(100, Math.round(ml/target*100));
+  else if(cups>=1 && cups<=3) heightPct = 10 + cups*5;   // 1杯15%, 2杯20%, 3杯25%
+  else if(cups>=4 && cups<=7) heightPct = 30 + (cups-3)*5;
+  else if(cups>7) heightPct = 50 + Math.min(45, cups*2);
+  else heightPct = 0;
   $('waterPoolWater').style.height=heightPct+'%';
   const over=target>0 && ml>=target;
   $('waterOverWarn').style.display=over?'':'none';
-  $('waterStatus').textContent = over?'🎉 已完成今日目标':'💧 继续喝水';
-  $('waterStatus').className = 'status '+(over?'full':'ok');
+  $('waterStatus').textContent = over?'🎉 已完成今日目标':(target>0?'💧 继续喝水':'💧 设个目标看水位进度');
+  $('waterStatus').className = 'status '+(over?'full':(target>0?'ok':'tip'));
   $('waterPoolFace').textContent = over?'🎉':(cups===0?'💧':(cups<3?'💦':'🌊'));
   // 记录列表 + 每行 × 删除按钮（v17.38: 云端 waterRows 优先，localStorage 兜底）
   const list=$('waterList');
@@ -2938,11 +2978,7 @@ if(sb){
     safeReload('farm',()=>pullFarm(true));
   }).subscribe();
   // app_settings 任何变化都重拉（手机电脑同步 labels / cycle_len）
-  try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>safeReload('settings',loadSettings)).subscribe(); }catch(e){}
-  // v17.66: 存钱 (savings 存在 app_settings 里 key='savings') 走独立 channel, 用 filter 只响应自己的 key, 不浪费 loadSettings 流量
-  try{ sb.channel('savings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings',filter:'key=eq.savings'},()=>safeReload('savings',loadSavings)).subscribe(); }catch(e){}
-  // v17.75: 喝水设置 (每杯 ml + 目标 ml) 存在 app_settings 里 key='water_settings', 跨设备同步
-  try{ sb.channel('water-set-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings',filter:'key=eq.water_settings'},()=>safeReload('water-set',loadWaterSettings)).subscribe(); }catch(e){}
+  try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>{ safeReload('settings',loadSettings); safeReload('water-set',loadWaterSettings); safeReload('savings',loadSavings); }).subscribe(); }catch(e){}
 }
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); loadSavings(); loadWaterSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); if(view==='water') loadWaterCups(); if(view==='saving') { loadSavings(); } } });
 
