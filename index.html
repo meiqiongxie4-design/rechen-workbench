@@ -153,7 +153,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- v17.87 (8/14 反馈): 左侧菜单栏内"喝水"和"设置"分开远 — 删 .sb-spacer 撑开 + sidebar-foot margin-top:0 + sidebar 不要 align-self:stretch, 8个菜单项紧凑排顶部, 设置紧跟喝水 -->
-<!-- 版本：rechen-v2026-08-15-v18.15-restore-v15.1-icon （恢复 v15.1 绿时钟图标——v16 换的 workbuddy 猫头图标四角留白导致 iOS 主屏图标显示黑边且偏小；本次直接还原 v15.1 的 apple-touch-icon / favicon-192 / favicon-512 / favicon.ico，删掉 v16 引入的 favicon_extracted.png 源文件）-->
+<!-- 版本：rechen-v2026-08-15-v18.16-use-workbuddy-icon （用户最终确认要的是 workbuddy 猫头图标（非 v18.15 临时换的绿时钟）：从本地 WorkBuddy 应用目录 AppData\Local\WorkBuddy\workbench-icon.ico 取出 256x256 源图，LANCZOS 重采样为 180/192/512 三档 PNG；favicon.ico 直接复用源 .ico（131340 字节，与最初 f2d56ae 提交一致）；删临时文件）-->
 <!-- v17.46 (8/14 反馈): 待办统计数字字号 32→52px 跟首页 .hc-time 一样大
   用户: 这两个字号跟首页的时间一样大, 把待办的这两个字段的字号改成跟首页的时间一样大, 不要去动首页
   改 .stat .num 32→52px (桌面), 24→40px (手机), 跟 .hc-time 桌面 52px / 手机 40px 对齐
