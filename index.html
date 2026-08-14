@@ -174,7 +174,7 @@
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 
-<!-- 版本：rechen-v2026-08-15-v17.98 (1) 喝水/护眼卡加高: 桌面 .hc min 88→132 + max 124→186 (增加「今日已喝」高度一半 = 62px, 即 +88/2=+44min / +124/2=+62max); (2) 手机端等比加高: .hc min 80→120 (+40 = 80/2); (3) 时间卡不动 (它有独立的 .home-left>.hc:first-child 覆盖) -->
+<!-- 版本：rechen-v2026-08-15-v17.99 (1) 通用 .hc-left gap 8→14 跟 v17.97 时间卡行距统一; 删掉 .home-left>.hc:first-child .hc-left 冗余覆盖 (现通用已是 14); (2) 喝水/护眼卡「今日已喝 0 杯」+「0 ml · 已完成 0%」两行行距跟时间卡三行一致; (3) 高度 v17.98 (132/186 桌面 120min 手机) 不变, 部署后请硬刷一次解决 CDN 缓存未显示 v17.98 的问题 -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -605,11 +605,11 @@
   .home-left{display:flex;flex-direction:column;gap:12px;}
   .home-right{display:flex;flex-direction:column;}
   .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:132px;max-height:186px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}   /* v17.98: 喝水/护眼卡加高 + 今日已喝高度一半 (88+44=132 / 124+62=186) */
-  .home-left>.hc:first-child{min-height:200px;max-height:230px;}   /* v17.96: 时间卡再增加约「今日已喝 0 杯」卡片 (max 124px) 高度的一半 (62px), 即原 max 168 + 62 ≈ 230 */
-  .home-left>.hc:first-child .hc-left{gap:14px;}   /* v17.97: 时间卡三行行距 8→14, 只影响时间卡(不动喝水/护眼) */
+  .home-left>.hc:first-child{min-height:200px;max-height:230px;}   /* v17.96: 时间卡再增加约「今日已喝 0 杯」卡片 (max 186px) 高度的一半 (62px), 即原 max 168 + 62 ≈ 230 */
+  /* v17.99: 时间卡三行行距由通用 .hc-left gap:14px 统一管理, 删掉 v17.97 first-child 冗余覆盖 */
   .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
-  .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
+  .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:14px;min-width:0;}   /* v17.99: 行距 8→14 跟时间卡 v17.97 一致, 喝水/护眼卡"文字行距跟时间三行字的行距一样" */
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
   .hc-left .num{font-size:22px;font-weight:800;color:#22c55e;line-height:1.1;white-space:nowrap;}   /* v17.45: 回退到 22px (v17.43 误升到 32px 已被用户否决, 只有 .stat .num 保持 32px) */
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
