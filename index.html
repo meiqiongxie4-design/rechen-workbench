@@ -440,7 +440,7 @@
   @keyframes periodFlash{0%{box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08)}50%{box-shadow:inset 0 0 60px rgba(236,72,153,.55),0 0 60px rgba(236,72,153,.6)}100%{box-shadow:inset 0 0 30px rgba(236,72,153,.15),0 8px 24px rgba(0,0,0,.08)}}
   .period-pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.85);transform:scale(0);animation:periodRipple .9s ease-out;pointer-events:none;}
   @keyframes periodRipple{to{transform:scale(3.4);opacity:0}}
-  .period-info{min-width:210px;flex:0 0 auto;text-align:left;}
+  .period-info{min-width:210px;flex:0 0 auto;text-align:center;}   /* v18.01: 删「上一次/这个月还没记录」后整块居中 */
   @media(max-width:520px){
     .period-hero{flex-direction:column;text-align:center;}
     .period-pool{width:170px;height:170px;}
@@ -1000,16 +1000,10 @@
     <div class="card period-hero">
       <div class="period-pool" id="periodPool" title="点一下记一笔">🌷</div>
       <div class="period-info">
-        <div class="label">上一次</div>
         <div class="big" id="periodLastGap">—</div>
         <div class="meta" id="periodLastWhen">还没有记录</div>
-        <div class="today" id="periodTodayInfo">这个月还没记录</div>
         <div class="tip" id="periodTip" style="display:none"></div>
       </div>
-    </div>
-    <div class="card">
-      <div class="hist-title">记录列表 <span class="right" id="periodHistRight">共 0 条</span></div>
-      <div class="period-list" id="periodList"></div>
     </div>
     <div class="period-summary">
       <div class="s"><div class="n" id="periodCntTotal">0</div><div class="l">累计记录</div></div>
@@ -1019,6 +1013,12 @@
         <div class="cycle-hint" id="periodCycleHint" style="display:none"></div>
       </div>
       <div class="s"><div class="n" id="periodAvgGap">—</div><div class="l">平均间隔(天)</div></div>
+    </div>
+    <div class="card">
+      <div class="history-title">流光记录 <span class="right" id="periodHistRight" style="color:#6b7280;font-weight:400;font-size:12px;">共 0 条</span></div>
+      <div class="water-list" style="margin-top:6px;">
+        <div id="periodList"></div>
+      </div>
     </div>
   </div>
 
@@ -2969,8 +2969,7 @@ $('periodList').addEventListener('click',async e=>{
 function renderPeriod(){
   periodRecs.sort((a,b)=>b.ts-a.ts);
   const today=periodTodayStr();
-  const todayList=periodRecs.filter(r=>r.date===today);
-  $('periodTodayInfo').innerHTML=todayList.length?`今天已记 <b>${todayList.length}</b> 次（${todayList[0].time}）`:`这个月还没记录`;
+  // v18.01: periodTodayInfo 元素已删除（顶部「这个月还没记录」无意义）, todayList 也一并移除
   const past=periodRecs.filter(r=>r.date!==today);
   if(past.length){
     const last=past[0];
@@ -2998,11 +2997,15 @@ function renderPeriod(){
   if(!periodRecs.length){
     list.innerHTML='<div class="empty">还没有记录。点上面粉色大圆记一笔 ✨</div>';
   }else{
-    list.innerHTML=periodRecs.map(r=>{
+    list.innerHTML=periodRecs.map((r,idx)=>{
       const isToday=r.date===today;
-      return `<div class="row ${isToday?'today':''}" data-id="${r.id}">
-        <div class="date">${periodFmtDT(r.date,r.time)}${isToday?'<span class="tag">今天</span>':''}</div>
-        <button class="del" data-del="${r.id}" title="删除">×</button>
+      const no=periodRecs.length-idx;   // v18.01: 倒序排, 最新=第1次 (跟喝水「第N杯」对齐)
+      return `<div class="water-row" data-id="${r.id}">
+        <span>${periodFmtDT(r.date,r.time)}${isToday?' · <span style="color:#ec4899;font-weight:600;">今天</span>':''}</span>
+        <span style="display:flex;align-items:center;gap:6px;">
+          <span style="color:#16a34a;font-weight:600;">第 ${no} 次</span>
+          <button class="water-row-del" data-del="${r.id}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
+        </span>
       </div>`;
     }).join('');
   }
