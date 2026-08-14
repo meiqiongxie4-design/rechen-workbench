@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.76</title>
+<title>GrowTime · v17.77</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1542,14 +1542,14 @@ function renderHomeCards(){
     </div>
   `;
 
-  // 事件绑定 — 喝水 +1
+  // 事件绑定 — 喝水 +1 (v17.77: 按钮永远可点, cupMl=0 时点击弹 toast 提示, 不强制 disabled 灰禁用)
   const addBtn=$('hcWaterAdd');
   if(addBtn){
-    // v17.69: 未设每杯 ml 时, +1 按钮禁用 — 避免"加一杯 0 ml"无意义
-    addBtn.disabled = waterCupMl<=0;
     addBtn.title = waterCupMl>0 ? `记录一杯 ${waterCupMl} ml` : '先去喝水 view 设每杯 ml';
-    addBtn.style.opacity = waterCupMl>0 ? '' : '0.45';
-    addBtn.onclick=()=>{ if(!addBtn.disabled) addWaterCup(today); };
+    addBtn.onclick=()=>{
+      if(waterCupMl<=0){ toast('💧 先去喝水 view 设每杯 ml'); return; }
+      addWaterCup(today);
+    };
   }
   // 护眼卡无按钮（汇总展示卡），点整张卡进【护眼】view
   const eyeCard=box.querySelector('.hc:nth-of-type(3)');  /* 第 3 张是护眼 */
@@ -1829,7 +1829,7 @@ function renderWater(){
   $('waterPoolWater').style.height=heightPct+'%';
   const over=target>0 && ml>=target;
   $('waterOverWarn').style.display=over?'':'none';
-  $('waterStatus').textContent = over?'🎉 已完成今日目标':(target>0?'💧 继续喝水':'💧 设个目标看水位进度');
+  $('waterStatus').textContent = over?'🎉 已完成今日目标':(target>0?'💧 继续喝水':'💧 先定个小目标吧');
   $('waterStatus').className = 'status '+(over?'full':(target>0?'ok':'tip'));
   $('waterPoolFace').textContent = over?'🎉':(cups===0?'💧':(cups<3?'💦':'🌊'));
   // 记录列表 + 每行 × 删除按钮（v17.38: 云端 waterRows 优先，localStorage 兜底）
@@ -1894,29 +1894,29 @@ $('waterPool').onclick=async(e)=>{
 };
 // v17.67: 删「清空今日」按钮 (DOM 也已删), JS 一并清掉
 // v17.72: 删 v17.71 的 dataset.userInput 机制 — input 回填已用 activeElement 检查保护用户当前输入
-// v17.75: 每杯/目标的「每杯 ml」「目标 ml」存到云端 app_settings (跨设备同步), 复用 saveSettingAsync helper
-//         保存后 input.value 立刻清空 (跟用户「不要写任何字」一致, blur 也会清)
+// v17.75: 每杯/目标的「每杯 ml」「目标 ml」存到云端 app_settings (跨设备同步), 复用 saveSettings helper
+//        v17.77: 修致命 bug — saveSettingAsync 不存在 (手机端 fatal), 改回正确的 saveSettings
 $('waterTargetBtn').onclick=async()=>{
   const v=parseInt($('waterTargetInput').value,10);
   if(isNaN(v)||v<0){toast('⚠️ 目标不能为负');return;}
   if(v>0){
     // 同步存云端, 跨设备都能拉到
-    await saveSettingAsync('water_settings', {target: v, cupMl: readCupMl()});
+    await saveSettings('water_settings', {target: v, cupMl: readCupMl()});
     toast(`✅ 目标已设为 ${v.toLocaleString()} ml (云端同步)`);
   }else{
-    await saveSettingAsync('water_settings', {target: 0, cupMl: readCupMl()});
+    await saveSettings('water_settings', {target: 0, cupMl: readCupMl()});
     toast('✅ 已清空目标');
   }
-  $('waterTargetInput').blur();   // blur 后自动清空 (v17.75)
-  emitWaterChange();  // v17.26: 同步首页百分比
+  $('waterTargetInput').blur();   // blur 后自动清空
+  emitWaterChange();
 };
-// v17.3: 自定义每杯 ml  (v17.75: 同步存云端)
+// v17.3: 自定义每杯 ml  (v17.77: 改用 saveSettings)
 $('waterCupBtn').onclick=async()=>{
   const v=parseInt($('waterCupInput').value,10);
   if(!v||v<50||v>2000){toast('⚠️ 每杯 50~2000 ml');return;}
-  await saveSettingAsync('water_settings', {cupMl: v, target: readTargetMl()});
+  await saveSettings('water_settings', {cupMl: v, target: readTargetMl()});
   toast('✅ 每杯已设为 '+v+' ml (云端同步)');
-  $('waterCupInput').blur();   // blur 后自动清空 (v17.75)
+  $('waterCupInput').blur();
   emitWaterChange();
 };
 
