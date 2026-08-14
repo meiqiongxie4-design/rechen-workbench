@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.32</title>
+<title>GrowTime · v17.33</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -13,6 +13,17 @@
   2. showFatal 改走 debugBar (recordError + 持久化到 localStorage + 常驻显示)
      原: 顶部 banner 显示后立刻被 loadXxx 成功后的 $('banner').hidden=true 关掉,用户看到"一闪就没"
      现: 走 debugBar 留痕,用户可截图或点 debugBar 复制内容发我
+-->
+<!-- v17.33 (8/14 反馈): 修"刷新报错: TypeError: null is not an object (evaluating 'farm.theme')" (:2519)
+  根因: let farm=null 在多条路径下保持 null 会被 renderThemeRow()/applyTheme() 读 farm.theme 时崩:
+    a) localStorage 里曾存了 JSON.stringify(null)='null' 字符串, JSON.parse('null')=null
+    b) realtime 推送 mergeFarm 失败/abort 中间态
+    c) 切换/刷新页面时局部变量重置而 remote 还没回来
+  修法:
+    1. let farm=defaultFarm() — 永远有默认值兜底
+    2. ensureFarm() 守门人: 任何 farm.xxx 之前先调, 是 null / plots 非数组就重置
+    3. applyTheme / renderThemeRow / renderField / saveFarm 用 try-catch 兜底 + showFatal(保留堆栈便于后续)
+    4. loadFarm() 校验 localStorage JSON 合法性 (是对象 && plots 是数组), 不合法就重置
 -->
 <!-- v17.32 (8/14 反馈): 手机端三处 layout + 恢复下拉刷新
   1. 删 updateVVH(--vvh 动态高度 JS) — 它把 wrap 高度钉死成 visualViewport.height(偏小),反而让绿条/鼓励语够不到底;
@@ -2281,14 +2292,16 @@ const THEMES={
   night:{name:'夜色',bg:'linear-gradient(180deg,#cfd6f5,#9aa6e0)',dot:'#9aa6e0'},
 };
 
-let farm=null, selSeed=null, popEl=null, farmBound=false, dragSeed=null, seedPopEl=null, seedPopTimer=null, farmPushAt=0;
+let farm=defaultFarm(), selSeed=null, popEl=null, farmBound=false, dragSeed=null, seedPopEl=null, seedPopTimer=null, farmPushAt=0;
 let farmId=null, farmPushTimer=null;
 
 function defaultFarm(){return {coins:100, plots:[], inventory:{}, theme:'green', last:Date.now(), rev:Date.now(), deleted:[]};}
+function ensureFarm(){ if(!farm||typeof farm!=='object'||!Array.isArray(farm.plots)) farm=defaultFarm(); return farm; }
 function loadFarm(){
   updateFarmLayout();
   let hasLocal=false;
-  try{const raw=localStorage.getItem(FARM_KEY); if(raw){farm=JSON.parse(raw);hasLocal=true;} else {farm=defaultFarm();}}catch(e){farm=defaultFarm();}
+  try{const raw=localStorage.getItem(FARM_KEY); if(raw){const v=JSON.parse(raw); if(v&&typeof v==='object'&&Array.isArray(v.plots)){farm=v;hasLocal=true;} else farm=defaultFarm();} else {farm=defaultFarm();}}catch(e){farm=defaultFarm();}
+  ensureFarm();
   if(!farm.plots)farm.plots=[];
   if(!farm.inventory)farm.inventory={};
   if(typeof farm.coins!=='number')farm.coins=100;
@@ -2328,7 +2341,7 @@ function normalizePositions(){
     p.gx=gx; p.gy=gy; taken.add(gx+','+gy);
   });
 }
-function saveFarm(){farm.rev=Date.now();farm.last=farm.rev;try{localStorage.setItem(FARM_KEY,JSON.stringify(farm));}catch(e){} schedulePushFarm();}
+function saveFarm(){ try{const f=ensureFarm(); f.rev=Date.now(); f.last=f.rev; try{localStorage.setItem(FARM_KEY,JSON.stringify(f));}catch(e){} schedulePushFarm(); }catch(e){ showFatal('saveFarm: '+(e.message||e)); } }
 function schedulePushFarm(){ if(farmPushTimer)clearTimeout(farmPushTimer); farmPushTimer=setTimeout(pushFarm,500); }
 /* 农场合并：按每块田的版本号 rev 取胜（谁改得晚谁赢），删除用 deleted 集合传播 */
 function farmSig(f){ return JSON.stringify({p:(f.plots||[]).map(x=>({i:x.id,c:x.crop,s:x.stage,r:x.rev})), c:f.coins, inv:f.inventory, t:f.theme, d:f.deleted}); }
@@ -2354,6 +2367,7 @@ function mergeFarm(local, remote){
   return {merged,changed};
 }
 async function pushFarm(){
+  ensureFarm();
   if(!farm)return;
   try{
     const {data:remoteRows,error:re}=await sb.from('farm').select('*').order('updated_at',{ascending:false}).limit(1);
@@ -2516,7 +2530,7 @@ function bindFarmEvents(){
   });
 }
 
-function applyTheme(){ $('farmGround').style.setProperty('--farm-bg', THEMES[farm.theme].bg); }
+function applyTheme(){ try{const f=ensureFarm(); const t=THEMES[f.theme]||THEMES.green; $('farmGround').style.setProperty('--farm-bg', t.bg); }catch(e){} }
 
 function renderFarm(){ renderCoins(); renderSeedBar(); renderField(); renderThemeRow(); renderPlantBtn(); renderBoostBtn(); renderHarvestBtn(); }
 function renderHarvestBtn(){
@@ -2559,14 +2573,20 @@ function renderSeedBar(){
 }
 
 function renderThemeRow(){
-  const row=$('themeRow');
-  let h='<span class="tl">🎨 装饰背景</span>';
-  h+=Object.entries(THEMES).map(([k,t])=>'<div class="theme-dot '+(farm.theme===k?'active':'')+'" data-theme="'+k+'" title="'+t.name+'" style="background:'+t.dot+'"></div>').join('');
-  row.innerHTML=h;
+  try{
+    const row=$('themeRow');
+    if(!row) return;
+    const f=ensureFarm();
+    let h='<span class="tl">🎨 装饰背景</span>';
+    h+=Object.entries(THEMES).map(([k,t])=>'<div class="theme-dot '+(f.theme===k?'active':'')+'" data-theme="'+k+'" title="'+t.name+'" style="background:'+t.dot+'"></div>').join('');
+    row.innerHTML=h;
+  }catch(e){ showFatal('renderThemeRow: '+(e.message||e)); }
 }
 
 let plotDivById={};
 function renderField(){
+  try{
+  ensureFarm();
   updateFarmLayout();
   const {GRID,PATCH,PAD,OFFSET}=farmLayout;
   applyTheme();
@@ -2631,6 +2651,7 @@ function renderField(){
       div.style.top=(PAD+p.gy*GRID+OFFSET)+'px';
     }
   });
+  }catch(e){ showFatal('renderField: '+(e.message||e)); }
 }
 
 /* 把剩余毫秒格式化成「X分Y秒后熟」 */
