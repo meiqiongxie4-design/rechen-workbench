@@ -14,16 +14,13 @@
      原: 顶部 banner 显示后立刻被 loadXxx 成功后的 $('banner').hidden=true 关掉,用户看到"一闪就没"
      现: 走 debugBar 留痕,用户可截图或点 debugBar 复制内容发我
 -->
-<!-- v17.34 (8/14 反馈): debugBar 加关闭按钮 + 关闭时清空 localStorage 旧错误
-  根因: 用户手机"刷新报错框还在,关不掉":
-    1) restoreDebugBar() 在 init 时把之前 session 崩的农场旧错误(存进 rechen_debug)拉回来常驻
-       —— v17.33 已修好 farm.theme,但旧记录没清,所以刷新又显示
-    2) debugBar 模板只有"复制"按钮,没有关闭/×按钮,用户无从关掉
-  修法:
-    1. 模板加 db-close(×)按钮,点击后 bar.hidden=true + localStorage.removeItem('rechen_debug')
-       关一次就永久消失,下次刷新不再 restore
-    2. bindDebugBar() 统一绑定 copy + close 两个按钮
-    3. .debug-bar 去掉 cursor:pointer(避免误以为整条可点);db-close 加圆型红色×样式
+<!-- v17.34 (8/14 反馈): 鼓励语对齐侧栏底 + 首页绿圈可点完成
+  1. .site-foot padding-bottom 18→0, 背景渐变去掉 → 让鼓励语视觉基线对齐侧栏绿条最底沿;
+     之前 padding-bottom 18px 让鼓励语在中段下沿还有 18px 空白
+  2. 首页 .todo-summary-row .ck 加 cursor:pointer + hover/active transform 反馈
+  3. 新加 homeToggleTodo(id): 单击首页绿圈直接 update todos done=true + done_at,
+     调 renderHomeCards() 立即从首页消失, toast 提示
+  4. .todo-summary 的 onclick 加防误触: 点 ck 不切到 todo view, 点其它区域才进
 -->
 <!-- v17.33 (8/14 反馈): 修"刷新报错: TypeError: null is not an object (evaluating 'farm.theme')" (:2519)
   根因: let farm=null 在多条路径下保持 null 会被 renderThemeRow()/applyTheme() 读 farm.theme 时崩:
@@ -560,11 +557,13 @@
   .todo-summary-hd .lb{font-size:14px;color:#374151;font-weight:600;}
   .todo-summary-hd .ct{font-size:12px;color:#6b7280;}
   .todo-summary-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13.5px;color:#374151;}
-  .todo-summary-row .ck{width:16px;height:16px;border:1.5px solid #22c55e;border-radius:50%;flex-shrink:0;}
+  .todo-summary-row .ck{width:16px;height:16px;border:1.5px solid #22c55e;border-radius:50%;flex-shrink:0;cursor:pointer;transition:background .15s,transform .15s;}
+  .todo-summary-row .ck:hover{background:rgba(34,197,94,.18);transform:scale(1.15);}
+  .todo-summary-row .ck:active{transform:scale(.92);}
   .todo-summary-row .tx{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
-  /* footer 鼓励语 sticky bottom */
-  .site-foot{margin-top:auto;padding:14px 12px 18px;text-align:center;background:linear-gradient(180deg,transparent 0%,rgba(220,252,231,.6) 30%);}
+  /* footer 鼓励语 sticky bottom — padding-bottom:0 让鼓励语视觉基线对齐侧栏绿条底部; 弱化渐变背景 */
+  .site-foot{margin-top:auto;padding:12px 12px 0;text-align:center;background:transparent;}
   .site-foot .cn{font-size:14px;color:#16a34a;font-weight:600;}
   .site-foot .en{font-size:11.5px;color:#6b7280;margin-top:3px;letter-spacing:.4px;}
 
@@ -1268,7 +1267,7 @@ function renderHomeCards(){
   const dropWarn=dropN>=10;
   // 今日待办（todos 未完成前 6 条）
   const open=(todos||[]).filter(t=>!t.done);
-  const todoRows=open.slice(0,6).map(t=>`<div class="todo-summary-row"><span class="ck"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
+  const todoRows=open.slice(0,6).map(t=>`<div class="todo-summary-row"><span class="ck" data-tid="${esc(t.id)}" onclick="event.stopPropagation();homeToggleTodo('${esc(t.id)}')" title="点此标记完成"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
   const todoMore=open.length>6 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-6} 条未完成</div>` : '';
   // 侧栏 label 备用（v17.20 首页卡不再渲染，保留读设置不报错）
   const L=getLabels();
@@ -1325,7 +1324,20 @@ function renderHomeCards(){
   // 事件绑定
   const addBtn=$('hcWaterAdd'); if(addBtn) addBtn.onclick=()=>{ addWaterCup(today); /* emitWaterChange 会重渲两个 view */ };
   const todoCard=box.querySelector('.todo-summary');
-  if(todoCard) todoCard.onclick=()=>switchView('todo');
+  if(todoCard) todoCard.onclick=(e)=>{ if(e.target.classList&&e.target.classList.contains('ck')) return; switchView('todo'); };
+}
+
+/* v17.34: 首页待办前的绿圈直接点即可标记完成 (复用 list 的 toggle 逻辑 — 写到 todos done=true / done_at, 然后刷新首页 + 全局 todos) */
+async function homeToggleTodo(id){
+  const t=(todos||[]).find(x=>x.id===id);
+  if(!t){ return; }
+  try{
+    const {error}=await sb.from('todos').update({done:true, done_at:new Date().toISOString()}).eq('id',id);
+    if(error){ showFatal('标记完成失败: '+(error.message||'')); return; }
+    t.done=true; t.done_at=new Date().toISOString();
+    renderHomeCards();
+    toast('✅ 已完成 · 已移到「已完成」');
+  }catch(e){ showFatal('homeToggleTodo: '+(e.message||e)); }
 }
 
 /* ============ v17: 鼓励语轮换 ============ */
