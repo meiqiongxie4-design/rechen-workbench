@@ -225,6 +225,16 @@
   .topbar button:hover{color:var(--accent);border-color:var(--accent);}
   .topbar .btn{padding:11px 18px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;border-radius:10px;cursor:pointer;transition:.15s;align-self:center;}   /* v17.47: 备忘「添加」按钮跟待办 .btn 一致 + 垂直居中 */
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+  /* v18.02: 流光视图唯一一张大卡片, hero 卡片之后给下张卡片加点距上间距 (删 .period-summary 后补救) */
+  #viewPeriod > .card + .card{margin-top:18px;}
+  /* v18.02: 流光的内联统计条 — 累计 / 距离下次 / 平均(非卡片化, 跟下方水流记录一气呵成) */
+  .period-stats{display:flex;justify-content:center;align-items:baseline;gap:18px;flex-wrap:wrap;padding:14px 12px 6px;color:var(--muted);font-size:13px;}
+  .period-stats .item{display:inline-flex;align-items:baseline;gap:6px;}
+  .period-stats .item .n{font-size:18px;font-weight:800;color:#ec4899;line-height:1;}
+  .period-stats .item.countdown{cursor:pointer;}
+  .period-stats .item.countdown:hover .n{color:#be185d;}
+  .period-stats .item .l{color:var(--muted);font-size:12px;font-weight:500;}
+  .period-stats .sep{color:#cbd5e1;font-size:14px;user-select:none;}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
   .stat{padding:16px 18px;border:2px solid transparent;cursor:pointer;transition:.15s;min-height:92px;display:flex;align-items:center;justify-content:center;gap:14px;}   /* v17.42: 横排 label+num+hint 但 min-height:92px 保持原卡片高度(纵列时≈95px); padding 回 16/18 */
   .stat:hover{border-color:var(--accent-soft);}
@@ -510,7 +520,7 @@
   .pool-info .status.bad{background:#fee2e2;color:#991b1b;}
   .pool-info .max{font-size:13px;color:var(--muted);margin-top:14px;}
   .history-section{margin-top:14px;padding-top:6px;}   /* v17.91: 加 padding-top, 标题与上方分离 */
-  .history-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:18px;}   /* v17.91: margin-bottom 12→18, 跟喝水记录保持一致间距 */
+  .history-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:18px;margin-top:4px;}   /* v18.02: margin-top 4, 标题跟上方内联统计条拉一点点距 */
   .history-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
   .history-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px 8px;text-align:center;min-width:0;cursor:pointer;transition:.15s;position:relative;}   /* v17.89: padding 12 6 → 14 8, 行间隙大一点 */
   .history-item:hover{border-color:var(--accent);transform:translateY(-2px);}
@@ -655,6 +665,17 @@
   .water-list-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;}
   .water-list-title .sub{color:#6b7280;font-weight:500;margin-left:4px;}
   .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
+  .water-row:last-child{border-bottom:none;}
+  /* v18.02: 流光的删除 × — 跟日期同色 (中性灰), hover 才变红 */
+  .period-row-del{background:none;border:none;color:#6b7280;font-size:14px;line-height:1;cursor:pointer;padding:0 4px;transition:color .15s;}
+  .period-row-del:hover{color:#dc2626;}
+  /* v18.02: 流光按年份折叠 — 组标题 + 折叠按钮 */
+  .period-year-head{display:flex;justify-content:space-between;align-items:center;padding:10px 4px 6px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none;}
+  .period-year-head .yt{font-weight:700;color:#374151;font-size:13.5px;}
+  .period-year-head .yt .yc{color:#6b7280;font-weight:500;margin-left:6px;font-size:12px;}
+  .period-year-head .arr{color:#9ca3af;font-size:14px;transition:transform .15s;display:inline-block;}
+  .period-year-head[aria-expanded="false"] .arr{transform:rotate(-90deg);}
+  .period-year-body{padding-bottom:4px;}
   .water-row:last-child{border-bottom:none;}
   .water-empty{font-size:12px;color:#9ca3af;text-align:center;padding:8px 0;}
   /* v17.82: 存钱记录 — 黄颜色（跟 ¥4,000 同色 #d97706）加粗, 行布局: 日期 + 金额 + 备注 + × */
@@ -1005,18 +1026,17 @@
         <div class="tip" id="periodTip" style="display:none"></div>
       </div>
     </div>
-    <div class="period-summary">
-      <div class="s"><div class="n" id="periodCntTotal">0</div><div class="l">累计记录</div></div>
-      <div class="s countdown" id="periodNextCard" title="点我调整周期长度">
-        <div class="n" id="periodNextDays">—</div>
-        <div class="l" id="periodNextLbl">距离下次天数</div>
-        <div class="cycle-hint" id="periodCycleHint" style="display:none"></div>
-      </div>
-      <div class="s"><div class="n" id="periodAvgGap">—</div><div class="l">平均间隔(天)</div></div>
-    </div>
     <div class="card">
+      <!-- v18.02: 唯一一张大卡片 — 顶部内联统计条 (累计 / 距下次 / 平均) + 「流光记录」标题 + 年份折叠列表 -->
+      <div class="period-stats">
+        <span class="item"><span class="n" id="periodStatTotal">0</span><span class="l">累计记录</span></span>
+        <span class="sep">·</span>
+        <span class="item countdown" id="periodStatNext" title="点我调整周期长度"><span class="n" id="periodStatNextN">—</span><span class="l" id="periodStatNextL">距离下次天数</span></span>
+        <span class="sep">·</span>
+        <span class="item"><span class="n" id="periodStatAvg">—</span><span class="l">平均间隔(天)</span></span>
+      </div>
       <div class="history-title">流光记录 <span class="right" id="periodHistRight" style="color:#6b7280;font-weight:400;font-size:12px;">共 0 条</span></div>
-      <div class="water-list" style="margin-top:6px;">
+      <div class="water-list" id="periodWaterList">
         <div id="periodList"></div>
       </div>
     </div>
@@ -2933,7 +2953,10 @@ function periodTimeStr(d=new Date()){
 }
 function periodFmtDT(date,time){
   const [y,m,d]=date.split('-');
-  return `${y}.${m*1}.${d*1} ${time}`;
+  // v18.02: 日期对齐 — 月日补 0, 统一 4-2-2 位 (2026.08.10 11:26)
+  const mm=String(parseInt(m,10)).padStart(2,'0');
+  const dd=String(parseInt(d,10)).padStart(2,'0');
+  return `${y}.${mm}.${dd} ${time}`;
 }
 function periodDayDiff(a,b){
   const A=new Date(a+'T00:00:00'),B=new Date(b+'T00:00:00');
@@ -2993,60 +3016,106 @@ function renderPeriod(){
   }else{
     tipEl.style.display='none';
   }
-  const list=$('periodList');
-  if(!periodRecs.length){
-    list.innerHTML='<div class="empty">还没有记录。点上面粉色大圆记一笔 ✨</div>';
-  }else{
-    list.innerHTML=periodRecs.map((r,idx)=>{
-      const isToday=r.date===today;
-      const no=periodRecs.length-idx;   // v18.01: 倒序排, 最新=第1次 (跟喝水「第N杯」对齐)
-      return `<div class="water-row" data-id="${r.id}">
-        <span>${periodFmtDT(r.date,r.time)}${isToday?' · <span style="color:#ec4899;font-weight:600;">今天</span>':''}</span>
-        <span style="display:flex;align-items:center;gap:6px;">
-          <span style="color:#16a34a;font-weight:600;">第 ${no} 次</span>
-          <button class="water-row-del" data-del="${r.id}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
-        </span>
-      </div>`;
-    }).join('');
-  }
-  $('periodHistRight').textContent=`共 ${periodRecs.length} 条`;
-  $('periodCntTotal').textContent=periodRecs.length;
+  // --- v18.02: 累计 / 距下次 / 平均 三项挪到内联统计条 (不卡片化), id 改 #periodStat* ---
+  $('periodStatTotal').textContent=periodRecs.length;
   const sorted=[...periodRecs].sort((a,b)=>a.ts-b.ts);
   // 平均间隔（保留原有逻辑）
   if(sorted.length>=2){
     let total=0,cnt=0;
     for(let i=1;i<sorted.length;i++){ total+=periodDayDiff(sorted[i-1].date,sorted[i].date); cnt++; }
-    $('periodAvgGap').textContent=(total/cnt).toFixed(1);
+    $('periodStatAvg').textContent=(total/cnt).toFixed(1);
   }else{
-    $('periodAvgGap').textContent='—';
+    $('periodStatAvg').textContent='—';
   }
-  // 距下次月经 倒计时卡片
+  // 距下次月经 倒计时
   renderPeriodCountdown();
+  // 列表总数
+  $('periodHistRight').textContent=`共 ${periodRecs.length} 条`;
+  // --- v18.02: 列表改为按年份分组, 当年永远展开; 其它年份累计 ≥ 12 默认折叠, 可点开 ---
+  const list=$('periodList');
+  if(!periodRecs.length){
+    list.innerHTML='<div class="empty">还没有记录。点上面粉色大圆记一笔 ✨</div>';
+  }else{
+    // 按年份分组
+    const groups={};
+    periodRecs.forEach(r=>{
+      const y=r.date.split('-')[0];
+      (groups[y]=groups[y]||[]).push(r);
+    });
+    const curY=today.split('-')[0];
+    const years=Object.keys(groups).sort().reverse();  // 新→旧
+    // 全局「用户手动展开」集合 — 让用户点开后跨 renderPeriod 也保持展开
+    if(typeof window.periodYearExpanded!=='object' || !window.periodYearExpanded) window.periodYearExpanded=new Set();
+    // 当年总是展开 (放入集合)
+    window.periodYearExpanded.add(curY);
+    list.innerHTML=years.map(y=>{
+      const arr=groups[y];
+      const cnt=arr.length;
+      const isCur=y===curY;
+      // 折叠判断: 当年永远展开; 其它年份若累计 ≥12 条, 仅在用户手动展开时显示 (默认收起)
+      const expanded=isCur || window.periodYearExpanded.has(y);
+      const dateRange=arr[arr.length-1].date.slice(5).replace('-','.')+' → '+arr[0].date.slice(5).replace('-','.');
+      const yearRows=arr.map(r=>{
+        const isToday=r.date===today;
+        const no=periodRecs.length - periodRecs.indexOf(r);  // 倒序编号: 最新=第1次 (跟喝水对齐)
+        return `<div class="water-row" data-id="${r.id}">
+          <span>${periodFmtDT(r.date,r.time)}${isToday?' · <span style="color:#ec4899;font-weight:600;">今天</span>':''}</span>
+          <span style="display:flex;align-items:center;gap:6px;">
+            <span style="color:#16a34a;font-weight:600;">第 ${no} 次</span>
+            <button class="period-row-del" data-del="${r.id}" title="删除这条">×</button>
+          </span>
+        </div>`;
+      }).join('');
+      return `<div class="period-year" data-year="${y}">
+        <div class="period-year-head" aria-expanded="${expanded?'true':'false'}" data-toggle-year="${y}">
+          <span class="yt">${y} 年 <span class="yc">${cnt} 条 · ${dateRange}</span></span>
+          <span class="arr">▾</span>
+        </div>
+        <div class="period-year-body"${expanded?'':' hidden'}>${yearRows}</div>
+      </div>`;
+    }).join('');
+    // 绑定折叠按钮
+    list.querySelectorAll('[data-toggle-year]').forEach(head=>{
+      head.addEventListener('click',()=>{
+        const y=head.dataset.toggleYear;
+        const isCur=y===curY;
+        const body=head.nextElementSibling;
+        const expanded=head.getAttribute('aria-expanded')==='true';
+        if(expanded){
+          head.setAttribute('aria-expanded','false');
+          body.hidden=true;
+          if(!isCur) window.periodYearExpanded.delete(y);  // 当年不允许折
+        }else{
+          head.setAttribute('aria-expanded','true');
+          body.hidden=false;
+          window.periodYearExpanded.add(y);
+        }
+      });
+    });
+  }
 }
 function renderPeriodCountdown(){
-  const card=$('periodNextCard');
-  const n=$('periodNextDays');
-  const l=$('periodNextLbl');
-  const h=$('periodCycleHint');
+  // v18.02: 距下次月经挪进内联统计条 (#periodStatNext 整块可点击)
+  const card=$('periodStatNext');
+  const n=$('periodStatNextN');
+  const l=$('periodStatNextL');
   if(!card||!n||!l) return;
   const next=periodNextDate();
   if(!next){
     card.classList.remove('overdue');
     n.textContent='—'; l.textContent='记一笔再算';
-    if(h){h.style.display='';h.textContent='至少需要 1 条记录';}
     return;
   }
   const today=new Date(); today.setHours(0,0,0,0);
   const diff=Math.round((next-today)/86400000); // 可能为负（已逾期）
   card.classList.toggle('overdue',diff<0);
-  if(h) h.style.display='none';
   l.textContent='距离下次天数';
   if(diff===0){ n.textContent='今天'; }
   else if(diff>0){ n.textContent=diff; }
   else{ n.textContent=`逾期 ${-diff}`; }
 }
 /* 周期调节 modal */
-$('periodNextCard').onclick=openCycleModal;
+$('periodStatNext').onclick=openCycleModal;
 $('cycleCancel').onclick=()=>{$('cycleModal').hidden=true;};
 $('cycleSave').onclick=saveCycleLen;
 $('cycleAutoBtn').onclick=()=>{
