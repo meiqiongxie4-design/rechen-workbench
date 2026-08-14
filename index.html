@@ -172,7 +172,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-15-v17.95 (1) 待办两卡片删掉「还有这些要处理」/「搞定 ✓」hint 字段; flex 横排居中自然成立(剩 label+num 两项, justify-content:center 居中); (2) 卡片标题 .stat .label + 列表标题 .list-title 字体颜色改跟 .water-list-title 同款绿色加粗 (color:#16a34a font-weight:700); (3) 其它不动 -->
+<!-- 版本：rechen-v2026-08-15-v17.96 (1) 首页时间卡加高: 桌面 min 148→200 + max 168→230 (即原 max 168 + 喝水卡 max 124 一半 62 ≈ 230); (2) 手机端等比例加高: min 128→160 + max 148→188 (即原 max 148 + 手机喝水卡 min 80 一半 40 = 188); (3) 其它布局/字号不动 -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -603,7 +603,7 @@
   .home-left{display:flex;flex-direction:column;gap:12px;}
   .home-right{display:flex;flex-direction:column;}
   .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:88px;max-height:124px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
-  .home-left>.hc:first-child{min-height:148px;max-height:168px;}   /* v17.29: 时间卡再加高,明显高过喝水/护眼(88) */
+  .home-left>.hc:first-child{min-height:200px;max-height:230px;}   /* v17.96: 时间卡再增加约「今日已喝 0 杯」卡片 (max 124px) 高度的一半 (62px), 即原 max 168 + 62 ≈ 230 */
   .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
@@ -788,7 +788,7 @@
     .home-cards{flex-direction:column;gap:14px;}
     .home-left{flex-direction:column;gap:10px;}
     .hc{padding:12px 14px;min-height:80px;}
-    .home-left>.hc:first-child{min-height:128px;max-height:148px;}   /* v17.29: 手机端时间卡加高 */
+    .home-left>.hc:first-child{min-height:160px;max-height:188px;}   /* v17.96: 手机端时间卡等比例再加高,喝水卡 (min 80) 一半 = 40, 即原 max 148 + 40 = 188 */
     .hc-add{width:56px;height:56px;font-size:18px;}
     .hc-time{font-size:40px;}
     .hc-left{gap:5px;}
