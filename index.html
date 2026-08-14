@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.34</title>
+<title>GrowTime · v17.35</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -549,6 +549,10 @@
   .hc-add:active{transform:scale(.94);}
     /* v17.20: 护眼 😄 表情 - 去掉任何外圈/边框/背景，只留 emoji 本身 */
   .hc-face{font-size:42px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;}
+    /* v17.35: 首页护眼卡 - 缩小表情让位给 +1 按钮，跟喝水卡统一节奏（横向 [😊 +1]）*/
+  .hc-face-mini{font-size:24px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;}
+  .hc-add-sm{width:46px;height:46px;font-size:16px;}
+  .eye-right{flex-direction:row;gap:6px;}
 
   /* 今日待办卡（首页底部）- v17.27: 之前被后加的 flex:1 覆盖了上行的 flex:0 0 auto，所以卡片总是撑满整段；
      这里强制 content-size + max-height 6 条 (JS 已 .slice(0,6) 限流，CSS 兜底)。 */
@@ -1259,8 +1263,8 @@ function renderHomeCards(){
   const waterMl=waterCups*waterCupMl;
   const waterTarget=parseInt(localStorage.getItem('wbWaterTarget')||'2000',10);
   const waterPct=Math.min(100, Math.round(waterMl/waterTarget*100));
-  // 护眼（drops 表今日）
-  const dropsToday=(drops||[]).filter(x=>(x.day||'')===today);
+  // 护眼（drops 表今日）— v17.35: 修笔误 x.day → x.date（之前 drops 表的列名是 date 不是 day，导致首页永远显示 0）
+  const dropsToday=(drops||[]).filter(x=>(x.date||'')===today);
   const dropN=dropsToday.length;
   const dropFace=getDropStatus(dropN).face||'😊';
   const dropText=getDropStatus(dropN).text||'眼睛舒适';
@@ -1298,13 +1302,13 @@ function renderHomeCards(){
         <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 ${waterCupMl} ml">+1</button></div>
       </div>
 
-      <!-- ③ 护眼卡 — v17.20: 去掉 "护眼" 标签，表情外不要圈 -->
+      <!-- ③ 护眼卡 — v17.35: 加 +1 按钮（face 缩小让位），字段名笔误一并修 -->
       <div class="hc">
         <div class="hc-left">
           <div class="num ${dropWarn?'warn':''}">${dropWarn?'⚠️ ':''}今日已滴 ${dropN} 滴</div>
           <div class="sub">${dropText} · 上限 10 滴</div>
         </div>
-        <div class="hc-right"><span class="hc-face" id="hcFace">${dropFace}</span></div>
+        <div class="hc-right eye-right"><span class="hc-face-mini" id="hcFace">${dropFace}</span><button class="hc-add hc-add-sm" id="hcEyeAdd" title="点一下记录一次滴眼">+1</button></div>
       </div>
     </div>
 
@@ -1323,11 +1327,39 @@ function renderHomeCards(){
 
   // 事件绑定
   const addBtn=$('hcWaterAdd'); if(addBtn) addBtn.onclick=()=>{ addWaterCup(today); /* emitWaterChange 会重渲两个 view */ };
+  const eyeBtn=$('hcEyeAdd'); if(eyeBtn) eyeBtn.onclick=(e)=>{ e.stopPropagation(); homeAddDrop(eyeBtn); };
   const todoCard=box.querySelector('.todo-summary');
   if(todoCard) todoCard.onclick=(e)=>{ if(e.target.classList&&e.target.classList.contains('ck')) return; switchView('todo'); };
 }
 
-/* v17.34: 首页待办前的绿圈直接点即可标记完成 (复用 list 的 toggle 逻辑 — 写到 todos done=true / done_at, 然后刷新首页 + 全局 todos) */
+/* ============ v17.35: 护眼事件（首页 + 护眼 view 实时同步） ============ */
+function emitEyeChange(){
+  document.dispatchEvent(new CustomEvent('eye:changed'));
+}
+// 监听眼变化事件，同时刷新首页卡和护眼 view（哪边 DOM 存在就刷哪边）
+document.addEventListener('eye:changed',()=>{
+  try{ if($('homeCards')) renderHomeCards(); }catch(e){}
+  try{ if($('dropCount')) renderDrops(); }catch(e){}
+});
+
+/* v17.35: 首页护眼 +1 — 复用 addDrop()，自带按钮涟漪（不依赖 护眼 view 的水池涟漪） */
+async function homeAddDrop(btn){
+  // 涟漪反馈（按钮位置）
+  try{
+    const rect=btn.getBoundingClientRect();
+    const ripple=document.createElement('div');
+    ripple.className='ripple';
+    const size=46;
+    ripple.style.width=ripple.style.height=size+'px';
+    ripple.style.left=(rect.width/2-size/2)+'px';
+    ripple.style.top=(rect.height/2-size/2)+'px';
+    ripple.style.position='absolute';
+    btn.appendChild(ripple);
+    setTimeout(()=>ripple.remove(),700);
+  }catch(e){}
+  await addDrop();
+  emitEyeChange();  // v17.35: 通知护眼 view（如果用户已切换过去）立即重渲
+}
 async function homeToggleTodo(id){
   const t=(todos||[]).find(x=>x.id===id);
   if(!t){ return; }
