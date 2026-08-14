@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.84</title>
+<title>GrowTime · v17.85</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.84 (存钱秒同步: 并集去重解决 memHist>cloudHist 死锁 + scheduleSavingsReloadFromRT 延后合并避开竞态) -->
+<!-- 版本：rechen-v2026-08-14-v17.85 (存钱删除秒同步: 云端权威 + 待同步队列只保留本机新增, 删除不再被复活; 首屏并行加载降延迟) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -2135,24 +2135,41 @@ const SAVING_DEFAULT = {goal:0,name:'',saved:0,totalDeposited:0,history:[],goalS
 let saving = {...SAVING_DEFAULT};
 let savingLoaded = false;
 let savingDirty = false;
+// v17.85: 存钱记录唯一键 (t+amount+note) — 去重判断「本机独有 vs 云端已有」
+function _savingKeyOf(h){ return `${h.t||0}_${(Number(h.amount)||0)}_${(h.note==null?'':String(h.note)).slice(0,40)}`; }
+// v17.85: 本机新建但尚未被云端确认的存入条目 (断网保护). 仅「新增」进队列, 删除不进 → 删除绝不会被 loadSavings 复活
+let _pendingSavings = [];
+function _loadPendingSavings(){ try{ const raw=localStorage.getItem('wbSaving_pending'); if(raw) _pendingSavings=JSON.parse(raw)||[]; }catch(e){ _pendingSavings=[]; } }
+function _persistPendingSavings(){ try{ localStorage.setItem('wbSaving_pending', JSON.stringify(_pendingSavings)); }catch(e){} }
+_loadPendingSavings();
 function getSaving(){
   // v17.66: 内存主存 (云端 load 后会更新 saving, UI 直接读内存)
   if(!saving) saving = {...SAVING_DEFAULT};
   return saving;
 }
-// v17.84: 本机刚写入时打个时间戳 — 让 realtime 触发的 loadSavings 知道这是本机活动,
-//        延后 2.5s 再合并, 避免 await saveSettings 期间云端读到旧值的竞态 (存第二次数据丢失)
+// v17.84: 本机刚写入时打个时间戳 — 让 realtime 触发的 loadSavings 知道这是本机活动
 function _markLocalPushed(){ saving._localPushedAt = Date.now(); }
 async function setSaving(o){
+  const oldHist = Array.isArray(saving.history) ? saving.history.slice() : [];
   saving = {...saving, ...o};
   // 写本地兜底
   try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
   // v17.84: 标记本机刚写入
   _markLocalPushed();
-  // 云端同步 (异步, 失败不阻塞 UI)
-  if(typeof saveSavings==='function'){
-    try{ await saveSavings(saving); }catch(e){}
+  // v17.85: 仅把「本次新增」的存入条目进待同步队列 (删除 history 减少, added 为空 → 不进 → 删除不被复活)
+  const newHist = Array.isArray(saving.history) ? saving.history : [];
+  const oldKeys = new Set(oldHist.map(_savingKeyOf));
+  const added = newHist.filter(h=>!oldKeys.has(_savingKeyOf(h)));
+  if(added.length){ _pendingSavings = _pendingSavings.concat(added); _persistPendingSavings(); }
+  // 云端同步 (await 确保正常网络下云端立即更新, 删除/存入都即时落定)
+  const ok = await saveSavings(saving);
+  if(ok){
+    // 写成功 → 云端已含本次新增, 从待同步队列移除已确认的
+    const confirmed = new Set(newHist.map(_savingKeyOf));
+    _pendingSavings = _pendingSavings.filter(h=>!confirmed.has(_savingKeyOf(h)));
+    _persistPendingSavings();
   }
+  // 写失败(网络断)时不移除 pending → loadSavings 仍会保留本机新建条目, 防止丢失
 }
 // v17.84: 从云端拉一次, 用"云端+本地并集去重"模式合并 — 解决 v17.83 "memHist > cloudHist → 保留本机"的死锁问题
 //         (那个保护当一端删除另一端时, 内存 N > 云端 N-1, 永远不覆盖 → 删不同步)
@@ -2181,23 +2198,22 @@ async function loadSavings(){
   if(data && data.length && data[0].value && typeof data[0].value==='object'){
     const cloud = data[0].value;
     const cloudHist = Array.isArray(cloud.history) ? cloud.history : [];
-    const memHist = Array.isArray(saving.history) ? saving.history : [];
-    // v17.84: 并集 — 云端权威 + 本机有/云端没有的(刚写入未落定)
-    const keyOf = h => `${h.t||0}_${h.amount||0}_${(h.note==null?'':h.note).slice(0,40)}`;
-    const cloudKeys = new Set(cloudHist.map(keyOf));
-    const memOnlyHist = memHist.filter(h => !cloudKeys.has(keyOf(h))   // 本机独有
-                                         && Date.now() - (h.t||0) < 120000);   // 2 分钟内
-    const mergedHist = cloudHist.concat(memOnlyHist);
-    // 数值字段: saved / totalDeposited 取较大值 (防加减时短暂回滚)
-    const merged = {
-      goal: cloud.goal != null ? cloud.goal : (saving.goal||0),
-      name: cloud.name != null ? cloud.name : (saving.name||''),
-      goalSet: cloud.goalSet===true ? true : !!saving.goalSet,
-      saved: Math.max(cloud.saved||0, saving.saved||0),
-      totalDeposited: Math.max(cloud.totalDeposited||0, saving.totalDeposited||0),
+    const cloudKeys = new Set(cloudHist.map(_savingKeyOf));
+    // v17.85: 云端为权威. 仅把「待同步队列中 云端尚未确认」的本机新建条目并入 (断网保护);
+    //         被另一端删除/修改的记录不在队列 → 一律跟随云端丢弃 → 删除跨设备秒同步生效
+    const pendingHist = _pendingSavings.filter(h => !cloudKeys.has(_savingKeyOf(h)) && (h.t||0) > Date.now()-300000);
+    const localAdd = pendingHist.reduce((s,h)=> s + (Number(h.amount)||0), 0);
+    const mergedHist = cloudHist.concat(pendingHist);
+    saving = {
+      ...SAVING_DEFAULT,
+      ...cloud,
+      saved: (Number(cloud.saved)||0) + localAdd,
+      totalDeposited: (Number(cloud.totalDeposited)||0) + localAdd,
       history: mergedHist,
     };
-    saving = {...SAVING_DEFAULT, ...merged};
+    // 同步待同步队列: 云端已含的移除 (已落定)
+    _pendingSavings = _pendingSavings.filter(h=>!cloudKeys.has(_savingKeyOf(h)));
+    _persistPendingSavings();
     try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
   }
   savingLoaded = true;
@@ -3982,14 +3998,15 @@ try{ renderStats(); renderList(); }catch(e){}
   // 拉一次设置：拿到云端 labels 和 cycle_len，手机电脑即时同步名称/倒计时
   try{await loadSettings();}catch(e){}
   // 拉一次暖记：拿到历史记录
-  try{await loadPeriod();}catch(e){showFatal('loadPeriod: '+(e.message||e));}
-  // v17.38: 拉护眼 / 喝水云端数据 —— 首页卡初始即显示真实值（不依赖先切到对应 view）
-  try{await loadDrops();}catch(e){}
-  try{await loadWaterCups();}catch(e){}
-  // v17.66: 拉存钱云端数据 (复用 app_settings 表 key='savings') — 切到存钱页或 visibility 触发实时同步
-  try{await loadSavings();}catch(e){}
-  // v17.75: 拉喝水设置 (每杯 ml / 目标 ml) — 跨设备同步
-  try{await loadWaterSettings();}catch(e){}
+  // v17.85: 各模块云端拉取并行化 — 首屏不再串行等待, 刷新后几秒内全部就绪 (不再卡好几秒)
+  await Promise.all([
+    loadSettings().catch(()=>{}),
+    loadPeriod().catch(()=>{}),
+    loadDrops().catch(()=>{}),
+    loadWaterCups().catch(()=>{}),
+    loadSavings().catch(()=>{}),
+    loadWaterSettings().catch(()=>{}),
+  ]);
   // v17: 数据到位后如果停在首页，重渲染 4 卡片
   try{ if(view==='home') renderHomeCards(); }catch(e){}
   // v17: 触发首页渲染（含 4 张聚合卡 + 时钟 + 鼓励语 footer）
