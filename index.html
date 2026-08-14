@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.45</title>
+<title>GrowTime · v17.46</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -153,6 +153,11 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
+<!-- v17.46 (8/14 反馈): 待办统计数字字号 32→52px 跟首页 .hc-time 一样大
+  用户: 这两个字号跟首页的时间一样大, 把待办的这两个字段的字号改成跟首页的时间一样大, 不要去动首页
+  改 .stat .num 32→52px (桌面), 24→40px (手机), 跟 .hc-time 桌面 52px / 手机 40px 对齐
+  严格不动首页任何样式
+-->
 <!-- v17.45 (8/14 反馈): 修「点哪个模块都显示首页」bug + 首页字号回退
   根因: v17.44 在 body 顶部加了 inline <style> 用 !important 锁死初始 view 显示, 避免刷新闪首页
        —— 但 switchView 只改 HTML hidden 属性, 那个 !important 永远胜出, 永远停在首页
@@ -221,7 +226,7 @@
   .stat:hover{border-color:var(--accent-soft);}
   .stat.active{border-color:var(--accent);}
   .stat .label{color:var(--muted);font-size:12.5px;font-weight:600;}
-  .stat .num{font-size:32px;font-weight:800;line-height:1;}   /* v17.43: 升到 32px 跟首页统一, 数字更突出 */
+  .stat .num{font-size:52px;font-weight:800;line-height:1;}   /* v17.46: 待办统计数字字号跟首页 .hc-time (52px) 一样大, 数字更突出; 仅动 .stat 不动首页 */
   .stat .hint{font-size:11.5px;color:var(--muted);}   /* v17.42: 横排后去掉 margin-top, 三段在同一行 baseline 对齐 */
   .panel{padding:18px;}
   .sub-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
@@ -544,7 +549,7 @@
   }
   @media(max-width:560px){
     .grid{grid-template-columns:1fr;}
-    .stat .num{font-size:24px;}
+    .stat .num{font-size:40px;}   /* v17.46: 跟首页 .hc-time 手机端 (40px) 对齐 */
     .counter-num{font-size:60px;}
     .counter-actions .btn{width:100%;}
     .nav button{font-size:13px;padding:10px 6px;}
