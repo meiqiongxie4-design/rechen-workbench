@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.46</title>
+<title>GrowTime · v17.47</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -220,6 +220,7 @@
   .topbar #memoQuick::placeholder{color:var(--muted);opacity:.7;}
   .topbar button{padding:9px 16px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-size:13px;color:var(--muted);cursor:pointer;align-self:flex-start;}
   .topbar button:hover{color:var(--accent);border-color:var(--accent);}
+  .topbar .btn{padding:11px 18px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;border-radius:10px;cursor:pointer;transition:.15s;}   /* v17.47: 备忘「添加」按钮跟待办 .btn 一致 */
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
   .stat{padding:16px 18px;border:2px solid transparent;cursor:pointer;transition:.15s;min-height:92px;display:flex;align-items:center;justify-content:center;gap:14px;}   /* v17.42: 横排 label+num+hint 但 min-height:92px 保持原卡片高度(纵列时≈95px); padding 回 16/18 */
@@ -785,7 +786,7 @@
   <div id="viewMemo" hidden>
     <div class="topbar">
       <textarea id="memoQuick" placeholder="随时记一笔（回车换行，点「＋ 新建」按钮提交，卡片内可继续编辑、贴图）"></textarea>
-      <button id="memoAdd" title="用左侧输入框内容新建一条备忘录">＋ 新建</button>
+      <button class="btn" id="memoAdd" title="用左侧输入框内容新建一条备忘录">添加</button>
     </div>
     <div class="card panel">
       <div id="memoList"></div>
