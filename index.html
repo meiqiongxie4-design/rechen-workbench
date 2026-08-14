@@ -686,8 +686,11 @@
   .saving-row .saving-row-right{display:flex;align-items:center;gap:8px;}
   .saving-row .saving-row-amt{color:#d97706;font-weight:700;font-size:13px;}
   .saving-row .saving-row-note{color:#6b7280;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .saving-row .saving-row-del{background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;}
-  .saving-row .saving-row-del:hover{color:#b91c1c;}
+  .saving-row .saving-row-del{background:none;border:none;color:#6b7280;font-size:14px;line-height:1;cursor:pointer;padding:0 4px;transition:color .15s;}
+  /* v18.08: 跟流光 .period-row-del 一致 — 默认中性灰, 桌面鼠标 hover 才变红 (手机触屏永远保持灰色) */
+  @media(hover:hover) and (pointer:fine){
+    .saving-row .saving-row-del:hover{color:#dc2626;}
+  }
   /* 备注输入框 — 跟金额输入框一个色系, 单独一行窄一点 */
   .save-add-note{display:block;width:100%;max-width:280px;margin:6px auto 0;padding:8px 14px;border:1.5px solid #fcd34d;border-radius:10px;font-size:14px;background:#fffbeb;outline:none;transition:border-color .15s;}
   .save-add-note:focus{border-color:#d97706;background:#fff;}
@@ -1130,6 +1133,8 @@
           <button class="pour-btn" id="savePourBtn" hidden>🪣 已满请倒出（完成目标）</button>
           <div class="total-label">已累计存款</div>
           <div class="total-num" id="saveTotal">¥0</div>
+          <!-- v18.08: 「还差多少」 — 目标设了之后实时显示差额; 满了显示「已达成」绿色 -->
+          <div class="save-remain" id="saveRemain" style="margin-top:6px;font-size:13px;font-weight:600;color:#d97706;"></div>
           <div class="save-add">
             <input type="number" id="saveAddInput" min="1" placeholder="存入金额…" />
             <button class="btn" id="saveAddBtn">存入</button>
@@ -2295,6 +2300,13 @@ function renderSaving(){
   $('saveProgressPct').textContent = pct+'%';
   $('saveTotal').textContent='¥'+totalDeposited.toLocaleString();
   $('savePourBtn').hidden=!full;
+  // v18.08: 「还差多少」 — 目标>0: 显示差额 (橙色); 已达成: 绿色「已达成目标」; 无目标: 空
+  const remainEl=$('saveRemain');
+  if(remainEl){
+    if(goal<=0){ remainEl.textContent=''; }
+    else if(saved>=goal){ remainEl.innerHTML='<span style="color:#16a34a;">🎉 已达成目标</span>'; }
+    else{ remainEl.textContent=`还差 ¥${(goal-saved).toLocaleString()}`; }
+  }
   // v17.63: 锁定态 = 存过钱 (locked); 满罐态并存 (full=罐子≥goal); 锁定让顶部「/ ¥X,XXX」灰
   const info=$('saveInfo'); if(info){ info.classList.toggle('is-full', full); info.classList.toggle('is-locked', locked); }
   const pool=$('savePool'); if(pool) pool.classList.toggle('is-full', full);
