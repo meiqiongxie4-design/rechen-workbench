@@ -3,10 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime</title>
+<title>GrowTime · v17.25</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
+<!-- v17.25 (8/14 反馈): 首页 4 个布局问题
+  1. 3 张顶卡（时间/喝水/护眼）太高 → .hc{flex:0 0 auto;min-height:88px} 不再 stretch
+  2. 待办跟眼药水没空隙挤一起 → .home-cards gap:14 → 18
+  3. 左侧栏没贴底、鼓励语悬半空 → .app 加 flex:1;min-height:0 让 .app 撑满 .wrap 高度，
+     .sidebar{align-self:stretch} 顺势贴底，#viewHome{flex:1} + .site-foot{margin-top:auto} 让鼓励语真正到 home 页底
+  4. 时间卡右边的 ☀ 太阳还有金黄色外圈 → .hc-sun 去 background/border/border-radius/固定宽高，
+     与 .hc-face 一致只留 emoji 本身（移动端同步）
+-->
 <!-- v17.22 (no-cache bust): 解决用户浏览器/CDN 边缘缓存老 v17.20 的 view-source,
      +title 显示版本号让用户一眼看到当前版本,
      +<meta http-equiv="Cache-Control"> 让所有 CDN/浏览器走 no-cache.
@@ -437,7 +445,7 @@
   .mod-error button:hover{color:#7f1d1d;}
 
   /* ============ v17 左侧栏 + 首页 4 卡片 ============ */
-  .app{display:flex;gap:14px;align-items:stretch;}
+  .app{display:flex;gap:14px;align-items:stretch;flex:1;min-height:0;}
   .sidebar{width:84px;flex-shrink:0;background:linear-gradient(180deg,#bbf7d0 0%,#86efac 100%);border-right:1px solid #4ade80;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:stretch;box-shadow:0 2px 12px rgba(34,197,94,.08);}
   .sb-item{width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:4px 0;border-radius:10px;color:var(--muted);transition:.15s;}
   .sb-item .ic{width:48px;height:48px;background:#fff;border:1px solid #bbf7d0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;}
@@ -451,12 +459,12 @@
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
-  /* 首页 4 卡片 - v17.21 单列堆叠：4 张卡纵向排列，每张等高 */
-  .home-cards{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;}
-  .home-left{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;}
+  /* 首页 4 卡片 - v17.25 单列堆叠：3 张顶卡 content-size 不再 flex:1 撑满；待办卡 flex:1 撑剩余空间；home-cards gap 18 让待办跟眼药水有空隙；.app flex:1 让侧栏/鼓励语到底 */
+  .home-cards{display:flex;flex-direction:column;gap:18px;flex:1;min-height:0;}
+  .home-left{display:flex;flex-direction:column;gap:12px;}
   .home-right{display:flex;flex-direction:column;flex:1;min-height:0;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:1;min-height:96px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
-  .todo-summary{flex:1;min-height:96px;display:flex;flex-direction:column;gap:6px;}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:88px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
+  .todo-summary{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
@@ -467,10 +475,8 @@
   .hc-time{font-size:42px;font-weight:600;color:#22c55e;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
   .hc-date{font-size:12.5px;color:#6b7280;}
   .hc-greet{font-size:13px;color:#16a34a;font-weight:500;}
-  .hc-sun{width:60px;height:60px;background:#fef3c7;border:2px solid #fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;}
-  .hc-sun.night{background:#e0e7ff;border-color:#818cf8;}
-  .hc-sun.dusk{background:#fed7aa;border-color:#fb923c;}
-  .hc-sun.dawn{background:#fde68a;border-color:#fcd34d;}
+  /* v17.25: 时间卡右边的 ☀ 太阳 去掉金黄色外圈（与 .hc-face 一致，只剩 emoji 本身） */
+  .hc-sun{font-size:38px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;}
   .hc-add{width:74px;height:74px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;box-shadow:0 4px 10px rgba(34,197,94,.3);cursor:pointer;border:none;transition:.15s;}
   .hc-add:active{transform:scale(.94);}
     /* v17.20: 护眼 😄 表情 - 去掉任何外圈/边框/背景，只留 emoji 本身 */
@@ -547,7 +553,7 @@
     .sb-item .lb{font-size:9.5px;letter-spacing:0;}
     .sb-spacer{display:none;}
     .sidebar-foot{margin-top:0;gap:2px;}
-    .home-cards{flex-direction:column;gap:10px;}
+    .home-cards{flex-direction:column;gap:14px;}
     .home-left{flex-direction:column;gap:10px;}
     .hc{padding:12px 14px;min-height:80px;}
     .hc-add{width:56px;height:56px;font-size:18px;}
@@ -557,12 +563,12 @@
     .hc-left .lb{font-size:11.5px;}
     .hc-left .sub{font-size:10.5px;}
     .hc-face{font-size:32px;background:none !important;border:none !important;border-radius:0 !important;box-shadow:none !important;width:auto !important;height:auto !important;padding:0 !important;}
+    .hc-sun{font-size:30px;background:none !important;border:none !important;border-radius:0 !important;box-shadow:none !important;width:auto !important;height:auto !important;padding:0 !important;}
     .todo-summary{padding:10px 12px;}
     header .settings-btn{display:none;}   /* v17.3 手机端隐藏顶部齿轮（已移到侧栏） */
     .water-pool{width:160px;height:160px;}
     .water-pool .pool-face{font-size:48px;}
     .water-pool-wrap{gap:16px;padding:6px 0 12px;}
-    .hc-sun{width:50px;height:50px;font-size:22px;}
   }
 
   </style>
