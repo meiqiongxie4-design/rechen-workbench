@@ -664,7 +664,10 @@
   .water-row:last-child{border-bottom:none;}
   /* v18.02: 流光的删除 × — 跟日期同色 (中性灰), hover 才变红 */
   .period-row-del{background:none;border:none;color:#6b7280;font-size:14px;line-height:1;cursor:pointer;padding:0 4px;transition:color .15s;}
-  .period-row-del:hover{color:#dc2626;}
+  /* v18.06: 修移动端删除后下一条 × 卡在 hover 红色状态不恢复 — 限定 hover 效果只在桌面鼠标 (pointer:fine) 生效, 触屏 (pointer:coarse) 永远保持灰色 */
+  @media(hover:hover) and (pointer:fine){
+    .period-row-del:hover{color:#dc2626;}
+  }
   /* v18.02: 流光按年份折叠 — 组标题 + 折叠按钮 */
   .period-year-head{display:flex;justify-content:space-between;align-items:center;padding:10px 4px 6px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none;}
   .period-year-head .yt{font-weight:700;color:#374151;font-size:13.5px;}
