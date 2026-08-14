@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.37</title>
+<title>GrowTime · v17.38</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -101,6 +101,20 @@
     4. 删 homeAddDrop 函数 (按钮没了, 函数没用); eyeBtn 事件绑定删
     5. 整张护眼卡可点 → switchView('counter') (让用户能跳到【护眼】去操作)
   联动保留: emitEyeChange 监听 + renderHomeCards 重算 dropFace, 护眼 view 滴眼后首页大表情自动同步
+<!-- v17.38 (8/14): 喝水模块 Supabase 实时同步（照护眼 drops 模式）
+  根因: 前端喝水一直只写 localStorage(getWaterLog/setWaterLog), 完全没碰 Supabase water_log 表,
+        所以光跑 SQL 建表也不同步 —— 必须前端也对接才行 (回应"跑 SQL 就能秒同步吗?" = 不能, 要两端都到位)
+  改法（Supabase 为主, localStorage 仅离线兜底）:
+    1. 新增全局 waterRows / waterLoaded; 新增 loadWaterCups() 从云端 select date=today 拉全量
+    2. addWaterCup(): 写 water_log insert + 本端手动 push waterRows (保证秒响应) + emitWaterChange
+    3. delWaterCup(id) / waterClearToday: 云端 delete (.in('id',ids)) + 本地兜底
+    4. renderWater 列表: 读 waterRows(云端优先) 或 localStorage 兜底; 删除按 id 走 delWaterCup
+    5. realtime 加 water-rt channel 监听 water_log insert/delete/update → loadWaterCups
+    6. switchView('water') 调 loadWaterCups (替代原 renderWater); visibilitychange 同步
+    7. 启动区补 await loadDrops() + await loadWaterCups() —— 首页卡初始即显示真实云端值(不依赖先切 view)
+       (此前首页护眼/喝水偶发 0 的根因: 启动没拉, 只靠切 view)
+    8. WATER_SQL_HINT 给 banner 用; 完整 SQL 见对话
+  验证: 跑 water_log 建表 SQL 后, 隐身开 → 手机点 +1, 电脑刷新/停留首页和喝水 view 都秒变
 -->
 <!--
   v17.20 首页打磨（基于你 8/14 反馈）：
@@ -1192,7 +1206,7 @@ function switchView(v){
   if(v==='counter') loadDrops();
   if(v==='period') loadPeriod();
   if(v==='farm') loadFarm();
-  if(v==='water') renderWater();
+  if(v==='water') loadWaterCups();   // v17.38: 切到喝水 view 先拉云端（realtime 会持续同步）
   if(v==='saving') renderSaving();
   if(v!=='farm'){ closeBag(); closePop(); }
 }
@@ -1410,24 +1424,74 @@ document.addEventListener('water:changed',()=>{
   try{ if($('waterBig')) renderWater(); }catch(e){}
 });
 
-/* ============ v17: 喝水打卡（localStorage） ============ */
+/* ============ v17.38: 喝水打卡（Supabase 为主 + localStorage 离线兜底） ============ */
 function getWaterLog(){
   try{ return JSON.parse(localStorage.getItem('wbWaterLog')||'{}'); }catch(e){ return {}; }
 }
 function setWaterLog(o){ localStorage.setItem('wbWaterLog', JSON.stringify(o)); }
+
+// 今天的 water_log 行（Supabase 真相源）；waterLoaded=true 表示已用云端数据渲染
+let waterRows=[];
+let waterLoaded=false;
+
+// banner 提示里给的建表 SQL（用户照抄跑一次即可）
+const WATER_SQL_HINT=
+'create table if not exists public.water_log ('+
+'id uuid primary key default gen_random_uuid(), '+
+'date text not null, ts timestamptz not null default now(), '+
+'created_at timestamptz default now()); '+
+'alter table public.water_log disable row level security; '+
+'grant insert, update, delete, select on table public.water_log to anon; '+
+'alter publication supabase_realtime add table public.water_log;';
+
 function getWaterCups(day){
+  const today=todayStr();
+  if(day===today && waterLoaded) return waterRows.length;
   const o=getWaterLog();
   return (o[day]||[]).length;
 }
-function addWaterCup(day){
-  const o=getWaterLog();
-  if(!o[day]) o[day]=[];
-  const t=new Date();
-  const p=n=>String(n).padStart(2,'0');
-  o[day].push(`${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`);
-  setWaterLog(o);
+
+// v17.38: 从云端拉今天的喝水记录（realtime 触发 / 切换 view / 页面启动都会调）
+async function loadWaterCups(){
+  if(!sb){ waterLoaded=false; return; }   // 无 Supabase：退回 localStorage
+  const today=todayStr();
+  const {data,error}=await sb.from('water_log').select('*').eq('date',today).order('ts',{ascending:true});
+  if(error){
+    if(!setupError){ setupError=true; showBanner('⚠️ 喝水记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>'+WATER_SQL_HINT); }
+    return;
+  }
+  $('banner').hidden=true; setupError=false;
+  waterRows=data||[]; waterLoaded=true;
+  renderWater();
+  try{ if($('homeCards')) renderHomeCards(); }catch(e){}   // 同步首页卡
+}
+
+// 记录一杯（写云端；realtime 会自动推到其他端；本端手动 push 保证秒响应）
+async function addWaterCup(day){
+  if(sb){
+    const {data,error}=await sb.from('water_log').insert({date:day, ts:new Date().toISOString()}).select();
+    if(error){ showFatal('记录喝水失败: '+(error.message||'')); return; }
+    const row=(data&&data[0])||{date:day,ts:new Date().toISOString()};
+    if(day===todayStr()) waterRows.push(row);
+  }else{
+    const o=getWaterLog(); if(!o[day]) o[day]=[];
+    const t=new Date(); const p=n=>String(n).padStart(2,'0');
+    o[day].push(`${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`);
+    setWaterLog(o);
+  }
   toast('✅ 已记录一杯 250 ml');
-  emitWaterChange();  // v17.26: 通知首页 / 喝水 view 同时刷新
+  emitWaterChange();   // → renderWater() + renderHomeCards() 同步两个 view
+}
+
+// 删除一杯（按云端 id；realtime 同步其他端）
+async function delWaterCup(id){
+  const idx=waterRows.findIndex(r=>r.id===id);
+  if(sb){
+    const {error}=await sb.from('water_log').delete().eq('id',id);
+    if(error){ showFatal('删除喝水失败: '+(error.message||'')); return; }
+  }
+  if(idx>=0) waterRows.splice(idx,1);
+  emitWaterChange();
 }
 function renderWater(){
   const today=todayStr();
@@ -1453,29 +1517,34 @@ function renderWater(){
   $('waterStatus').textContent = over?'🎉 已完成今日目标':'💧 继续喝水';
   $('waterStatus').className = 'status '+(over?'full':'ok');
   $('waterPoolFace').textContent = over?'🎉':(cups===0?'💧':(cups<3?'💦':'🌊'));
-  // 记录列表 + 每行 × 删除按钮
+  // 记录列表 + 每行 × 删除按钮（v17.38: 云端 waterRows 优先，localStorage 兜底）
   const list=$('waterList');
-  const arr=(getWaterLog()[today]||[]).slice().reverse();
+  const arr = waterLoaded ? waterRows : (getWaterLog()[today]||[]);
   if(arr.length===0) list.innerHTML = `<div class="water-empty">今天还没打卡，喝一杯吧～</div>`;
-  else list.innerHTML = arr.map((t,i)=>{
+  else list.innerHTML = arr.slice().reverse().map((r,i)=>{
     const realIdx=arr.length-1-i;
+    const tsStr = waterLoaded ? (r.ts? new Date(r.ts).toLocaleTimeString('zh-CN',{hour12:false}) : '—') : esc(r);
+    const delVal = waterLoaded ? esc(r.id) : realIdx;
     return `<div class="water-row" data-idx="${realIdx}">
-      <span>${esc(t)}</span>
+      <span>${tsStr}</span>
       <span style="display:flex;align-items:center;gap:6px;">
         <span style="color:#22c55e;font-weight:600;">${cupMl} ml</span>
-        <button class="water-row-del" data-del="${realIdx}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
+        <button class="water-row-del" data-del="${delVal}" data-loaded="${waterLoaded}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
       </span>
     </div>`;
   }).join('');
-  // 删除单条
+  // 删除单条（云端走 delWaterCup；离线走 localStorage）
   list.querySelectorAll('.water-row-del').forEach(btn=>{
-    btn.onclick=()=>{
-      const idx=parseInt(btn.dataset.del,10);
-      const o=getWaterLog();
-      o[today].splice(idx,1);
-      if(o[today].length===0) delete o[today];
-      setWaterLog(o);
-      emitWaterChange();  // v17.26: 同步首页
+    btn.onclick=async()=>{
+      if(btn.dataset.loaded==='true'){ await delWaterCup(btn.dataset.del); }
+      else {
+        const idx=parseInt(btn.dataset.del,10);
+        const o=getWaterLog();
+        o[today].splice(idx,1);
+        if(o[today].length===0) delete o[today];
+        setWaterLog(o);
+        emitWaterChange();  // v17.26: 同步首页
+      }
     };
   });
 }
@@ -1492,13 +1561,20 @@ $('waterPool').onclick=async(e)=>{
   setTimeout(()=>ripple.remove(),900);
   addWaterCup(todayStr());  // emitWaterChange 会重渲两个 view
 };
-// 清空今日
-$('waterClearToday').onclick=()=>{
+// 清空今日（v17.38: 云端批量删 water_log 行 + 离线兜底）
+$('waterClearToday').onclick=async()=>{
   if(!confirm('清空今日所有喝水打卡记录？')) return;
-  const o=getWaterLog();
-  delete o[todayStr()];
-  setWaterLog(o);
-  emitWaterChange();  // v17.26: 同步首页
+  if(sb && waterLoaded){
+    const ids=(waterRows||[]).map(r=>r.id);
+    if(ids.length){
+      const {error}=await sb.from('water_log').delete().in('id',ids);
+      if(error){ showFatal('清空喝水失败: '+(error.message||'')); return; }
+    }
+    waterRows=[];
+  }else{
+    const o=getWaterLog(); delete o[todayStr()]; setWaterLog(o);
+  }
+  emitWaterChange();
   toast('✅ 已清空');
 };
 $('waterTargetBtn').onclick=()=>{
@@ -2308,6 +2384,7 @@ if(sb){
   sb.channel('todos-rt').on('postgres_changes',{event:'*',schema:'public',table:'todos'},()=>safeReload('todos',loadTodos)).subscribe();
   sb.channel('memos-rt').on('postgres_changes',{event:'*',schema:'public',table:'memos'},()=>safeReload('memos',loadMemos)).subscribe();
   sb.channel('drops-rt').on('postgres_changes',{event:'*',schema:'public',table:'drops'},()=>{ try{ loadDrops(); }catch(e){ showFatal('realtime[drops]: '+(e.message||e)); } }).subscribe();   /* v17.26: 总是拉一次（首页 + 护眼 view 都要同步） */
+  sb.channel('water-rt').on('postgres_changes',{event:'*',schema:'public',table:'water_log'},()=>{ try{ loadWaterCups(); }catch(e){ showFatal('realtime[water]: '+(e.message||e)); } }).subscribe();   /* v17.38: 喝水云端 insert/delete → 秒同步到所有端 */
   sb.channel('period-rt').on('postgres_changes',{event:'*',schema:'public',table:'period_log'},()=>{ safeReload('period',loadPeriod); }).subscribe();
   sb.channel('farm-rt').on('postgres_changes',{event:'*',schema:'public',table:'farm'},()=>{
     if(Date.now()-farmPushAt<1500) return;
@@ -2316,7 +2393,7 @@ if(sb){
   // app_settings 任何变化都重拉（手机电脑同步 labels / cycle_len）
   try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>safeReload('settings',loadSettings)).subscribe(); }catch(e){}
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); } });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); if(view==='water') loadWaterCups(); } });
 
 /* ---------- 我的农场 v5：自由农场 ---------- */
 const FARM_KEY='suixin_farm_v3';
@@ -3049,6 +3126,9 @@ try{ renderStats(); renderList(); }catch(e){}
   try{await loadSettings();}catch(e){}
   // 拉一次暖记：拿到历史记录
   try{await loadPeriod();}catch(e){showFatal('loadPeriod: '+(e.message||e));}
+  // v17.38: 拉护眼 / 喝水云端数据 —— 首页卡初始即显示真实值（不依赖先切到对应 view）
+  try{await loadDrops();}catch(e){}
+  try{await loadWaterCups();}catch(e){}
   // v17: 数据到位后如果停在首页，重渲染 4 卡片
   try{ if(view==='home') renderHomeCards(); }catch(e){}
   // v17: 触发首页渲染（含 4 张聚合卡 + 时钟 + 鼓励语 footer）
