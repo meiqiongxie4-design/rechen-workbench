@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.73</title>
+<title>GrowTime · v17.74</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1472,13 +1472,11 @@ function renderHomeCards(){
                   : hr<19 ? '傍晚啦，出去走走？'
                   : hr<22 ? '晚上好！今天辛苦啦'
                   :          '夜深了，记得早点休息';
-  // 喝水（localStorage） — v17.68: 没设置过目标默认 0 (而不是 2000); v17.69: 杯 ml 也未设默认 0
+  // 喝水 — v17.74: 用 readCupMl()/readTargetMl() 优先 input 当前值, localStorage 兜底
   const waterCups=getWaterCups(today);
-  const _cupStored=localStorage.getItem('wbWaterCup');
-  const waterCupMl=_cupStored===null ? 0 : parseInt(_cupStored,10);
+  const waterCupMl=readCupMl();
   const waterMl=waterCups*waterCupMl;
-  const _wStored=localStorage.getItem('wbWaterTarget');
-  const waterTarget=_wStored==null ? 0 : parseInt(_wStored,10);
+  const waterTarget=readTargetMl();
   const waterPct=waterTarget>0 ? Math.min(100, Math.round(waterMl/waterTarget*100)) : 0;
   // 护眼（drops 表今日）— v17.39: 用 count 字段而非行数（date unique, 每天 1 行, count 才是真值）
   //                  v17.35 修字段名 x.day→x.date 后, 行数=1 永远只能算到 1 滴, 根本 bug 在此
@@ -1644,11 +1642,14 @@ const WATER_SQL_HINT=
 'grant insert, update, delete, select on table public.water_log to anon; '+
 'alter publication supabase_realtime add table public.water_log;';
 
+// v17.74: 取 cup 数 — 云端 waterRows + localStorage 都查, 两者取最大 (防 localStorage 没同步上)
 function getWaterCups(day){
   const today=todayStr();
-  if(day===today && waterLoaded) return waterRows.length;
+  let cloudN=0, localN=0;
+  if(day===today && waterLoaded) cloudN=waterRows.length;
   const o=getWaterLog();
-  return (o[day]||[]).length;
+  localN=(o[day]||[]).length;
+  return Math.max(cloudN, localN);
 }
 
 // v17.38: 从云端拉今天的喝水记录（realtime 触发 / 切换 view / 页面启动都会调）
@@ -1715,16 +1716,32 @@ async function delWaterCup(id){
   if(idx>=0) waterRows.splice(idx,1);
   emitWaterChange();
 }
+// v17.74: input 当前值是 source of truth — 用户输入即生效, localStorage 仅作持久化兜底
+function readCupMl(){
+  const el=document.getElementById('waterCupInput');
+  if(el){
+    const v=parseInt(el.value,10);
+    if(!isNaN(v)&&v>0) return v;     // 用户当前输入框有合法值, 立即生效
+  }
+  const stored=localStorage.getItem('wbWaterCup');
+  return stored===null ? 0 : parseInt(stored,10);
+}
+function readTargetMl(){
+  const el=document.getElementById('waterTargetInput');
+  if(el){
+    const v=parseInt(el.value,10);
+    if(!isNaN(v)&&v>=0) return v;     // 用户当前输入框有合法值, 立即生效
+  }
+  const stored=localStorage.getItem('wbWaterTarget');
+  return stored===null ? 0 : parseInt(stored,10);
+}
 function renderWater(){
   const today=todayStr();
   const cups=getWaterCups(today);
-  // v17.69: 未设过杯 ml = 0 (不再 fallback 250), input 显示空 + placeholder
-  const cupStored=localStorage.getItem('wbWaterCup');
-  const cupMl=cupStored===null ? 0 : parseInt(cupStored,10);
+  // v17.74: 杯 ml / 目标 ml 优先用 input 当前值 (用户输入即生效, 不用点启航), localStorage 兜底
+  const cupMl=readCupMl();
+  const target=readTargetMl();
   const ml=cups*cupMl;
-  // v17.68: 没设置过目标, 默认 0 (而不是 2000); 已设置过才用 localStorage 值
-  const stored=localStorage.getItem('wbWaterTarget');
-  const target=stored==null ? 0 : parseInt(stored,10);
   const pct=target>0 ? Math.min(100, Math.round(ml/target*100)) : 0;
   // 大水池
   $('waterBig').textContent = `已喝 ${cups} 杯`;
@@ -1771,18 +1788,33 @@ function renderWater(){
   $('waterPoolFace').textContent = over?'🎉':(cups===0?'💧':(cups<3?'💦':'🌊'));
   // 记录列表 + 每行 × 删除按钮（v17.38: 云端 waterRows 优先，localStorage 兜底）
   const list=$('waterList');
-  const arr = waterLoaded ? waterRows : (getWaterLog()[today]||[]);
+  // v17.74: list 合并云端 waterRows + localStorage 列表 (按 ts 去重), 避免一边漏掉时丢失条目
+  let arr=[];
+  if(waterLoaded){
+    const localList=(getWaterLog()[today]||[]).map(s=>{
+      const p=s.split(':').map(n=>parseInt(n,10));
+      const d=new Date(); d.setHours(p[0]||0,p[1]||0,p[2]||0,0);
+      return {ts:d.toISOString(), _local:s};
+    });
+    const seen=new Set(localList.map(r=>r.ts));
+    arr = waterRows.map(r=>({ts:r.ts,id:r.id,_cloud:true}))
+                    .concat(localList.filter(r=>!seen.has(r.ts)));
+    arr.sort((a,b)=>(a.ts||'').localeCompare(b.ts||''));
+  }else{
+    arr=(getWaterLog()[today]||[]).map(s=>({ts:'',_local:s}));
+  }
   if(arr.length===0) list.innerHTML = `<div class="water-empty">今天还没打卡，喝一杯吧～</div>`;
   else list.innerHTML = arr.slice().reverse().map((r,i)=>{
     const realIdx=arr.length-1-i;
     const cupNo=arr.length-i;   // v17.69: 第 N 杯 (今日最新一杯 = 第 1 杯)
-    const tsStr = waterLoaded ? (r.ts? new Date(r.ts).toLocaleTimeString('zh-CN',{hour12:false}) : '—') : esc(r);
-    const delVal = waterLoaded ? esc(r.id) : realIdx;
+    const tsStr = r._local ? esc(r._local) : (r.ts? new Date(r.ts).toLocaleTimeString('zh-CN',{hour12:false}) : '—');
+    const delVal = r.id ? esc(r.id) : realIdx;
+    const loadedFlag = r.id ? 'true' : 'false';
     return `<div class="water-row" data-idx="${realIdx}">
       <span>${tsStr}</span>
       <span style="display:flex;align-items:center;gap:6px;">
         <span style="color:#16a34a;font-weight:600;">第 ${cupNo} 杯 · ${cupMl} ml</span>
-        <button class="water-row-del" data-del="${delVal}" data-loaded="${waterLoaded}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
+        <button class="water-row-del" data-del="${delVal}" data-loaded="${loadedFlag}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
       </span>
     </div>`;
   }).join('');
