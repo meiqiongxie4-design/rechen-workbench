@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.44</title>
+<title>GrowTime · v17.45</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -153,6 +153,17 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
+<!-- v17.45 (8/14 反馈): 修「点哪个模块都显示首页」bug + 首页字号回退
+  根因: v17.44 在 body 顶部加了 inline <style> 用 !important 锁死初始 view 显示, 避免刷新闪首页
+       —— 但 switchView 只改 HTML hidden 属性, 那个 !important 永远胜出, 永远停在首页
+  修法:
+    1. body 顶部 inline style 加 id="viewBootStyle", 便于定位
+    2. switchView 动态重写 viewBootStyle.textContent (target view display:flex !important, 其他全部 hidden)
+       —— 现在点任何模块都能切过去, 且初始刷新仍按 localStorage 决定显示哪个 view
+    3. 首页字号 .hc-left .num 32→22px 回退 (v17.43 误升, 用户只要求待办变大, 首页应保持原字号)
+       待办 .stat .num 仍保持 32px
+  验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
+-->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
@@ -574,7 +585,7 @@
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
-  .hc-left .num{font-size:32px;font-weight:800;color:#22c55e;line-height:1.1;white-space:nowrap;}   /* v17.43: 和待办统计卡 .num 统一 32px (让待办\"跟首页字号一样大\"成立) */
+  .hc-left .num{font-size:22px;font-weight:800;color:#22c55e;line-height:1.1;white-space:nowrap;}   /* v17.45: 回退到 22px (v17.43 误升到 32px 已被用户否决, 只有 .stat .num 保持 32px) */
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
   .hc-left .num.warn{color:#dc2626;font-size:28px;font-weight:800;}
   .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
@@ -692,8 +703,9 @@
 </head>
 <body>
 <script>
-  /* v17.44: 在 DOM 形成前同步按 localStorage 决定展示哪个 view, 避免刷新先闪首页几秒
-     CSS .view{display:flex} 会覆盖 [hidden]{display:none}, 所以这里用 inline <style> + !important 兜底 */
+  /* v17.45: 在 DOM 形成前同步按 localStorage 决定展示哪个 view, 避免刷新先闪首页
+     CSS .view{display:flex} 会覆盖 [hidden]{display:none}, 所以这里用 inline <style id="viewBootStyle"> + !important 兜底
+     注: 这个 style 会被 switchView 动态更新, 所以加 id 便于定位 */
   (function(){
     try{
       var v = (localStorage.getItem('rechen_current_view')||'home').trim();
@@ -708,11 +720,11 @@
       } else {
         css += '#viewHome{display:flex !important;}';
       }
-      document.write('<style>' + css + '</style>');
+      document.write('<style id="viewBootStyle">' + css + '</style>');
       window.__initialView = target;
     }catch(e){
       window.__initialView = 'home';
-      document.write('<style>#viewHome{display:flex !important;}#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{display:none !important;}</style>');
+      document.write('<style id="viewBootStyle">#viewHome{display:flex !important;}#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{display:none !important;}</style>');
     }
   })();
 </script>
@@ -1235,6 +1247,16 @@ function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 function switchView(v){
   view=v;
   try{ localStorage.setItem('rechen_current_view', v); }catch(e){}   /* v17.43: 持久化当前 view,F5/刷新后停留此页(不再默认回首页) */
+  /* v17.45: 同步更新 body 顶部 viewBootStyle (内联 !important 锁死初始 view, 必须更新它才能切到新 view)
+     否则点击任何模块都还是停留在首页 */
+  try{
+    var bs=$('viewBootStyle');
+    if(!bs){ bs=document.createElement('style'); bs.id='viewBootStyle'; document.head.appendChild(bs); }
+    var css='#viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{display:none !important;}';
+    var cap2=v.charAt(0).toUpperCase()+v.slice(1);
+    css+='#view'+cap2+'{display:flex !important;}';
+    bs.textContent=css;
+  }catch(e){}
   ['viewHome','viewTodo','viewMemo','viewCounter','viewPeriod','viewFarm','viewWater','viewSaving'].forEach(id=>{
     const el=$(id); if(el) el.hidden = id!=='view'+capitalize(v);
   });
