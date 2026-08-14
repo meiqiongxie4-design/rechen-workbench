@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.83</title>
+<title>GrowTime · v17.84</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.83 (修存钱第二次存入数据丢失: 移除 settings-rt 对 loadSavings 的无条件覆盖触发 + loadSavings 加本机较新保护) -->
+<!-- 版本：rechen-v2026-08-14-v17.84 (存钱秒同步: 并集去重解决 memHist>cloudHist 死锁 + scheduleSavingsReloadFromRT 延后合并避开竞态) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -371,6 +371,11 @@
   .debug-bar .db-head .db-copy{font-size:11px;color:#fff;background:#c0392b;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;}
   .debug-bar .db-body{margin-top:6px;white-space:pre-wrap;word-break:break-word;max-height:40vh;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#9b2c2c;}
   .debug-bar[hidden]{display:none;}
+  /* v17.84: 右下角调试日志小图标 — 默认隐藏调试栏, 用户点开才看历史 */
+  .debug-toggle{position:fixed;right:8px;bottom:8px;z-index:399;width:34px;height:34px;border-radius:50%;background:#fff;border:1px solid #cbd5e1;color:#475569;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center;padding:0;opacity:.55;transition:opacity .15s;}
+  .debug-toggle:hover{opacity:1;}
+  .debug-toggle.has-errors{opacity:1;color:#c0392b;border-color:#f3b4b4;background:#fff4f4;}
+  .debug-toggle[hidden]{display:none!important;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
   [hidden]{display:none!important;}
 
@@ -846,6 +851,7 @@
 <div class="wrap">
   <div id="banner" class="banner" hidden></div>
   <div id="debugBar" class="debug-bar" hidden></div>
+  <button id="debugToggle" class="debug-toggle" type="button" title="查看同步日志(默认隐藏, 只在出问题时点开)">📋</button>
 
   <div class="app">
     <aside class="sidebar" id="sidebar">
@@ -1361,10 +1367,36 @@ function bindDebugBar(bar, entry){
   bar.querySelector('.db-copy').onclick=(ev)=>{ ev.stopPropagation(); const txt=bar.querySelector('.db-body').innerText; if(navigator.clipboard) navigator.clipboard.writeText(txt); else prompt('复制下面内容发给我：',txt); };
   bar.querySelector('.db-close').onclick=(ev)=>{ ev.stopPropagation(); closeDebugBar(); };
 }
-function recordError(tag, detail){
+// v17.84: 「📋 调试日志」按钮 — 用户主动点开拉历史日志 (默认隐藏 debugBar)
+function openDebugLog(){
+  let logs=[]; try{ logs=JSON.parse(localStorage.getItem('rechen_debug_log')||'[]'); }catch(e){logs=[];}
+  const bar=$('debugBar'); if(!bar) return;
+  if(!logs.length){
+    bar.innerHTML=`<div class="db-head"><span>📋 同步日志</span><button class="db-close" type="button">×</button></div><div class="db-body" style="color:#475569;">没有同步错误记录。\n所有同步都正常。</div>`;
+  }else{
+    const items=logs.map(e=>{
+      const time=new Date(e.t).toLocaleString('zh-CN');
+      return `┌─ [${time}]\n│  标签: ${e.tag}\n└─ ${(e.detail||'').split('\n').join('\n   ')}\n`;
+    }).join('\n');
+    bar.innerHTML=`<div class="db-head"><span>📋 同步日志 (${logs.length} 条)</span><button class="db-close" type="button">×</button><button class="db-copy" type="button">复制全部</button></div><div class="db-body">${items}</div>`;
+    const close=bar.querySelector('.db-close');
+    if(close) close.onclick=(ev)=>{ev.stopPropagation(); bar.hidden=true;};
+    const cp=bar.querySelector('.db-copy');
+    if(cp) cp.onclick=(ev)=>{ev.stopPropagation(); const txt=bar.querySelector('.db-body').innerText; if(navigator.clipboard) navigator.clipboard.writeText(txt); else prompt('复制下面内容发给我：',txt);};
+  }
+  bar.hidden=false;
+}
+// v17.84: silent=true 不弹 debugBar UI, 仅写 localStorage (供「查看日志」按钮拉出历史)
+function recordError(tag, detail, silent){
   try{
     const entry={t:Date.now(), tag, detail:String(detail||'')};
+    let logs=[]; try{ logs=JSON.parse(localStorage.getItem('rechen_debug_log')||'[]'); }catch(e){logs=[];}
+    logs.unshift(entry);
+    if(logs.length>50) logs.length=50;
+    try{ localStorage.setItem('rechen_debug_log', JSON.stringify(logs)); }catch(e){}
+    // 同时兼容旧的 key (无 UI 弹窗时仍然写入, 不破坏老版本)
     localStorage.setItem('rechen_debug', JSON.stringify(entry));
+    if(silent) return;     // silent 模式: 仅持久化, 不弹 UI
     const bar=$('debugBar'); if(!bar) return;
     bar.innerHTML='<div class="db-head"><span>⚠️ 同步出错（'+tag+'）</span><button class="db-close" type="button">×</button><button class="db-copy" type="button">复制</button></div><div class="db-body">'+esc(entry.detail)+'\n\n时间：'+new Date(entry.t).toLocaleString('zh-CN')+'</div>';
     bar.hidden=false;
@@ -1373,14 +1405,14 @@ function recordError(tag, detail){
 }
 function restoreDebugBar(){
   try{
-    const raw=localStorage.getItem('rechen_debug'); if(!raw) return;
-    const e=JSON.parse(raw);
-    if(Date.now()-e.t > 24*3600*1000) return; // 只显示 24 小时内的
-    const bar=$('debugBar'); if(!bar) return;
-    bar.innerHTML='<div class="db-head"><span>⚠️ 上次同步出错（'+e.tag+'）</span><button class="db-close" type="button">×</button><button class="db-copy" type="button">复制</button></div><div class="db-body">'+esc(e.detail)+'\n\n时间：'+new Date(e.t).toLocaleString('zh-CN')+'</div>';
-    bar.hidden=false;
-    bindDebugBar(bar, e);
-  }catch(e){}
+    // v17.84: 默认收起 debugBar — 用户主动点 📋 才看历史; 启动时只检查 toggle 按钮的「有错误」标记
+    const raw=localStorage.getItem('rechen_debug');
+    const e=raw ? JSON.parse(raw) : null;
+    if(e && Date.now()-e.t <= 24*3600*1000){
+      const toggle=$('debugToggle'); if(toggle) toggle.classList.add('has-errors');
+    }
+    // 兼容老调用方 — 但不再自动显示 debugBar
+  }catch(err){}
 }
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 
@@ -1869,6 +1901,8 @@ function reflectWaterInputsToUI(){
 document.addEventListener('DOMContentLoaded', ()=>{
   setTimeout(reflectWaterInputsToUI, 50);   // 等 input 元素 ready
   setTimeout(reflectWaterInputsToUI, 800);  // 等可能的 autocomplete 跑完再覆盖
+  // v17.84: 绑定 📋 调试日志按钮
+  const tog=$('debugToggle'); if(tog){ tog.onclick=()=>openDebugLog(); }
 });
 function renderWater(){
   // v17.78: input 永远显示已保存值 (用户键入/启航后保留显示) — 不再强制清空
@@ -2106,16 +2140,23 @@ function getSaving(){
   if(!saving) saving = {...SAVING_DEFAULT};
   return saving;
 }
+// v17.84: 本机刚写入时打个时间戳 — 让 realtime 触发的 loadSavings 知道这是本机活动,
+//        延后 2.5s 再合并, 避免 await saveSettings 期间云端读到旧值的竞态 (存第二次数据丢失)
+function _markLocalPushed(){ saving._localPushedAt = Date.now(); }
 async function setSaving(o){
   saving = {...saving, ...o};
   // 写本地兜底
   try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
+  // v17.84: 标记本机刚写入
+  _markLocalPushed();
   // 云端同步 (异步, 失败不阻塞 UI)
   if(typeof saveSavings==='function'){
     try{ await saveSavings(saving); }catch(e){}
   }
 }
-/* 从云端拉一次覆盖内存 + localStorage, 然后 render */
+// v17.84: 从云端拉一次, 用"云端+本地并集去重"模式合并 — 解决 v17.83 "memHist > cloudHist → 保留本机"的死锁问题
+//         (那个保护当一端删除另一端时, 内存 N > 云端 N-1, 永远不覆盖 → 删不同步)
+//         新规则: 云端权威 + 本机独有(刚同步中未落定)并入, 按 t+amount+note 三元组去重
 async function loadSavings(){
   if(typeof sb==='undefined' || !sb) return;
   if(!savingLoaded){
@@ -2130,7 +2171,6 @@ async function loadSavings(){
   const {data, error} = await sb.from('app_settings').select('*').eq('key','savings').limit(1);
   if(error){
     if(!savingLoaded){
-      // 云端没拉到 — 第一次进来, fallback 到本地 (本地已被 v17.66 清掉了, 等于默认空)
       try{
         const raw = JSON.parse(localStorage.getItem('wbSaving')||'null');
         if(raw && typeof raw==='object') saving = {...SAVING_DEFAULT, ...raw};
@@ -2140,20 +2180,40 @@ async function loadSavings(){
   }
   if(data && data.length && data[0].value && typeof data[0].value==='object'){
     const cloud = data[0].value;
-    const cloudHist = (cloud.history||[]);
-    const memHist = (saving.history||[]);
-    // v17.83: 防御 — 本机历史条数 > 云端(刚存入尚未同步到云端) 时保留本机, 不覆盖丢失;
-    //         否则用云端(包含另一台设备存入的数据)。这样即使未来又有触发也不会吞掉本机刚存的记录
-    if(memHist.length > cloudHist.length){
-      try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
-    }else{
-      saving = {...SAVING_DEFAULT, ...cloud};
-      try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
-    }
+    const cloudHist = Array.isArray(cloud.history) ? cloud.history : [];
+    const memHist = Array.isArray(saving.history) ? saving.history : [];
+    // v17.84: 并集 — 云端权威 + 本机有/云端没有的(刚写入未落定)
+    const keyOf = h => `${h.t||0}_${h.amount||0}_${(h.note==null?'':h.note).slice(0,40)}`;
+    const cloudKeys = new Set(cloudHist.map(keyOf));
+    const memOnlyHist = memHist.filter(h => !cloudKeys.has(keyOf(h))   // 本机独有
+                                         && Date.now() - (h.t||0) < 120000);   // 2 分钟内
+    const mergedHist = cloudHist.concat(memOnlyHist);
+    // 数值字段: saved / totalDeposited 取较大值 (防加减时短暂回滚)
+    const merged = {
+      goal: cloud.goal != null ? cloud.goal : (saving.goal||0),
+      name: cloud.name != null ? cloud.name : (saving.name||''),
+      goalSet: cloud.goalSet===true ? true : !!saving.goalSet,
+      saved: Math.max(cloud.saved||0, saving.saved||0),
+      totalDeposited: Math.max(cloud.totalDeposited||0, saving.totalDeposited||0),
+      history: mergedHist,
+    };
+    saving = {...SAVING_DEFAULT, ...merged};
+    try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
   }
   savingLoaded = true;
   // v17.66: 拉完后刷一次视图 (如果当前正好在存钱页面)
   if(typeof view!=='undefined' && view==='saving'){ try{ renderSaving(); }catch(e){} }
+}
+// v17.84: realtime 触发的延迟合并 — 收到 settings-rt 事件后, 等 2.5s 再 loadSavings,
+//         避开本机刚写入时云端读到旧值的竞态窗口
+let _savingsRtReloadTimer = null;
+function scheduleSavingsReloadFromRT(){
+  if(_savingsRtReloadTimer) return;   // 防抖
+  const delay = saving._localPushedAt && (Date.now()-saving._localPushedAt < 2500) ? 2800 : 150;
+  _savingsRtReloadTimer = setTimeout(()=>{
+    _savingsRtReloadTimer = null;
+    loadSavings().catch(()=>{});
+  }, delay);
 }
 async function saveSavings(value){
   if(!sb) return false;
@@ -3005,16 +3065,17 @@ async function loadSettings(retry=0){
       setTimeout(()=>{ setupError=false; }, 2500);
       return;
     }
-    // 网络抖动 / DNS 失败 / CORS 拦截 — 静默重试, 不弹 banner
+    // 网络抖动 — silent=true 不弹 debugBar 干扰用户, 只写日志供「查看日志」拉出
     if(retry<3){
       const wait=Math.min(8000, 1000*Math.pow(2,retry));
       console.warn('[loadSettings] 网络抖动, '+wait+'ms 后重试 ('+(retry+1)+'/3):', msg);
-      recordError('loadSettings.net', 'retry '+(retry+1)+'/3: '+msg);
+      recordError('loadSettings.net', 'retry '+(retry+1)+'/3: '+msg, true);
       setTimeout(()=>{ loadSettings(retry+1).catch(()=>{}); }, wait);
       return;
     }
-    // 重试 3 次都失败 — 只在 debugBar 静默记录, 不弹 banner 干扰用户
-    recordError('loadSettings', msg+' @ '+SUPABASE_URL+' (3次重试后放弃)');
+    // 重试 3 次都失败 — silent 仅写日志, 不弹 debugBar; 用户怀疑同步问题时可点「查看日志」按钮拉出
+    recordError('loadSettings', msg+' @ '+SUPABASE_URL+' (3次重试后放弃)', true);
+    // 轮询兜底已经 8s 拉一次, 即使初次拉不到也不影响其他模块, 不必惊动用户
   }
 }
 async function saveSettings(key, value){
@@ -3118,9 +3179,11 @@ if(sb){
       safeReload('settings',loadSettings);
       safeReload('water-set',loadWaterSettings);
       if(isWaterSet) safeReload('water-set-input',loadWaterSettings);  // 再触发一次确保显示更新
-      // v17.83: 存钱(savings)不在此触发 loadSavings — 任意 app_settings 变化会无条件覆盖内存 saving,
-      //         与本机刚存入的写入竞态(覆盖窗口读到旧值) → 存第二次数据丢失。
-      //         存钱跨端同步改由 switchView / visibilitychange / 页面启动 拉取(这些时机云端已是本机最新值, 覆盖安全)
+      // v17.84: 存钱(savings)改用 scheduleSavingsReloadFromRT — 延迟合并避开本机刚写完的竞态窗口,
+      //         并集去重防止「删一条后本机 N > 云端 N-1 → 永远不覆盖」的复活死锁
+      //         只在 payload 涉及 'savings' key 时触发, 避免 labels / water_settings 变化重复触发
+      const isSavingsChg = payload && ((payload.new && payload.new.key==='savings') || (payload.old && payload.old.key==='savings'));
+      if(isSavingsChg) scheduleSavingsReloadFromRT();
     }).subscribe((status)=>{
       if(status==='SUBSCRIBED') _RT_STATES.connectedAt=Date.now();
     });
