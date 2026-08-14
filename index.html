@@ -172,7 +172,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.91 (1) 首页护眼卡 getDropStatus 改走 comfortState: 跟护眼 view + 历史格子统一表情规则 (含 >8 💔); (2) 护眼记录标题 margin-bottom 12→18 + .history-section padding-top:6px, 跟喝水记录保持一致间距 -->
+<!-- 版本：rechen-v2026-08-14-v17.92 (1) comfortState 阈值放宽: ≤2 😊 / ≤5 🙂 / ≤10 😐 / >10 💔 (之前 >8 太激进, 9 就被当超限); (2) 新增"护眼点击时间"功能 — 每次 addDrop 都 push 时间戳到 dropClicks map, 存到 app_settings key='drop_clicks' (复用现有表, 无需 ALTER); (3) dropDetail 详情面板在原状态文案下面追加"点击时间 (N 次)" 网格展示; (4) realtime settings-rt 监听 drop_clicks 变化, 跨设备秒同步; (5) loadDrops 末尾 loadDropClicks 拉取 -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -1333,6 +1333,8 @@ if(typeof supabase==='undefined' || !supabase.createClient){
 }
 
 let todos=[], memos=[], drops=[], pet=null, filter='open', view='home', editId=null, setupError=false;
+/* v17.92: drop_clicks 缓存 (key=YYYY-MM-DD -> [{t:'HH:MM:SS', t:'ISO'}]) — 存在 app_settings 表 key='drop_clicks', 避免给 drops 加列(无需 ALTER) */
+let dropClicks = {};
 
 /* 全局错误兜底：v17.31 改成走 debugBar (常驻 + localStorage 持久化) — 不再用顶部 banner
    (原 banner 会被 loadXxx 成功后的 $('banner').hidden=true 立刻关掉,用户看到"一闪就没"诊断不到) */
@@ -2695,12 +2697,15 @@ async function loadDrops(){
   drops=data||[]; renderDrops();
   // v17.26: 同步刷新首页卡（首页护眼数 = 今天 drops count）
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
+  /* v17.92: 加载每次点击时间 (app_settings key='drop_clicks'), 详情面板才能展示 */
+  loadDropClicks().catch(e => recordError('loadDropClicks.async', (e&&e.message)||String(e)));
 }
 function comfortState(count){
   // v17.3: 颜色统一 workbuddy 绿系（蓝/橙/红分别对应舒适/疲劳/危险）
   if(count<=2) return {cls:'ok', face:'😊', text:'眼睛舒适', color:'linear-gradient(180deg,#86efac 0%,#22c55e 100%)', tip:'今天用眼很轻松，继续保持！'};
   if(count<=5) return {cls:'mid', face:'🙂', text:'状态正常', color:'linear-gradient(180deg,#6ee7b7 0%,#10b981 100%)', tip:'用眼强度一般，注意休息。'};
-  if(count<=8) return {cls:'tired', face:'😐', text:'眼睛疲劳', color:'linear-gradient(180deg,#fbbf24 0%,#f59e0b 100%)', tip:'滴得有点多了，建议闭眼休息或远眺。'};
+  /* v17.92: 阈值放宽 — 6~10 滴都是 😐 眼睛疲劳 (够多但未超上限), >10 才用 💔 破碎的心 */
+  if(count<=10) return {cls:'tired', face:'😐', text:'眼睛疲劳', color:'linear-gradient(180deg,#fbbf24 0%,#f59e0b 100%)', tip:'滴得有点多了，建议闭眼休息或远眺。'};
   /* v17.90: 超 10 次 — 表情改 💔 (破碎的心), 视觉"破碎感"更直接 */
   return {cls:'bad', face:'💔', text:'需要休息', color:'linear-gradient(180deg,#f87171 0%,#dc2626 100%)', tip:'已超过医生建议 10 次/天上限。'};
 }
@@ -2760,8 +2765,13 @@ function renderDrops(){
       const d=drops.find(x=>x.date===date) || {date:date,count:0,max_count:10};
       const s=comfortState(d.count);
       const label=date===today?'今天':date;
+      /* v17.92: 该日点击时间列表 (从 dropClicks map 拿, 跨设备同步) */
+      const clickList = getDropClicks(date);
+      const clickHtml = clickList.length > 0
+        ? `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);"><div style="font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;">点击时间（${clickList.length} 次）</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;">${clickList.map(c => `<div style="padding:5px 8px;background:#fff;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:12px;color:#475569;font-weight:600;">${esc(c.time)}</div>`).join('')}</div></div>`
+        : `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);">（暂无详细点击时间 — 升级 v17.92 前已点击的不记录时间）</div>`;
       $('detailDate').textContent=`${label} · 滴了 ${d.count} 次`;
-      $('detailBody').innerHTML=`<span class="status ${s.cls}" style="display:inline-flex;margin-bottom:8px;">${s.face} ${s.text}</span><br>${s.tip}${d.count<=2?'<br><strong>真棒！今天用眼很健康。</strong>':''}`;
+      $('detailBody').innerHTML=`<span class="status ${s.cls}" style="display:inline-flex;margin-bottom:8px;">${s.face} ${s.text}</span><br>${s.tip}${d.count<=2?'<br><strong>真棒！今天用眼很健康。</strong>':''}${clickHtml}`;
       $('dropDetail').dataset.date=date;
       $('dropDetail').hidden=false;
     };
@@ -2781,6 +2791,10 @@ document.addEventListener('click',(e)=>{
 async function addDrop(){
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
+  /* v17.92: 每次点击记录真实时间戳 — 存到 dropClicks map (app_settings key='drop_clicks', 无需 ALTER drops 表) */
+  const _now = new Date();
+  const _click = {time:`${String(_now.getHours()).padStart(2,'0')}:${String(_now.getMinutes()).padStart(2,'0')}:${String(_now.getSeconds()).padStart(2,'0')}`, t:_now.toISOString()};
+  appendDropClick(today, _click);
   if(rec){
     // v17.3: ≥10 滴医生建议警告显示在水池右侧（不再 banner 弹窗）
     rec.count++;
@@ -2798,6 +2812,8 @@ async function addDrop(){
     if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');drops.shift();renderDrops();try{if($('homeCards'))renderHomeCards();}catch(_){}return;}
     if(data&&data[0]) rec.id=data[0].id;
   }
+  /* v17.92: 异步把点击时间戳持久化到 app_settings (fire-and-forget, 不阻塞 UI) */
+  saveDropClicks().catch(e => recordError('saveDropClicks', (e&&e.message)||String(e)));
   toast(rec.count>=10?'⚠️ 已记录（已超医生建议）':'已记录');
 }
 $('dropPool').onclick=async(e)=>{
@@ -3144,6 +3160,53 @@ async function saveSettings(key, value){
   return true;
 }
 
+/* v17.92: 护眼每次点击时间 (存在 app_settings 表 key='drop_clicks', 无需新建列)
+   结构: { 'YYYY-MM-DD': [{time:'HH:MM:SS', t:'ISO'}, ...] } */
+async function loadDropClicks(){
+  dropClicks = {};
+  // localStorage 兜底
+  try{
+    const c = localStorage.getItem('wbDropClicks');
+    if(c) dropClicks = JSON.parse(c) || {};
+  }catch(_){}
+  if(!sb) return;
+  try{
+    const {data, error} = await sb.from('app_settings').select('*').eq('key','drop_clicks').limit(1);
+    if(error){recordError('loadDropClicks', error.message); return;}
+    if(data && data[0] && data[0].value){
+      const cloud = (typeof data[0].value === 'string') ? JSON.parse(data[0].value) : data[0].value;
+      // 云端权威, 本地最新 60s 内的新增并入 (避免刚点未同步上云端的数据丢)
+      for(const [date, list] of Object.entries(cloud || {})){
+        if(!Array.isArray(list)) continue;
+        const localList = dropClicks[date] || [];
+        const cSet = new Set(list.map(c => (c.t || c.time || '')));
+        for(const lc of localList){
+          if(cSet.has(lc.t || lc.time || '')) continue;
+          if(Date.now() - new Date(lc.t || 0).getTime() < 60000) list.push(lc);
+        }
+        list.sort((a,b) => new Date(a.t||0) - new Date(b.t||0));
+        dropClicks[date] = list;
+      }
+      localStorage.setItem('wbDropClicks', JSON.stringify(dropClicks));
+    }
+  }catch(e){recordError('loadDropClicks', e.message||String(e));}
+}
+async function saveDropClicks(){
+  try{ localStorage.setItem('wbDropClicks', JSON.stringify(dropClicks)); }catch(_){}
+  if(!sb) return false;
+  await saveSettings('drop_clicks', dropClicks);
+  return true;
+}
+function getDropClicks(date){
+  return (dropClicks && dropClicks[date]) ? dropClicks[date] : [];
+}
+function appendDropClick(date, click){
+  if(!dropClicks) dropClicks = {};
+  if(!dropClicks[date]) dropClicks[date] = [];
+  dropClicks[date].push(click);
+  dropClicks[date].sort((a,b) => new Date(a.t||0) - new Date(b.t||0));
+}
+
 /* ---------- 实时同步（带防爆+防抖：避免 publication 重建期间事件风暴） ---------- */
 const SAFE_LIMITS={}; // table -> { last:number, timer:null }
 function safeReload(table,fn){
@@ -3205,6 +3268,9 @@ if(sb){
       //         只在 payload 涉及 'savings' key 时触发, 避免 labels / water_settings 变化重复触发
       const isSavingsChg = payload && ((payload.new && payload.new.key==='savings') || (payload.old && payload.old.key==='savings'));
       if(isSavingsChg) scheduleSavingsReloadFromRT();
+      /* v17.92: 跨设备同步「护眼点击时间」 — drop_clicks 变化时重拉 */
+      const isDropClicksChg = payload && ((payload.new && payload.new.key==='drop_clicks') || (payload.old && payload.old.key==='drop_clicks'));
+      if(isDropClicksChg) safeReload('drop-clicks',loadDropClicks);
     }).subscribe((status)=>{
       if(status==='SUBSCRIBED') _RT_STATES.connectedAt=Date.now();
     });
