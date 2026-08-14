@@ -4,6 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
+<!-- 版本：rechen-v2026-08-14-v17.19-home-polish
+  首页 6 项打磨：
+  1. 修首页刷新闪动：<div id="viewTodo" hidden>（之前 viewTodo 没标 hidden，DOM 渲染时和 viewHome 同时显示，JS 跑 switchView('home') 后才隐藏，所以闪一下待办）
+  2. 喝水/护眼 label 去掉前导 emoji：renderHomeCards 改用 ${wSplit.lb} / ${eSplit.lb}（之前 ${wSplit.ic} ${wSplit.lb} 会把 💧/👁 拼到 label 上）
+  3. 4 处主色统一 #22c55e（菜单选中绿）：.hc-time 字体 30→42px + color #166534→#22c55e；.hc-left .num color #166534→#22c55e（+1按钮背景本就是 #22c55e 不变）
+  4. 侧栏底色 #dcfce7→linear-gradient(#bbf7d0,#86efac) + 更饱和边 #4ade80 + 浅阴影（更像实心面板，配合你给的粉色参考图）；
+     待办默认 3 条→6 条；footer 仍 margin-top:auto 推到底（确保 #viewHome flex:1 + .home-cards flex:1，footer 自然贴底）
+  5. 上面 3 卡（时间+喝水+护眼）高度 = 待办卡高度：.home-cards 改 2 列 grid(1fr 1.1fr)；左 .home-left 3 卡堆叠 flex:1 等分；右 .home-right 一张 .todo-summary flex:1；grid align-items:stretch 保证两列同高
+-->
 <!-- 版本：rechen-v2026-08-13-v17.18-revert-to-v17.3-plus-patches
   v17.18 在 v17.3（你认可的浅绿原版）基础上加最小补丁：
   - 水池中央 emoji 100% 隐藏（防御 CDN 滞后）
@@ -409,7 +418,7 @@
 
   /* ============ v17 左侧栏 + 首页 4 卡片 ============ */
   .app{display:flex;gap:14px;align-items:stretch;}
-  .sidebar{width:84px;flex-shrink:0;background:#dcfce7;border-right:1px solid #86efac;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:stretch;}
+  .sidebar{width:84px;flex-shrink:0;background:linear-gradient(180deg,#bbf7d0 0%,#86efac 100%);border-right:1px solid #4ade80;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:stretch;box-shadow:0 2px 12px rgba(34,197,94,.08);}
   .sb-item{width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:4px 0;border-radius:10px;color:var(--muted);transition:.15s;}
   .sb-item .ic{width:48px;height:48px;background:#fff;border:1px solid #bbf7d0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;}
   .sb-item .lb{font-size:10.5px;color:#16a34a;font-weight:600;letter-spacing:.3px;}
@@ -423,15 +432,17 @@
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
   /* 首页 4 卡片 */
-  .home-cards{display:flex;flex-direction:column;gap:12px;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;height:130px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
+  .home-cards{display:grid;grid-template-columns:1fr 1.1fr;gap:12px;flex:1;min-height:0;}
+  .home-left{display:flex;flex-direction:column;gap:12px;min-height:0;}
+  .home-right{display:flex;flex-direction:column;min-height:0;}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:1;min-height:96px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
-  .hc-left .num{font-size:22px;font-weight:700;color:#166534;line-height:1.2;white-space:nowrap;}
+  .hc-left .num{font-size:22px;font-weight:700;color:#22c55e;line-height:1.2;white-space:nowrap;}
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
   .hc-left .num.warn{color:#dc2626;font-size:20px;font-weight:800;}
   .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-  .hc-time{font-size:30px;font-weight:500;color:#166534;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
+  .hc-time{font-size:42px;font-weight:600;color:#22c55e;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
   .hc-date{font-size:12.5px;color:#6b7280;}
   .hc-greet{font-size:13px;color:#16a34a;font-weight:500;}
   .hc-sun{width:60px;height:60px;background:#fef3c7;border:2px solid #fbbf24;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;}
@@ -443,7 +454,7 @@
   .hc-face{font-size:42px;}
 
   /* 今日待办卡（首页底部） */
-  .todo-summary{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;}
+  .todo-summary{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:1;display:flex;flex-direction:column;min-height:0;box-shadow:var(--shadow);}
   .todo-summary-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
   .todo-summary-hd .lb{font-size:14px;color:#374151;font-weight:600;}
   .todo-summary-hd .ct{font-size:12px;color:#6b7280;}
@@ -513,18 +524,21 @@
     .sb-item .lb{font-size:9.5px;letter-spacing:0;}
     .sb-spacer{display:none;}
     .sidebar-foot{margin-top:0;gap:2px;}
-    .hc{height:auto;min-height:110px;padding:10px 14px;}
-    .hc-add{width:60px;height:60px;font-size:18px;}
-    .hc-time{font-size:24px;}
-    .hc-left{gap:6px;}
-    .hc-left .num{font-size:18px;}
-    .hc-left .lb{font-size:12px;}
-    .hc-face{font-size:36px;}
+    .home-cards{grid-template-columns:1fr;gap:10px;}
+    .home-left{flex-direction:row;gap:8px;}
+    .hc{flex:1;min-height:80px;padding:10px 12px;}
+    .hc-add{width:56px;height:56px;font-size:18px;}
+    .hc-time{font-size:32px;}
+    .hc-left{gap:5px;}
+    .hc-left .num{font-size:16px;}
+    .hc-left .lb{font-size:11.5px;}
+    .hc-left .sub{font-size:10.5px;}
+    .hc-face{font-size:32px;}
+    .todo-summary{padding:10px 12px;}
     header .settings-btn{display:none;}   /* v17.3 手机端隐藏顶部齿轮（已移到侧栏） */
     .water-pool{width:160px;height:160px;}
     .water-pool .pool-face{font-size:48px;}
     .water-pool-wrap{gap:16px;padding:6px 0 12px;}
-    .hc-left .lb{font-size:11.5px;}
     .hc-sun{width:50px;height:50px;font-size:22px;}
   }
 
@@ -569,7 +583,7 @@
   </div>
 
   <!-- 待办 -->
-  <div id="viewTodo">
+  <div id="viewTodo" hidden>
     <div class="grid" id="stats"></div>
     <div class="card panel">
       <div class="add-row">
@@ -1147,10 +1161,10 @@ function renderHomeCards(){
   const dropFace=getDropStatus(dropN).face||'😊';
   const dropText=getDropStatus(dropN).text||'眼睛舒适';
   const dropWarn=dropN>=10;
-  // 今日待办（todos 未完成前 3 条）
+  // 今日待办（todos 未完成前 6 条）
   const open=(todos||[]).filter(t=>!t.done);
-  const todoRows=open.slice(0,3).map(t=>`<div class="todo-summary-row"><span class="ck"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
-  const todoMore=open.length>3 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-3} 条未完成</div>` : '';
+  const todoRows=open.slice(0,6).map(t=>`<div class="todo-summary-row"><span class="ck"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
+  const todoMore=open.length>6 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-6} 条未完成</div>` : '';
   // 侧栏 label → home 卡图标+名字
   const L=getLabels();
   const wSplit=splitEmojiLabel(L.water);
@@ -1158,44 +1172,49 @@ function renderHomeCards(){
   const eSplit=splitEmojiLabel(L.eye);
 
   box.innerHTML = `
-    <!-- ① 时间卡 -->
-    <div class="hc">
-      <div class="hc-left">
-        <div class="hc-time" id="hcTime">${tStr}</div>
-        <div class="hc-date" id="hcDate">${dStr}</div>
-        <div class="hc-greet" id="hcGreet">${greetTxt}</div>
+    <!-- 左栏：时间 + 喝水 + 护眼（3 张堆叠，高度等分） -->
+    <div class="home-left">
+      <!-- ① 时间卡 -->
+      <div class="hc">
+        <div class="hc-left">
+          <div class="hc-time" id="hcTime">${tStr}</div>
+          <div class="hc-date" id="hcDate">${dStr}</div>
+          <div class="hc-greet" id="hcGreet">${greetTxt}</div>
+        </div>
+        <div class="hc-right"><div class="hc-sun ${sun.cls}" id="hcSun">${sun.face}</div></div>
       </div>
-      <div class="hc-right"><div class="hc-sun ${sun.cls}" id="hcSun">${sun.face}</div></div>
+
+      <!-- ② 喝水卡（图标 + 名字读设置） -->
+      <div class="hc">
+        <div class="hc-left">
+          <div class="lb">${wSplit.lb}</div>
+          <div class="num">已喝 ${waterCups} 杯</div>
+          <div class="sub">· ${waterMl} ml · 已完成 ${waterPct}% · 每杯 ${waterCupMl} ml</div>
+        </div>
+        <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 ${waterCupMl} ml">+1</button></div>
+      </div>
+
+      <!-- ③ 护眼卡（图标读设置，≥10 滴加 warn 样式） -->
+      <div class="hc">
+        <div class="hc-left">
+          <div class="lb">${eSplit.lb}</div>
+          <div class="num ${dropWarn?'warn':''}">${dropWarn?'⚠️ ':''}今日已滴 ${dropN} 滴</div>
+          <div class="sub">· ${dropText} · 上限 10 滴</div>
+        </div>
+        <div class="hc-right"><div class="hc-face" id="hcFace">${dropFace}</div></div>
+      </div>
     </div>
 
-    <!-- ② 喝水卡（图标 + 名字读设置） -->
-    <div class="hc">
-      <div class="hc-left">
-        <div class="lb">${wSplit.ic} ${wSplit.lb}</div>
-        <div class="num">已喝 ${waterCups} 杯</div>
-        <div class="sub">· ${waterMl} ml · 已完成 ${waterPct}% · 每杯 ${waterCupMl} ml</div>
+    <!-- 右栏：今日待办卡（高度 = 左栏 3 卡总和） -->
+    <div class="home-right">
+      <div class="todo-summary">
+        <div class="todo-summary-hd">
+          <div class="lb">📝 今日待办 · 还剩 ${open.length} 条</div>
+          <div class="ct">${open.length===0?'都完成啦 🎉':'点击查看全部 →'}</div>
+        </div>
+        ${todoRows}
+        ${todoMore}
       </div>
-      <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 ${waterCupMl} ml">+1</button></div>
-    </div>
-
-    <!-- ③ 护眼卡（图标读设置，≥10 滴加 warn 样式） -->
-    <div class="hc">
-      <div class="hc-left">
-        <div class="lb">${eSplit.ic} ${eSplit.lb}</div>
-        <div class="num ${dropWarn?'warn':''}">${dropWarn?'⚠️ ':''}今日已滴 ${dropN} 滴</div>
-        <div class="sub">· ${dropText} · 上限 10 滴</div>
-      </div>
-      <div class="hc-right"><div class="hc-face" id="hcFace">${dropFace}</div></div>
-    </div>
-
-    <!-- ④ 今日待办卡（轻摘要） -->
-    <div class="todo-summary">
-      <div class="todo-summary-hd">
-        <div class="lb">📝 今日待办 · 还剩 ${open.length} 条</div>
-        <div class="ct">${open.length===0?'都完成啦 🎉':'点击查看全部 →'}</div>
-      </div>
-      ${todoRows}
-      ${todoMore}
     </div>
   `;
 
