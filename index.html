@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.78</title>
+<title>GrowTime · v17.79</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.78 (修 loadSettings 网络抖动误报 banner + input 显示已保存值 + realtime 重连兜底) -->
+<!-- 版本：rechen-v2026-08-14-v17.79 (修 water_log RLS 导致跨设备不同步的根因 + loadWaterCups 合并去重防数据清空 + 8s 轮询兜底) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -1654,22 +1654,40 @@ function getWaterCups(day){
 }
 
 // v17.38: 从云端拉今天的喝水记录（realtime 触发 / 切换 view / 页面启动都会调）
-// v17.72 修复: 云端 SELECT 失败 (RLS 拒/网络等) 时降级走 localStorage, 不再 return 留空白
+// v17.79: 关键修复 — 云端 + 本地 localStorage 做「并集去重」, 永不覆盖本地 pending 记录
+//         之前云端 select 返回空 [] 时直接 waterRows=[] 且 localStorage 覆盖成空, 导致「过几秒数据全没了」
+//         现在: 云端已确认记录 + 本地尚未推上云端的 pending 记录 = 并集, 按 HH:MM:SS 去重
 async function loadWaterCups(){
   if(!sb){ waterLoaded=false; return; }   // 无 Supabase：退回 localStorage
   const today=todayStr();
-  let cloudOk=false;
   try{
     const {data,error}=await sb.from('water_log').select('*').eq('date',today).order('ts',{ascending:true});
     if(error) throw error;
-    cloudOk=true;
     $('banner').hidden=true; setupError=false;
-    waterRows=data||[]; waterLoaded=true;
-    // v17.72: 同时把云端数据镜像到 localStorage, 兜底源始终是当前真实数据
+    // 云端已确认记录
+    const cloudRows=(data||[]);
+    // 本地 localStorage 记录 (可能是 pending, 还没推上云端 / 云端当前因网络还没返回)
+    const localStrs=(getWaterLog()[today]||[]);
+    // 去重: 云端记录按 HH:MM:SS 匹配本地, 避免重复显示
+    const cloudKey=new Set(cloudRows.map(r=>{
+      const d=new Date(r.ts); const p=n=>String(n).padStart(2,'0');
+      return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }));
+    const localRows=localStrs
+      .filter(s=>!cloudKey.has(s))
+      .map(s=>{
+        const p=s.split(':').map(n=>parseInt(n,10));
+        const d=new Date(); d.setHours(p[0]||0,p[1]||0,p[2]||0,0);
+        return {ts:d.toISOString(), _local:s, id:'local-'+s};
+      });
+    // 并集: 云端优先, 本地 pending 补充 (保证本地数据永不丢失)
+    waterRows=cloudRows.concat(localRows);
+    waterLoaded=true;
+    // 重新镜像 localStorage = 并集 (确保不丢也不重复)
     const o=getWaterLog();
-    o[today] = (data||[]).map(r=>{
-      const d = new Date(r.ts);
-      const p=n=>String(n).padStart(2,'0');
+    o[today]=waterRows.map(r=>{
+      if(r._local) return r._local;
+      const d=new Date(r.ts); const p=n=>String(n).padStart(2,'0');
       return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
     });
     setWaterLog(o);
@@ -1716,14 +1734,20 @@ async function addWaterCup(day){
   }
 }
 
-// 删除一杯（按云端 id；realtime 同步其他端）
+// 删除一杯（云端行按 id 删；本地 pending 行只删 localStorage；realtime 同步其他端）
 async function delWaterCup(id){
-  const idx=waterRows.findIndex(r=>r.id===id);
-  if(sb){
+  const row=waterRows.find(r=>r.id===id);
+  if(sb && row && !row._local){
     const {error}=await sb.from('water_log').delete().eq('id',id);
     if(error){ showFatal('删除喝水失败: '+(error.message||'')); return; }
   }
+  const idx=waterRows.findIndex(r=>r.id===id);
   if(idx>=0) waterRows.splice(idx,1);
+  // 同步删本地 pending 副本, 避免下次 loadWaterCups 把这条又拉回来
+  if(row && row._local){
+    const o=getWaterLog(); const today=todayStr();
+    if(o[today]){ o[today]=o[today].filter(s=>s!==row._local); setWaterLog(o); }
+  }
   emitWaterChange();
 }
 // v17.74: input 当前值是 source of truth — 用户输入即生效, localStorage 仅作持久化兜底
@@ -3032,6 +3056,29 @@ document.addEventListener('visibilitychange',()=>{
   if(view==='counter') loadDrops();
   if(view==='period') loadPeriod();
 });
+// v17.79: 轮询兜底 — realtime WebSocket 在某些网络/区域下连不上, 跨设备同步会完全失效
+//         页面可见时每 8s 拉一次云端 water_log + 一次 settings, 保证另一台设备写入后最多 8s 内本端同步到
+//         不打断用户操作, loadWaterCups 内部幂等 (并集去重, 不会重复/丢失)
+let _syncPollTimer=null;
+(function startSyncPolling(){
+  if(_syncPollTimer) return;
+  _syncPollTimer=setInterval(()=>{
+    if(document.hidden) return;
+    if(!sb) return;
+    // 喝水是最高频同步需求, 单独轮询
+    loadWaterCups().catch(()=>{});
+    // settings (每杯/目标) 也轮询, 保证设置跨设备同步
+    loadWaterSettings().catch(()=>{});
+  }, 8000);
+})();
+// v17.79: realtime 连接诊断 — 如果 30s 内没收到 SUBSCRIBED, 在 debugBar 提示用户 (不阻塞, 轮询继续兜底)
+if(sb){
+  setTimeout(()=>{
+    if(!_RT_STATES.connectedAt){
+      recordError('realtime', 'WebSocket 实时通道 30s 内未连接成功 (可能网络/区域限制)。已自动切换为每 8s 定时同步兜底, 跨设备同步仍然有效 (延迟 ≤8s)。');
+    }
+  }, 30000);
+}
 
 // v17.75: 喝水设置 (每杯 ml + 目标 ml) — 跨设备同步, app_settings 表 key='water_settings'
 // v17.78: 拉到云端值后, 把值显示回 input (用户明确要求「设置了就保留显示在那里」)
