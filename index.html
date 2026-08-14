@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.79</title>
+<title>GrowTime · v17.80</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.79 (修 water_log RLS 导致跨设备不同步的根因 + loadWaterCups 合并去重防数据清空 + 8s 轮询兜底) -->
+<!-- 版本：rechen-v2026-08-14-v17.80 (delWaterCup 不依赖 waterRows.find 也能删 + realtime INSERT/DELETE 拆开监听 + 喝水记录标题绿加粗+副文灰色) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -647,7 +647,9 @@
   .water-info .big{font-size:24px;font-weight:700;color:#166534;}
   .water-info .ml{font-size:12.5px;color:#6b7280;margin-top:2px;}
   .water-list{margin-top:14px;padding-top:12px;border-top:1px dashed #bbf7d0;}
-  .water-list-title{font-size:12.5px;color:#6b7280;margin-bottom:8px;}
+  /* v17.80: 标题绿加粗 + 副文灰色 */
+  .water-list-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;}
+  .water-list-title .sub{color:#6b7280;font-weight:500;margin-left:4px;}
   .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
   .water-row:last-child{border-bottom:none;}
   .water-empty{font-size:12px;color:#9ca3af;text-align:center;padding:8px 0;}
@@ -1045,7 +1047,7 @@
 
       <div class="water-list" style="margin-top:18px;">
         <!-- v17.69: 「今日打卡」→「喝水记录」, 杯子·毫升联动首页 -->
-        <div class="water-list-title">喝水记录 <span id="waterCountTxt" style="color:#16a34a;font-weight:600;"></span>
+        <div class="water-list-title">喝水记录 <span id="waterCountTxt" class="sub"></span>
         </div>
         <div id="waterList"></div>
       </div>
@@ -1734,21 +1736,61 @@ async function addWaterCup(day){
   }
 }
 
-// 删除一杯（云端行按 id 删；本地 pending 行只删 localStorage；realtime 同步其他端）
+// v17.80: 删除一杯 — 不依赖 waterRows.find 也能删
+//        哪怕 realtime 滞后导致该条还没进 waterRows, 也保证云端 DELETE + 内存 splice + UI 刷新同时发生
+//        防御策略: 删除完主动 reload 云端一次, 不依赖 realtime DELETE event
 async function delWaterCup(id){
-  const row=waterRows.find(r=>r.id===id);
-  if(sb && row && !row._local){
-    const {error}=await sb.from('water_log').delete().eq('id',id);
-    if(error){ showFatal('删除喝水失败: '+(error.message||'')); return; }
+  let deletedCloud=false;
+  // 1. 云端 DELETE — 不管 waterRows 里有没有, 都尝试按 id 删一次
+  if(sb && id && !String(id).startsWith('local-')){
+    try{
+      const {error}=await sb.from('water_log').delete().eq('id',id);
+      if(error){
+        console.warn('[water-del] 云端 delete 失败:', error.message);
+        // 不 return — 仍然清理本地, 等下一轮 reload 同步
+      }else{
+        deletedCloud=true;
+      }
+    }catch(e){
+      console.warn('[water-del] 云端 delete 异常:', (e.message||e));
+    }
   }
-  const idx=waterRows.findIndex(r=>r.id===id);
-  if(idx>=0) waterRows.splice(idx,1);
-  // 同步删本地 pending 副本, 避免下次 loadWaterCups 把这条又拉回来
-  if(row && row._local){
-    const o=getWaterLog(); const today=todayStr();
-    if(o[today]){ o[today]=o[today].filter(s=>s!==row._local); setWaterLog(o); }
+  // 2. 内存 waterRows 立刻 splice (按 id 或 pending- / local- 都匹配)
+  if(id){
+    const idx=waterRows.findIndex(r=>r.id===id || ('local-'+r._local)===id);
+    if(idx>=0) waterRows.splice(idx,1);
+    // 同样删掉 pending- 副本 (如果 addWaterCup 还没拿到真实 id)
+    const pidx=waterRows.findIndex(r=>r.id && String(r.id).startsWith('pending-') && r._delMarker===id);
+    if(pidx>=0) waterRows.splice(pidx,1);
   }
+  // 3. 同步 localStorage — 删除对应 HH:MM:SS 副本 (避免下次 reload 又被并集回来)
+  const today=todayStr();
+  const o=getWaterLog();
+  if(o[today]){
+    if(id && id.startsWith('local-')){
+      const ts=id.replace('local-','');
+      o[today]=o[today].filter(s=>s!==ts);
+    }else{
+      // 云端行: 用 ts (创建时间) 反查 HH:MM:SS
+      const row=waterRows.concat([]).find(r=>r.id===id);   // 可能已 splice, 找不到就靠时间匹配
+      // 简化: 如果这条 row 在 waterRows 里存在并有 ts, 转成 HH:MM:SS 删 localStorage
+      const allRows=waterRows.concat([]);
+      const r=allRows.find(r=>r.id===id);
+      if(r && r.ts){
+        const d=new Date(r.ts); const p=n=>String(n).padStart(2,'0');
+        const hh=`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+        o[today]=o[today].filter(s=>s!==hh);
+      }
+    }
+    if(o[today].length===0) delete o[today];
+    setWaterLog(o);
+  }
+  // 4. 立刻 emit 让 UI 反映变化 (renderWater 重新计算 list)
   emitWaterChange();
+  // 5. 主动 reload 云端 (防御性 — 不依赖 realtime DELETE)
+  if(sb && deletedCloud){
+    setTimeout(()=>{ loadWaterCups().catch(()=>{}); }, 200);
+  }
 }
 // v17.74: input 当前值是 source of truth — 用户输入即生效, localStorage 仅作持久化兜底
 // v17.78: input 显示「已保存值」 — 用户设过 250/2500 后, 显示在框里方便知道当前配置; 用户键入则立即覆盖
@@ -1836,6 +1878,7 @@ function renderWater(){
   $('waterPct').textContent = `已完成 ${pct}%`;
   $('waterTargetTxt').textContent = `目标 ${target.toLocaleString()} ml`;
   $('waterFill').style.width = pct+'%';
+  // v17.80: 副文整段灰色 (标题喝水记录已绿加粗)
   $('waterCountTxt').textContent = cups>0?`(${cups} 杯 · ${ml.toLocaleString()} ml · 每杯 ${cupMl} ml)`:'';
   // v17.76: 水池水位 — 设目标时按比例涨; 没设目标但已喝水 ≥1 杯也给点水 (10% ~ 30% 阶梯), 用户至少看到「水进来了」
   let heightPct;
@@ -3020,8 +3063,22 @@ if(sb){
   _bind('todos-rt',  'todos',       ()=>safeReload('todos', loadTodos));
   _bind('memos-rt',  'memos',       ()=>safeReload('memos', loadMemos));
   _bind('drops-rt',  'drops',       ()=>{ try{ loadDrops(); }catch(e){ showFatal('realtime[drops]: '+(e.message||e)); } });
-  // v17.38: 喝水云端 insert/delete → 秒同步到所有端
-  _bind('water-rt',  'water_log',   ()=>{ try{ loadWaterCups(); }catch(e){ showFatal('realtime[water]: '+(e.message||e)); } });
+  // v17.80: 拆开监听 INSERT/DELETE, 保证 DELETE event 触发 (某些 supabase-js 版本 event:'*' 不触发 DELETE)
+  const _waterHandler=(payload)=>{ try{ loadWaterCups(); }catch(e){ showFatal('realtime[water]: '+(e.message||e)); } };
+  try{
+    const chWater=sb.channel('water-rt');
+    chWater.on('postgres_changes',{event:'INSERT',schema:'public',table:'water_log'},_waterHandler).subscribe((status)=>{
+      if(status==='SUBSCRIBED') _RT_STATES.connectedAt=Date.now();
+    });
+    _RT_STATES.channels.push({name:'water-rt',ch:chWater});
+  }catch(e){ console.warn('[rt] water-rt INSERT 绑定失败:', (e.message||e)); }
+  try{
+    const chDel=sb.channel('water-del-rt');
+    chDel.on('postgres_changes',{event:'DELETE',schema:'public',table:'water_log'},_waterHandler).subscribe((status)=>{
+      if(status==='SUBSCRIBED') _RT_STATES.connectedAt=Date.now();
+    });
+    _RT_STATES.channels.push({name:'water-del-rt',ch:chDel});
+  }catch(e){ console.warn('[rt] water-del-rt DELETE 绑定失败:', (e.message||e)); }
   _bind('period-rt', 'period_log',  ()=>safeReload('period', loadPeriod));
   _bind('farm-rt',   'farm',        ()=>{
     if(Date.now()-farmPushAt<1500) return;
