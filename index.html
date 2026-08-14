@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.49</title>
+<title>GrowTime · v17.66</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -505,7 +505,8 @@
   .pool-info .max{font-size:13px;color:var(--muted);margin-top:10px;}
   .tip-card{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted);margin-top:16px;display:inline-flex;align-items:center;gap:6px;}
   .history-section{margin-top:6px;}
-  .history-title{font-size:13px;color:var(--muted);font-weight:600;}
+  .history-title{font-size:13px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
+  .history-title .right{font-size:12px;color:var(--muted);font-weight:500;opacity:.85;}
   .history-sub{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px;}
   .history-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:10px;}
   .history-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;min-width:0;cursor:pointer;transition:.15s;position:relative;}
@@ -669,15 +670,72 @@
   .water-pool-info .status.full{background:#bbf7d0;color:#166534;}
   .water-pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
 
-  .saving-card{background:var(--surface);border:1px solid #fce7f3;border-radius:14px;padding:18px;}
-  .saving-card .goal-name{font-size:15px;font-weight:700;color:#9d174d;}
-  .saving-card .goal-amount{font-size:24px;font-weight:700;color:#be185d;margin-top:6px;}
-  .saving-card .goal-meta{font-size:12px;color:#6b7280;margin-top:4px;}
-  .saving-card .saving-add{display:flex;gap:8px;margin-top:14px;}
-  .saving-card .saving-add input{flex:1;padding:8px 12px;border:1px solid #fbcfe8;border-radius:8px;font-size:13px;background:#fff;}
-  .saving-card .saving-add button{padding:8px 16px;border:none;background:#be185d;color:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;}
-  .saving-card .goal-set{margin-top:14px;padding-top:12px;border-top:1px dashed #fce7f3;font-size:12.5px;color:#6b7280;}
-  .saving-card .goal-set button{padding:6px 12px;border:1px solid #fbcfe8;background:#fff;color:#be185d;border-radius:8px;font-size:12px;cursor:pointer;margin-left:8px;}
+  /* v17.54: 全局去掉 number 输入框的上下按钮（用户自己输金额） */
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+  input[type=number]{-moz-appearance:textfield;}
+  .save-wrap{display:flex;gap:40px;align-items:flex-start;justify-content:center;padding:14px 0 22px;flex-wrap:wrap;}   /* v17.56: align-items:flex-start, 罐子 align-self:flex-end 让罐底对齐「存入」按钮底 */
+  /* 罐子容器 — 高度容纳罐盖+罐身，flex-end 让罐底跟右栏「存入」按钮底部齐平 */
+  .save-pool{position:relative;width:210px;height:310px;cursor:pointer;flex-shrink:0;background:transparent;border:none;box-shadow:none;transition:transform .15s;align-self:flex-end;}   /* v17.56: align-self:flex-end 让罐底对齐 */
+  .save-pool:active{transform:scale(.98);}
+  /* 罐盖 — 略凸出罐身, 金条宝箱盖, 不要钻石 */
+  .save-jar-lid{position:absolute;top:6px;left:50%;transform:translateX(-50%) translateY(0) rotate(0);width:210px;height:34px;border-radius:10px 10px 4px 4px;background:linear-gradient(180deg,#fbbf24 0%,#d97706 50%,#92400e 100%);border:2px solid #92400e;box-shadow:0 6px 14px rgba(146,64,14,.45), inset 0 1px 0 rgba(255,255,255,.45);z-index:3;transform-origin:right center;transition:transform .8s cubic-bezier(.5,-0.3,.4,1.3), box-shadow .6s;}
+  /* 罐盖开合动画 — 满罐时,从右侧转开,呈"打开"状态 */
+  .save-pool.is-full .save-jar-lid{transform:translateX(-50%) translateY(-20px) rotate(-65deg);box-shadow:0 10px 20px rgba(146,64,14,.55), inset 0 1px 0 rgba(255,255,255,.5);}   /* 向左后上方掀开, 像开宝箱 */
+  /* 罐身 — 金边宝箱箱体 (罐颈省略, 罐盖直接压在罐身上方) */
+  .save-jar-body{position:absolute;top:38px;left:50%;transform:translateX(-50%);width:190px;height:260px;border-radius:18px 18px 28px 28px;background:linear-gradient(180deg,rgba(254,243,199,.45) 0%,rgba(255,251,235,.95) 100%);border:2.5px solid #d97706;box-shadow:inset 0 -30px 40px rgba(245,158,11,.35), 0 10px 28px rgba(245,158,11,.28);overflow:hidden;z-index:1;}
+  /* 金币堆 — 绝对定位容器，所有金币(动画+静态)都在这里,永久保留 */
+  .save-coin-pile{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;}
+  .save-coin-pile .coin{position:absolute;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#fef3c7 0%,#fbbf24 50%,#d97706 100%);box-shadow:inset 0 -2px 2px rgba(255,255,255,.55), inset 0 1px 2px rgba(146,64,14,.3), 0 1px 3px rgba(146,64,14,.4);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#92400e;text-shadow:0 1px 0 rgba(255,255,255,.4);}
+  /* 罐内玻璃反光 */
+  .save-jar-body::before{content:'';position:absolute;top:14px;left:14px;width:14px;height:60px;border-radius:7px;background:rgba(255,255,255,.7);transform:rotate(-10deg);pointer-events:none;z-index:5;}
+  .save-jar-body::after{content:'';position:absolute;top:28px;right:18px;width:6px;height:30px;border-radius:3px;background:rgba(255,255,255,.5);transform:rotate(8deg);pointer-events:none;z-index:5;}
+  /* 信息栏 — 整体居中, padding-top:0 让顶部与罐盖顶部对齐 */
+  .save-info{text-align:center;min-width:240px;padding-top:0;display:flex;flex-direction:column;gap:14px;}
+  .save-info .today{display:none;}
+  /* v17.56: 「目标 / 金额」一行 — 用户自己填, 单行紧凑, 带橙色「更新」按钮 */
+  .save-info .goal-set{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(180deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:12px;padding:8px 12px;margin-top:0;}
+  /* v17.57: 目标设置行挪到 .save-wrap 之下、独立显示, 居中、紧凑, v17.58 删掉所有 label */
+  .goal-set.goal-set-below{display:flex;align-items:center;justify-content:center;gap:8px;max-width:420px;margin:18px auto 16px;padding:9px 14px;background:linear-gradient(180deg,#fffbeb,#fef3c7);border:1.5px solid #fcd34d;border-radius:12px;}
+  /* v17.58: 目标设置子元素通用样式 — 适配 input 紧凑布局, input 不要 flex:1 撑满 */
+  .goal-set .lbl{font-size:13px;font-weight:700;color:#92400e;}
+  .goal-set .lbl .yl{font-size:13px;font-weight:800;color:#d97706;margin:0 4px 0 2px;}
+  .goal-set input{flex:0 1 140px;min-width:80px;max-width:160px;padding:7px 10px;border:1px solid #fcd34d;border-radius:8px;font-size:14px;background:#fff;color:#78350f;outline:none;text-align:center;transition:border-color .15s;}
+  /* v17.59: 目标名 input 加金色淡底, 与金额 input 的纯白区分 */
+  .goal-set #saveGoalNameInput{background:linear-gradient(180deg,#fef3c7,#fde68a);color:#78350f;font-weight:700;}
+  .goal-set input:focus{border-color:#d97706;background:#fffbeb;}
+  .goal-set #saveGoalNameInput:focus{background:linear-gradient(180deg,#fef9c3,#fcd34d);}
+  .goal-set input:disabled{background:#f5f5f4;color:#a8a29e;cursor:not-allowed;opacity:.65;}
+  .goal-set .upd{flex:0 0 auto;background:linear-gradient(180deg,#f59e0b 0%,#d97706 100%);color:#fff;font-weight:700;padding:8px 18px;border-radius:8px;border:none;font-size:13px;cursor:pointer;transition:.15s;white-space:nowrap;}
+  .goal-set .upd:hover{background:linear-gradient(180deg,#d97706 0%,#b45309 100%);}
+  .goal-set .upd:disabled{background:linear-gradient(180deg,#d6d3d1,#a8a29e);cursor:not-allowed;opacity:.55;}
+  .save-info .count{font-size:54px;font-weight:800;color:#d97706;line-height:1;margin-top:0;}   /* v17.56: 跟其它行一起用 flex gap, 不再额外 margin */
+  .save-info .count .goal{font-size:20px;color:#9ca3af;font-weight:600;margin-left:6px;}
+  /* v17.63: 锁定 (locked) = 存过钱, 顶部目标部分跟着灰, 表示「本轮目标已锁定」 */
+  .save-info.is-locked .count .goal{color:#a8a29e !important;opacity:.55;letter-spacing:.5px;}
+  /* 进度条 — 金渐变填充, v17.58 加 .save-progress-wrap 包裹, 右侧追加百分比 */
+  .save-info .save-progress-wrap{display:flex;align-items:center;gap:10px;width:100%;max-width:280px;margin:0 auto;}
+  .save-info .save-progress{flex:1;min-width:0;height:8px;background:#fef3c7;border-radius:999px;overflow:hidden;border:1px solid #fcd34d;}
+  .save-info .save-progress-fill{height:100%;background:linear-gradient(90deg,#fbbf24,#d97706);border-radius:999px;transition:width .6s ease;box-shadow:inset 0 1px 2px rgba(255,255,255,.5);}
+  .save-info .save-progress-pct{font-size:14px;font-weight:700;color:#d97706;min-width:38px;text-align:right;flex-shrink:0;}
+  /* v17.58: 状态徽章(💰进行中/🎉已满)删除 — 重复, 下面已有「🪣 已满请倒出」按钮 */
+  @keyframes savePulse{0%,100%{box-shadow:0 0 0 0 rgba(252,211,77,.7);}50%{box-shadow:0 0 0 12px rgba(252,211,77,0);}}
+  .save-info .total-label{font-size:14px;color:#78716c;}
+  .save-info .total-num{font-size:46px;font-weight:800;color:#d97706;line-height:1.1;}
+  /* 输入框+按钮 — 金色系 */
+  .save-info .save-add{display:flex;gap:10px;justify-content:center;align-items:center;width:100%;max-width:280px;margin:0 auto;}
+  .save-info .save-add input{flex:1;min-width:0;max-width:none;padding:11px 14px;border:1.5px solid #fcd34d;border-radius:10px;font-size:15px;background:#fffbeb;outline:none;transition:border-color .15s;}
+  .save-info .save-add input:focus{border-color:#d97706;background:#fff;}
+  .save-info .save-add .btn{background:linear-gradient(180deg,#f59e0b 0%,#d97706 100%);color:#fff;font-weight:700;padding:11px 22px;border-radius:10px;border:none;font-size:15px;cursor:pointer;transition:.15s;white-space:nowrap;}
+  .save-info .save-add .btn:hover{background:linear-gradient(180deg,#d97706 0%,#b45309 100%);}
+  /* 「已满请倒出」提示 — 满罐时显示在进度条和按钮之间 (v17.54 恢复) */
+  .save-info .pour-hint{display:none;margin-top:12px;padding:10px 18px;background:linear-gradient(180deg,#fef3c7,#fcd34d);color:#7c2d12;font-size:15px;font-weight:700;border-radius:999px;border:1.5px dashed #d97706;letter-spacing:.5px;}
+  .save-info.is-full .pour-hint{display:none;}   /* v17.54: 隐藏 pour-hint, 只保留按钮 */
+  /* 倒出按钮 — 金色脉冲 */
+  .save-info .pour-btn{width:100%;max-width:280px;margin:0 auto;padding:13px;background:linear-gradient(180deg,#fbbf24 0%,#d97706 100%);color:#fff;font-size:15px;font-weight:700;border:none;border-radius:12px;cursor:pointer;display:block;box-shadow:0 4px 12px rgba(217,119,6,.4);animation:savePulse 1.6s ease-in-out infinite;}
+  .save-info .pour-btn:hover{background:linear-gradient(180deg,#d97706 0%,#b45309 100%);}
+  /* 目标设置 — v17.56 恢复: 「目标 + 金额 + 更新」一行, 让用户自己填 */
+  .save-info .goal-set{display:flex;}   /* v17.56: 重新启用, 显示「🎯 目标 + 金额 + 更新」一行 */
 
   @media (max-width:640px){
     .wrap{padding:12px 12px 0;}   /* v17.32: 去掉底部 50px padding,绿条与鼓励语真正贴到屏幕底 */
@@ -705,6 +763,18 @@
     .water-pool{width:160px;height:160px;}
     .water-pool .pool-face{font-size:48px;}
     .water-pool-wrap{gap:16px;padding:6px 0 12px;}
+    /* v17.56: 手机端存钱模块 — 罐子和信息栏仍上下排, 罐子置底 */
+    .save-wrap{flex-direction:column;align-items:center;gap:18px;padding:10px 0 18px;}
+    .save-pool{width:180px;height:270px;align-self:center;}   /* 手机端罐子略小, 居中 */
+    .save-jar-lid{width:180px;height:30px;}
+    .save-jar-body{width:165px;height:225px;}
+    .save-info{padding-top:0;text-align:center;width:100%;gap:12px;}
+    .save-info .count{font-size:42px;}
+    .save-info .total-num{font-size:38px;}
+    .goal-set{padding:7px 10px;gap:6px;}   /* v17.57: 手机压缩 (现在独立显示在 .save-wrap 外) */
+    .goal-set .lbl{font-size:12px;}
+    .goal-set input{padding:6px 6px;font-size:13px;}
+    .goal-set .upd{padding:7px 10px;font-size:12px;}
   }
 
   /* v17.44: .view{display:flex} 会覆盖 [hidden]{display:none} 默认 UA 样式, 导致 JS el.hidden=true 不生效
@@ -953,30 +1023,46 @@
     </div>
   </div>
 
-  <!-- 存钱（v17 新模块） -->
+  <!-- 存钱（v17.56: 删🐷标题·恢复目标设置·罐子 align-self:flex-end 对齐存入按钮底） -->
   <div id="viewSaving" hidden>
-    <div class="saving-card">
-      <div class="goal-name" id="savingGoalName">🎯 我的小金库</div>
-      <div class="goal-amount" id="savingAmount">¥ 0</div>
-      <div class="goal-meta" id="savingMeta">已存 0 / 目标 0 · 0%</div>
-      <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" id="savingFill" style="width:0%;background:linear-gradient(90deg,#fbcfe8,#be185d);"></div></div>
-
-      <div class="saving-add">
-        <input type="number" id="savingAddInput" min="1" placeholder="存入金额…" />
-        <button id="savingAddBtn">＋ 存入</button>
+    <div class="card panel">
+      <div class="save-wrap">
+        <!-- 大存钱罐（金盖宝箱·金币永久留在罐底·满罐时盖子掀开+金币倒出动画） -->
+        <div class="save-pool" id="savePool" title="点罐子按输入金额存一笔">
+          <div class="save-jar-lid"></div>
+          <div class="save-jar-body">
+            <div class="save-coin-pile" id="savePile"></div>
+          </div>
+        </div>
+        <!-- 信息栏：数字 → 进度条(带%) → 倒出按钮 → 已累计存款 → 存入 (状态徽章已在v17.58删除,目标设置行移到下方) -->
+        <div class="save-info" id="saveInfo">
+          <div class="count" id="saveCount">¥0<span class="goal">/ ¥10,000</span></div>
+          <!-- v17.58: 进度条右侧加百分比 -->
+          <div class="save-progress-wrap">
+            <div class="save-progress"><div class="save-progress-fill" id="saveProgressFill" style="width:0%"></div></div>
+            <span class="save-progress-pct" id="saveProgressPct">0%</span>
+          </div>
+          <!-- v17.55: 倒出按钮文字简化, 配合「金币随金额累积到满罐」 -->
+          <button class="pour-btn" id="savePourBtn" hidden>🪣 已满请倒出（完成目标）</button>
+          <div class="total-label">已累计存款</div>
+          <div class="total-num" id="saveTotal">¥0</div>
+          <div class="save-add">
+            <input type="number" id="saveAddInput" min="1" placeholder="存入金额…" />
+            <button class="btn" id="saveAddBtn">存入</button>
+          </div>
+        </div>
       </div>
-
-      <div class="goal-set">
-        目标设置：
-        <input type="text" id="savingNameInput" placeholder="目标名" style="width:100px;padding:5px 8px;border:1px solid #fbcfe8;border-radius:8px;font-size:12.5px;" />
-        <input type="number" id="savingGoalInput" min="1" placeholder="金额" style="width:90px;padding:5px 8px;border:1px solid #fbcfe8;border-radius:8px;font-size:12.5px;" />
-        <button id="savingGoalBtn">更新目标</button>
+      <!-- v17.58: 「目标设置」行简化 — 去掉 🎯 表情、去掉「目标/金额¥」标签字, 只留 name input + amount input + 更新按钮 -->
+      <div class="goal-set goal-set-below">
+        <input type="text" id="saveGoalNameInput" maxlength="14" placeholder="目标名" />
+        <input type="number" id="saveGoalInput" min="1" placeholder="目标金额" />
+        <button class="upd" id="saveGoalBtn">开启</button>
       </div>
-    </div>
-
-    <div class="water-card" style="margin-top:12px;">
-      <div class="water-list-title">存钱记录</div>
-      <div id="savingList"></div>
+      <!-- v17.55: 存钱记录挪到 .save-wrap 外, 成为卡片下半部独立一块 (跟原来一样) -->
+      <div class="history-section">
+        <div class="history-title">存钱记录 <span class="right" id="saveHistoryRight"></span></div>
+        <div id="saveList"></div>
+      </div>
     </div>
   </div>
 
@@ -1283,7 +1369,7 @@ function switchView(v){
   if(v==='period') loadPeriod();
   if(v==='farm') loadFarm();
   if(v==='water') loadWaterCups();   // v17.38: 切到喝水 view 先拉云端（realtime 会持续同步）
-  if(v==='saving') renderSaving();
+  if(v==='saving'){ loadSavings().then(()=>renderSaving()); }   // v17.66: 切到存钱页先拉一次云端覆盖内存, 再渲染
   if(v!=='farm'){ closeBag(); closePop(); }
 }
 document.querySelectorAll('.sb-item[data-view]').forEach(b=>{
@@ -1670,76 +1756,323 @@ $('waterCupBtn').onclick=()=>{
   emitWaterChange();  // v17.26: 同步首页（首页显示 X 杯 + 0ml，需要刷新百分比）
 };
 
-/* ============ v17: 存钱（localStorage） ============ */
-function getSaving(){
-  try{ return JSON.parse(localStorage.getItem('wbSaving')||'{}'); }catch(e){ return {}; }
+/* ============ v17.52: 存钱 — 金盖宝箱+金币永久留下+进度条+累计实时累加 ============ */
+let _saveAudioCtx=null;
+function _ensureAudio(){
+  try{ if(!_saveAudioCtx) _saveAudioCtx = new (window.AudioContext||window.webkitAudioContext)(); return _saveAudioCtx; }
+  catch(e){ return null; }
 }
-function setSaving(o){ localStorage.setItem('wbSaving', JSON.stringify(o)); }
+function playCoinSound(opts){
+  opts = opts || {};
+  const ctx=_ensureAudio(); if(!ctx) return;
+  try{
+    const t=ctx.currentTime;
+    const f0=opts.freq||1300, f1=Math.round((opts.freq||1300)*0.62), dur=opts.dur||0.3, vol=opts.vol||0.22;
+    // 主音: f0 → f1 的短促"叮"声
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.type='triangle';
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(f0, t);
+    osc.frequency.exponentialRampToValueAtTime(f1, t+0.06);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(vol, t+0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+    osc.start(t); osc.stop(t+dur);
+  }catch(e){/* AudioContext 未激活, 静默忽略 */}
+}
+function coinBurst(amount){
+  // v17.55: 每次存款金币"多一点" — 金额越大金币越多, 1元最少3枚, 封顶40枚让罐子能装满
+  // 算法: round(amount/20), 100元=5, 500元=25, 1000元=40封顶
+  const n = Math.min(40, Math.max(3, Math.round(amount/20) || 3));
+  playCoinSound({freq:1300, dur:0.32, vol:0.22});   // 开头"叮"
+  const pile=$('savePile');
+  if(!pile) return;
+  // pile 容量上限 80 枚, 超出时让最早的金币向上飘走淡出
+  const MAX=80;
+  while(pile.children.length + n > MAX){
+    const old=pile.firstElementChild;
+    if(!old) break;
+    try{
+      const t = old.style.transform || '';
+      old.animate([
+        { transform: t, opacity:1 },
+        { transform: t + ' translateY(-220px)', opacity:0 }
+      ], { duration: 600, easing:'ease-in', fill:'forwards' });
+      setTimeout(()=>{ try{ old.remove(); }catch(e){} }, 620);
+    }catch(e){}
+  }
+  // 主体动画: 每枚金币从罐口落入罐底并永久保留(WAAPI + fill:forwards)
+  for(let i=0;i<n;i++){
+    setTimeout(()=>{
+      try{
+        playCoinSound({freq: 1100 + i*80, dur: 0.2, vol: 0.13});   // 每枚依次"叮"
+        const c = document.createElement('div');
+        c.className = 'coin';
+        c.textContent = '¥';
+        // 落点: pile 内底部, x 随机(堆叠感)
+        const tx = 8 + Math.random()*140;
+        const ty = 180 + Math.random()*20;
+        const finalRot = 360 + Math.random()*720;
+        pile.appendChild(c);
+        c.animate([
+          { transform:'translate(0, -10px) rotate(0deg)', opacity:0 },
+          { transform:'translate(0, 0px) rotate(120deg)', opacity:1, offset:0.08 },
+          { transform:`translate(${tx}px, ${ty}px) rotate(${finalRot}deg)`, opacity:1 }
+        ], { duration: 850, easing:'cubic-bezier(.45,.05,.55,.95)', fill:'forwards' });
+      }catch(e){}
+    }, i * 90);
+  }
+}
+function renderCoinPile(){
+  // v17.55: 按水位重新生成静态金币; 水满(100%)时填满罐口; pct/1 枚 (最高 80 枚铺满 罐身)
+  const d=getSaving();
+  const saved=d.saved||0;
+  const goal=d.goal||10000;
+  const pct=goal>0 ? Math.min(100, Math.round(saved/goal*100)) : 0;
+  // v17.55: 1% 加 1 枚, 100% 时 100 枚 — 但 pile 容量跟动态 coin 共享, 控 60 枚
+  const n = Math.min(60, Math.floor(pct*0.6));
+  const pile=$('savePile');
+  if(!pile) return;
+  // v17.58: saved=0 时整 pile 清空 (包括 coinBurst 落罐的动态金币), 否则罐子清空状态还残留底部金币
+  if(n===0){ pile.innerHTML=''; return; }
+  pile.querySelectorAll('.coin[data-static]').forEach(c=>c.remove());
+  // v17.54: 紧凑 grid 风格堆叠 - 罐身内可用区域 178×216, 一行 8 枚 (8×22=176) 完美对齐
+  const cols=8;
+  const rowH=23;
+  const frag = document.createDocumentFragment();
+  const visibleRows = Math.ceil(n/cols);   // 实际显示行数
+  const startY = 216 - visibleRows * rowH; // 堆叠到水位对应位置
+  for(let i=0;i<n;i++){
+    const c=document.createElement('div');
+    c.className='coin';
+    c.textContent='¥';
+    c.dataset.static='1';
+    const col=i%cols;
+    const row=Math.floor(i/cols);
+    const tx = 8 + col*22 + (row%2===0?0:11);   // 错位堆叠,像真金币堆
+    const ty = startY + row*rowH;
+    c.style.transform = `translate(${tx}px, ${ty}px) rotate(${(i*73)%360}deg)`;
+    c.style.opacity='1';
+    frag.appendChild(c);
+  }
+  pile.appendChild(frag);
+}
+
+/* ---------- 存钱：云端同步 v17.66 ----------
+   数据存储在 app_settings 表里 key='savings' (value jsonb), 复用现成表无需新建 SQL
+   内存变量 `saving` 是主存, localStorage 做兜底缓存, sb 通了再 sync 到云端 */
+const SAVING_DEFAULT = {goal:0,name:'',saved:0,totalDeposited:0,history:[],goalSet:false};
+let saving = {...SAVING_DEFAULT};
+let savingLoaded = false;
+let savingDirty = false;
+function getSaving(){
+  // v17.66: 内存主存 (云端 load 后会更新 saving, UI 直接读内存)
+  if(!saving) saving = {...SAVING_DEFAULT};
+  return saving;
+}
+async function setSaving(o){
+  saving = {...saving, ...o};
+  // 写本地兜底
+  try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
+  // 云端同步 (异步, 失败不阻塞 UI)
+  if(typeof saveSavings==='function'){
+    try{ await saveSavings(saving); }catch(e){}
+  }
+}
+/* 从云端拉一次覆盖内存 + localStorage, 然后 render */
+async function loadSavings(){
+  if(typeof sb==='undefined' || !sb) return;
+  if(!savingLoaded){
+    // v17.66: 一次性清理测试数据 (升级时清一次, KEY 标记避免重复清)
+    try{
+      if(!localStorage.getItem('wbSaving_clean_v17.66')){
+        localStorage.removeItem('wbSaving');
+        localStorage.setItem('wbSaving_clean_v17.66','1');
+      }
+    }catch(e){}
+  }
+  const {data, error} = await sb.from('app_settings').select('*').eq('key','savings').limit(1);
+  if(error){
+    if(!savingLoaded){
+      // 云端没拉到 — 第一次进来, fallback 到本地 (本地已被 v17.66 清掉了, 等于默认空)
+      try{
+        const raw = JSON.parse(localStorage.getItem('wbSaving')||'null');
+        if(raw && typeof raw==='object') saving = {...SAVING_DEFAULT, ...raw};
+      }catch(e){}
+    }
+    return;
+  }
+  if(data && data.length && data[0].value && typeof data[0].value==='object'){
+    saving = {...SAVING_DEFAULT, ...data[0].value};
+    try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
+  }
+  savingLoaded = true;
+  // v17.66: 拉完后刷一次视图 (如果当前正好在存钱页面)
+  if(typeof view!=='undefined' && view==='saving'){ try{ renderSaving(); }catch(e){} }
+}
+async function saveSavings(value){
+  if(!sb) return false;
+  return await saveSettings('savings', value);
+}
 function renderSaving(){
   const d=getSaving();
-  const goal=d.goal||10000;
-  const name=d.name||'我的小金库';
+  const goal=d.goal||0;   // v17.64: 默认 0, 不再 fallback 到 10000, 金额 input 默认空 placeholder
+  const name=d.name||'';  // v17.64: 不再 fallback, 名字 input 默认空 placeholder 让用户自己起
   const saved=d.saved||0;
-  const pct=Math.min(100, Math.round(saved/goal*100));
-  $('savingGoalName').textContent='🎯 '+name;
-  $('savingAmount').textContent='¥ '+saved.toLocaleString();
-  $('savingMeta').textContent=`已存 ¥${saved.toLocaleString()} / 目标 ¥${goal.toLocaleString()} · ${pct}%`;
-  $('savingFill').style.width=pct+'%';
-  $('savingNameInput').value=name;
-  $('savingGoalInput').value=goal;
-  // v17.2: 历史记录 - 时间 · 金额可编辑 · 删除按钮（数组是时间倒序展示，保存用升序索引）
+  const totalDeposited = d.totalDeposited || 0;
+  const full = goal>0 && saved>=goal;
+  const pct = goal>0 ? Math.min(100, Math.round(saved/goal*100)) : 0;
+  // v17.65: 锁定 = 点过【开启】(d.goalSet=true) — 设了金额点开启后立刻锁本轮; 倒出后 (d.goalSet=false) 才能重设
+  const locked = !!d.goalSet;
+  const ni=$('saveGoalNameInput'); if(ni){ ni.disabled=false; if(document.activeElement!==ni) ni.value = name; }
+  const gi=$('saveGoalInput');      if(gi){ gi.disabled=locked; if(document.activeElement!==gi) gi.value = goal>0 ? goal : ''; }
+  const ub=$('saveGoalBtn');        if(ub) ub.disabled=locked;
+  $('saveCount').innerHTML='¥'+saved.toLocaleString() + (d.goalSet ? '<span class="goal">/ ¥'+goal.toLocaleString()+'</span>' : '');
+  $('saveProgressFill').style.width = pct+'%';
+  // v17.58: 进度条右侧显示百分比
+  $('saveProgressPct').textContent = pct+'%';
+  $('saveTotal').textContent='¥'+totalDeposited.toLocaleString();
+  $('savePourBtn').hidden=!full;
+  // v17.63: 锁定态 = 存过钱 (locked); 满罐态并存 (full=罐子≥goal); 锁定让顶部「/ ¥X,XXX」灰
+  const info=$('saveInfo'); if(info){ info.classList.toggle('is-full', full); info.classList.toggle('is-locked', locked); }
+  const pool=$('savePool'); if(pool) pool.classList.toggle('is-full', full);
+  renderCoinPile();
+  // 存钱记录 (时间倒序展示, 删按钮)
   const hist=(d.history||[]).slice().reverse();
-  const list=$('savingList');
-  if(hist.length===0){ list.innerHTML=`<div class="water-empty">还没有存钱记录</div>`; return; }
+  const list=$('saveList');
+  const shr=$('saveHistoryRight'); if(shr) shr.textContent = (d.history||[]).length ? `共 ${(d.history||[]).length} 条` : '';   // v17.55: 记录条数右侧小字
+  if(hist.length===0){ list.innerHTML=`<div class="water-empty\">还没有存钱记录</div>`; return; }
   list.innerHTML=hist.map((h,revIdx)=>{
-    const realIdx=(d.history||[]).length-1-revIdx; // 转回原数组索引
+    const realIdx=(d.history||[]).length-1-revIdx;
     const dt=new Date(h.t);
     const p=n=>String(n).padStart(2,'0');
     const ts=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
     return `<div class="water-row saving-row" data-idx="${realIdx}">
       <span>${ts}</span>
       <span style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:13px;color:#1f2937;font-weight:600;">¥${h.amount.toLocaleString()}</span>
+        <span style="font-size:13px;color:#92400e;font-weight:700;">¥${h.amount.toLocaleString()}</span>
         <span style="color:#9ca3af;font-size:12px;">元</span>
         <button class="saving-row-del" data-del="${realIdx}" title="删除这条记录" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
       </span>
     </div>`;
   }).join('');
-  // 删除单条
   list.querySelectorAll('.saving-row-del').forEach(btn=>{
     btn.onclick=()=>{
       const idx=parseInt(btn.dataset.del,10);
       const dd=getSaving();
       const oldAmt=dd.history[idx]?dd.history[idx].amount:0;
-      if(!confirm(`删除这条 ¥${oldAmt.toLocaleString()} 的存钱记录吗？`)) return;
+      // v17.54: 每笔存入都已累加到 totalDeposited, 删记录也同步减
+      if(!confirm(`删除这条 ¥${oldAmt.toLocaleString()} 的存钱记录吗？\n(同时扣除当前罐子余额,已累计存款同步减少)`)) return;
       dd.history.splice(idx,1);
       dd.saved=Math.max(0,(dd.saved||0)-oldAmt);
+      dd.totalDeposited=Math.max(0,(dd.totalDeposited||0)-oldAmt);
       setSaving(dd);
       toast('✅ 已删除');
       renderSaving();
     };
   });
 }
-$('savingAddBtn').onclick=()=>{
-  const v=parseFloat($('savingAddInput').value);
+// v17.54: 点罐子/点存入 = 按输入框金额存一笔, 每次存入都累加到 totalDeposited
+$('savePool').onclick=()=>{ doSaveFromInput(); };
+$('saveAddBtn').onclick=()=>{ doSaveFromInput(); };
+function doSaveFromInput(){
+  const v=parseFloat($('saveAddInput').value);
   if(!v||v<=0){toast('⚠️ 请输入金额');return;}
   const d=getSaving();
+  // 满罐后不能再存, 必须先倒出
+  const goalNow = d.goal||10000;
+  if((d.saved||0) >= goalNow){ toast('🎉 罐子已满, 请先「倒出来」完成目标'); $('saveAddInput').value=''; return; }
   d.saved=(d.saved||0)+v;
+  // v17.54: 累计存款, 每存一笔都 +v (不管倒不倒出都累计)
+  d.totalDeposited=(d.totalDeposited||0)+v;
   d.history=d.history||[];
   d.history.push({t:Date.now(), amount:v});
   setSaving(d);
-  $('savingAddInput').value='';
-  toast('✅ 已存入 ¥'+v.toLocaleString());
+  $('saveAddInput').value='';
+  coinBurst(v);   // 🎇 金币落入罐底永久保留 + 叮叮声
   renderSaving();
-};
-$('savingGoalBtn').onclick=()=>{
-  const n=$('savingNameInput').value.trim()||'我的小金库';
-  const g=parseFloat($('savingGoalInput').value)||10000;
+  if(d.saved >= (d.goal||10000)){
+    toast('🎉 罐子满了! 请点「已满请倒出」完成目标, 然后在下方设新目标继续存');
+  } else {
+    toast('✅ 已存入 ¥'+v.toLocaleString());
+  }
+}
+// v17.54: 倒出来 — 累计已是存钱时加过, 此处只清空 saved, 加"倒的动作"动画 (盖子掀开, 金币飞出)
+// v17.57: 历史记录(d.history)不再清空, 达成目标后记录仍保留, 除非用户手动删除
+$('savePourBtn').onclick=()=>{
   const d=getSaving();
-  d.name=n; d.goal=g;
+  const saved=d.saved||0;
+  const goal=d.goal||10000;
+  if(saved<=0) return;
+  if(!confirm(`🎉 倒出来 ¥${saved.toLocaleString()} 完成本轮目标吗？\n\n罐子清空后, 即可在下方设新目标金额继续存。\n(历史记录保留, 不会自动清除)`)) return;
+  // 倒的动画 — 盖子再大掀开 + 罐底金币向右上飞出+淡出
+  animatePourOut();
+  setTimeout(()=>{
+    // v17.54: totalDeposited 不再加 (存钱时已累计), 只清空当前罐子
+    // v17.57: 不再清 d.history, 历史保留供用户查阅 / 手动删
+    // v17.64: 倒出 = 开新一轮, 清 d.saved + d.goalSet + d.goal, 顶部回到 ¥0 干净状态
+    d.saved=0;
+    d.goalSet=false;
+    d.goal=0;
+    setSaving(d);
+    toast('🎉 已倒出! 记录已保留, 下方设新目标金额继续存');
+    renderSaving();
+  }, 900);
+};
+function animatePourOut(){
+  const pool=$('savePool');
+  if(!pool) return;
+  const pile=$('savePile');
+  const lid=pool.querySelector('.save-jar-lid');
+  // 1) 盖子再掀 30°
+  if(lid){
+    lid.style.transformOrigin='right center';
+    lid.style.transition='transform .55s cubic-bezier(.5,-0.3,.4,1.4)';
+    lid.style.transform='translateX(-50%) translateY(-30px) rotate(-95deg)';
+  }
+  // 2) 金币逐枚飞出
+  if(pile){
+    const coins=pile.querySelectorAll('.coin');
+    coins.forEach((c,i)=>{
+      c.style.transition='transform .9s cubic-bezier(.45,.05,.55,.95), opacity .7s';
+      const tx = 220 + Math.random()*120;   // 向右上方飞出
+      const ty = -80 - Math.random()*60;
+      c.style.transform=`translate(${tx}px, ${ty}px) rotate(${(i*180)%720}deg)`;
+      setTimeout(()=>{ c.style.opacity='0'; }, 600+i*30);
+    });
+  }
+  // 3) 0.9s 后盖子复位 + 金币 fade 完
+  setTimeout(()=>{
+    if(lid){
+      lid.style.transform='translateX(-50%) translateY(0) rotate(0)';
+    }
+    pool.classList.remove('is-full');   // 强制去掉, 让 CSS transition 平滑复位
+  }, 950);
+}
+
+// v17.56: 恢复「目标设置」按钮 — 用户可随时改名 / 改金额, 不影响已存金额和历史
+// v17.58: 只有罐子清空 (saved=0) 才允许设新目标; 否则提示「请先倒出完成目标」
+$('saveGoalBtn').onclick=()=>{
+  const ni=$('saveGoalNameInput'), gi=$('saveGoalInput');
+  const d=getSaving();
+  if((d.saved||0)>0){ toast('⚠️ 当前目标未完成, 请先「倒出来」清空罐子再设新目标'); return; }
+  const name=(ni.value||'').trim() || '我的小金库';
+  const goal=parseInt(gi.value,10);
+  if(!goal||goal<1){toast('⚠️ 请输入有效的目标金额'); return;}
+  d.name=name;
+  d.goal=goal;
+  d.goalSet=true;   // v17.59: 标记「用户已主动设过目标」, 上方「/ ¥X,XXX」从此显示
   setSaving(d);
-  toast('✅ 目标已更新');
   renderSaving();
+  toast('🎯 目标已开启');
+};
+$('saveGoalInput').onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); $('saveGoalBtn').click(); } };
+$('saveGoalNameInput').onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); $('saveGoalInput').focus(); } };
+// v17.64: 目标名改了就立刻同步 — 空就空, 不给默认值
+$('saveGoalNameInput').oninput = (e)=>{ const d=getSaving(); d.name=e.target.value.trim(); setSaving(d); };
+$('saveAddInput').onkeydown = (e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); $('saveAddBtn').click(); }
 };
 
 /* 把护眼表情函数注入全局（原代码可能在 window 作用域） */
@@ -2482,8 +2815,10 @@ if(sb){
   }).subscribe();
   // app_settings 任何变化都重拉（手机电脑同步 labels / cycle_len）
   try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>safeReload('settings',loadSettings)).subscribe(); }catch(e){}
+  // v17.66: 存钱 (savings 存在 app_settings 里 key='savings') 走独立 channel, 用 filter 只响应自己的 key, 不浪费 loadSettings 流量
+  try{ sb.channel('savings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings',filter:'key=eq.savings'},()=>safeReload('savings',loadSavings)).subscribe(); }catch(e){}
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); if(view==='water') loadWaterCups(); } });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); loadSavings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); if(view==='water') loadWaterCups(); if(view==='saving') { loadSavings(); } } });
 
 /* ---------- 我的农场 v5：自由农场 ---------- */
 const FARM_KEY='suixin_farm_v3';
@@ -3219,6 +3554,8 @@ try{ renderStats(); renderList(); }catch(e){}
   // v17.38: 拉护眼 / 喝水云端数据 —— 首页卡初始即显示真实值（不依赖先切到对应 view）
   try{await loadDrops();}catch(e){}
   try{await loadWaterCups();}catch(e){}
+  // v17.66: 拉存钱云端数据 (复用 app_settings 表 key='savings') — 切到存钱页或 visibility 触发实时同步
+  try{await loadSavings();}catch(e){}
   // v17: 数据到位后如果停在首页，重渲染 4 卡片
   try{ if(view==='home') renderHomeCards(); }catch(e){}
   // v17: 触发首页渲染（含 4 张聚合卡 + 时钟 + 鼓励语 footer）
