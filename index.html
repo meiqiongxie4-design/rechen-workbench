@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.86</title>
+<title>GrowTime · v17.87</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -152,7 +152,7 @@
   （截图里所有 view 同时显示、侧栏跑到顶部），所以彻底回退到 v17.3 layout
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
-<!-- v17.86 (8/14 反馈): 锁 .wrap 高度 100dvh + overflow:hidden, 备忘/流光内容超高时不再撑大 .wrap/.app/.sidebar, 左侧菜单栏始终保持首页高度(原 min-height 在内容超高时被撑大, sb-spacer 撑开变空旷) -->
+<!-- v17.87 (8/14 反馈): 左侧菜单栏内"喝水"和"设置"分开远 — 删 .sb-spacer 撑开 + sidebar-foot margin-top:0 + sidebar 不要 align-self:stretch, 8个菜单项紧凑排顶部, 设置紧跟喝水 -->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
 <!-- v17.46 (8/14 反馈): 待办统计数字字号 32→52px 跟首页 .hc-time 一样大
   用户: 这两个字号跟首页的时间一样大, 把待办的这两个字段的字号改成跟首页的时间一样大, 不要去动首页
@@ -582,15 +582,15 @@
 
   /* ============ v17 左侧栏 + 首页 4 卡片 ============ */
   .app{display:flex;gap:14px;align-items:stretch;flex:1;min-height:0;}
-  .sidebar{width:84px;flex-shrink:0;background:linear-gradient(180deg,#bbf7d0 0%,#86efac 100%);border-right:1px solid #4ade80;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:stretch;box-shadow:0 2px 12px rgba(34,197,94,.08);}
+  .sidebar{width:84px;flex-shrink:0;background:linear-gradient(180deg,#bbf7d0 0%,#86efac 100%);border-right:1px solid #4ade80;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:flex-start;box-shadow:0 2px 12px rgba(34,197,94,.08);}   /* v17.87: align-self:flex-start 不要 stretch, 高度 = 内容自然高, 不再被右侧内容撑大撑长 */
   .sb-item{width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:4px 0;border-radius:10px;color:var(--muted);transition:.15s;}
   .sb-item .ic{width:48px;height:48px;background:#fff;border:1px solid #bbf7d0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;}
   .sb-item .lb{font-size:10.5px;color:#16a34a;font-weight:600;letter-spacing:.3px;}
   .sb-item.active .ic{background:#22c55e;border-color:#22c55e;box-shadow:0 4px 10px rgba(34,197,94,.3);}
   .sb-item.active .lb{color:#166534;font-weight:700;}
   .sb-item:active .ic{transform:scale(.94);}
-  .sb-spacer{flex:1;background:transparent;cursor:default;}
-  .sidebar-foot{margin-top:auto;display:flex;flex-direction:column;gap:4px;}
+  .sb-spacer{flex:1;background:transparent;cursor:default;display:none;}   /* v17.87: display:none, 不再撑开(之前 flex:1 把"设置"推得和"喝水"分开很远) */
+  .sidebar-foot{margin-top:0;display:flex;flex-direction:column;gap:4px;}   /* v17.87: margin-top:0, 不再 margin-top:auto 推到底, 设置按钮紧跟最后一个 sb-item */
 
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;overflow:hidden;}   /* v17.36: overflow:hidden 兜底,viewX 内容各自滚,侧栏高度永远固定在视口 */
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto;}   /* v17.36: viewX 自带 overflow:auto,备忘/流光等长内容在 view 内滚,侧栏不会跟着拉长 */
