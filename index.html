@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.39</title>
+<title>GrowTime · v17.40</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1703,6 +1703,7 @@ async function loadTodos(){
   $('banner').hidden=true; setupError=false;
   todos=data||[];
   renderStats(); renderList();
+  try{ if($('homeCards')) renderHomeCards(); }catch(e){}   // v17.40: 同步首页待办卡(realtime 推送让其他端首页也秒变)
 }
 function renderStats(){
   const open=todos.filter(t=>!t.done);
