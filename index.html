@@ -153,7 +153,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- v17.87 (8/14 反馈): 左侧菜单栏内"喝水"和"设置"分开远 — 删 .sb-spacer 撑开 + sidebar-foot margin-top:0 + sidebar 不要 align-self:stretch, 8个菜单项紧凑排顶部, 设置紧跟喝水 -->
-<!-- 版本：rechen-v2026-08-15-v18.18-restore-original-icons (v18.16/v18.17 的 PNG 透明角处理后反而让图标看起来比 WorkBuddy 小一圈——v18.17 把猫头白圆角外框抠掉填深绿背景, 失去白色对比框; 本版直接把 3 个 PNG 还原成 f2d56ae 原始的「白底圆角大猫头」(字节大小完全一致), theme-color/manifest 同步回 #63e4be, favicon.ico 保持 f2d56ae 原始(MD5 已验证未动过)) -->
+<!-- 版本：rechen-v2026-08-15-v18.19-banner-copy-btn (v18.18 还原原始图标后, 用户反馈手机"点共享还报同步错" + 电脑图标还是比 WorkBuddy 小(其实是 PWA 缓存旧图标, 详见 v18.18 说明); 本版 banner 顶部错误条加「复制」按钮——用户看到错误时一键复制内容发给我, 比截图更快更准; 同时给 banner 补上完整 CSS 样式避免位置错乱) -->
 <!-- v17.46 (8/14 反馈): 待办统计数字字号 32→52px 跟首页 .hc-time 一样大
   用户: 这两个字号跟首页的时间一样大, 把待办的这两个字段的字号改成跟首页的时间一样大, 不要去动首页
   改 .stat .num 32→52px (桌面), 24→40px (手机), 跟 .hc-time 桌面 52px / 手机 40px 对齐
@@ -385,6 +385,12 @@
 
   /* 全局 toast 浮层（之前缺样式导致一直显示在文档底部） */
   .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(0,0,0,.82);color:#fff;font-size:14px;font-weight:600;padding:10px 20px;border-radius:999px;pointer-events:none;transition:opacity .25s,transform .25s;z-index:300;white-space:nowrap;box-shadow:0 6px 20px rgba(0,0,0,.2);}
+  /* v18.19: banner 顶部错误条加「复制」按钮 — 用户一键复制错误发给我 */
+  .banner{position:relative;background:#fff4f4;border:1px solid #f3b4b4;border-radius:10px;color:#c0392b;font-size:13px;line-height:1.5;padding:10px 12px;margin-bottom:10px;}
+  .banner .bn-head{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .banner .bn-copy{font-size:11px;color:#fff;background:#c0392b;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;flex-shrink:0;}
+  .banner .bn-body{margin-top:6px;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:#9b2c2c;}
+  .banner[hidden]{display:none!important;}
   /* v11: 常驻错误条，任何同步错误都持久显示，不再一闪而过 */
   .debug-bar{position:fixed;left:8px;right:8px;bottom:8px;z-index:400;background:#fff4f4;border:1px solid #f3b4b4;border-radius:12px;color:#c0392b;font-size:13px;line-height:1.5;padding:10px 12px;box-shadow:0 6px 22px rgba(0,0,0,.18);}
   .debug-bar .db-head{font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px;}
@@ -1389,7 +1395,13 @@ function showFatal(msg){
   recordError('fatal', msg);
   try{
     const b=$('banner');
-    if(b){ b.innerHTML='<b>⚠️ 系统异常：</b> '+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); b.hidden=false; }
+    if(b){
+      // v18.19: banner 上加「复制」按钮 — 用户一键复制错误发给我, 不用每次截图
+      b.innerHTML='<div class="bn-head"><b>⚠️ 系统异常</b><button type="button" class="bn-copy">复制</button></div><div class="bn-body">'+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</div>';
+      const btn=b.querySelector('.bn-copy');
+      if(btn){ btn.onclick=()=>{ if(navigator.clipboard) navigator.clipboard.writeText(msg); else prompt('复制下面内容发给我：',msg); toast('已复制错误信息'); }; }
+      b.hidden=false;
+    }
   }catch(e){}
 }
 window.addEventListener('error',e=>{
