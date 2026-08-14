@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.42b</title>
+<title>GrowTime · v17.43</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -210,7 +210,7 @@
   .stat:hover{border-color:var(--accent-soft);}
   .stat.active{border-color:var(--accent);}
   .stat .label{color:var(--muted);font-size:12.5px;font-weight:600;}
-  .stat .num{font-size:28px;font-weight:800;line-height:1;}
+  .stat .num{font-size:32px;font-weight:800;line-height:1;}   /* v17.43: 升到 32px 跟首页统一, 数字更突出 */
   .stat .hint{font-size:11.5px;color:var(--muted);}   /* v17.42: 横排后去掉 margin-top, 三段在同一行 baseline 对齐 */
   .panel{padding:18px;}
   .sub-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
@@ -574,9 +574,9 @@
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
-  .hc-left .num{font-size:22px;font-weight:700;color:#22c55e;line-height:1.2;white-space:nowrap;}
+  .hc-left .num{font-size:32px;font-weight:800;color:#22c55e;line-height:1.1;white-space:nowrap;}   /* v17.43: 和待办统计卡 .num 统一 32px (让待办\"跟首页字号一样大\"成立) */
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
-  .hc-left .num.warn{color:#dc2626;font-size:20px;font-weight:800;}
+  .hc-left .num.warn{color:#dc2626;font-size:28px;font-weight:800;}
   .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
   .hc-time{font-size:52px;font-weight:600;color:#22c55e;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
   .hc-date{font-size:12.5px;color:#6b7280;}
@@ -1205,6 +1205,7 @@ function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 /* 导航 */
 function switchView(v){
   view=v;
+  try{ localStorage.setItem('rechen_current_view', v); }catch(e){}   /* v17.43: 持久化当前 view,F5/刷新后停留此页(不再默认回首页) */
   ['viewHome','viewTodo','viewMemo','viewCounter','viewPeriod','viewFarm','viewWater','viewSaving'].forEach(id=>{
     const el=$(id); if(el) el.hidden = id!=='view'+capitalize(v);
   });
@@ -3148,7 +3149,11 @@ try{ renderStats(); renderList(); }catch(e){}
   // v17: 数据到位后如果停在首页，重渲染 4 卡片
   try{ if(view==='home') renderHomeCards(); }catch(e){}
   // v17: 触发首页渲染（含 4 张聚合卡 + 时钟 + 鼓励语 footer）
-  try{ switchView('home'); }catch(e){showFatal('switchView home: '+(e.message||e));}
+  try{
+    const saved=(localStorage.getItem('rechen_current_view')||'').trim();
+    const VALID=['home','todo','memo','counter','period','farm','water','saving'];
+    switchView(VALID.includes(saved)?saved:'home');   /* v17.43: 记住上次停留的 view,F5/刷新后不再默认回首页 */
+  }catch(e){ showFatal('switchView init: '+(e.message||e)); }
 })();
 setInterval(tickFarm,1000);
 // v17: 鼓励语 30 秒换一次
