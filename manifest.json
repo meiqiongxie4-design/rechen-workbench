@@ -1,14 +1,14 @@
 {
   "name": "GrowTime",
   "short_name": "GrowTime",
-  "start_url": "./index.html?v=18.23",
+  "start_url": "./index.html?v=18.24",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [
-    {"src": "favicon-192.png?v=18.23", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-    {"src": "favicon-512.png?v=18.23", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-    {"src": "apple-touch-icon.png?v=18.23", "sizes": "180x180", "type": "image/png", "purpose": "any"}
+    {"src": "pwa-icon-192-v18.24.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "pwa-icon-512-v18.24.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "pwa-apple-180-v18.24.png", "sizes": "180x180", "type": "image/png", "purpose": "any"}
   ]
 }
