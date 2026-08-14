@@ -3213,15 +3213,10 @@ async function loadDropClicks(){
     if(error){recordError('loadDropClicks', error.message); return;}
     if(data && data[0] && data[0].value){
       const cloud = (typeof data[0].value === 'string') ? JSON.parse(data[0].value) : data[0].value;
-      // 云端权威, 本地最新 60s 内的新增并入 (避免刚点未同步上云端的数据丢)
+      // v17.97c: 云端权威, 该 date 直接以云端为准 (不再并入本地多余 — 避免"删除测试数据后被本地 cache 复活")
+      //          云端缺的 date 保留本地 (防本设备有云端没有的情况)
       for(const [date, list] of Object.entries(cloud || {})){
         if(!Array.isArray(list)) continue;
-        const localList = dropClicks[date] || [];
-        const cSet = new Set(list.map(c => (c.t || c.time || '')));
-        for(const lc of localList){
-          if(cSet.has(lc.t || lc.time || '')) continue;
-          if(Date.now() - new Date(lc.t || 0).getTime() < 60000) list.push(lc);
-        }
         list.sort((a,b) => new Date(a.t||0) - new Date(b.t||0));
         dropClicks[date] = list;
       }
