@@ -225,16 +225,18 @@
   .topbar button:hover{color:var(--accent);border-color:var(--accent);}
   .topbar .btn{padding:11px 18px;border:none;background:var(--accent);color:#fff;font-size:14px;font-weight:600;border-radius:10px;cursor:pointer;transition:.15s;align-self:center;}   /* v17.47: 备忘「添加」按钮跟待办 .btn 一致 + 垂直居中 */
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
-  /* v18.02: 流光视图唯一一张大卡片, hero 卡片之后给下张卡片加点距上间距 (删 .period-summary 后补救) */
-  #viewPeriod > .card + .card{margin-top:18px;}
-  /* v18.02: 流光的内联统计条 — 累计 / 距离下次 / 平均(非卡片化, 跟下方水流记录一气呵成) */
-  .period-stats{display:flex;justify-content:center;align-items:baseline;gap:18px;flex-wrap:wrap;padding:14px 12px 6px;color:var(--muted);font-size:13px;}
-  .period-stats .item{display:inline-flex;align-items:baseline;gap:6px;}
-  .period-stats .item .n{font-size:18px;font-weight:800;color:#ec4899;line-height:1;}
-  .period-stats .item.countdown{cursor:pointer;}
-  .period-stats .item.countdown:hover .n{color:#be185d;}
-  .period-stats .item .l{color:var(--muted);font-size:12px;font-weight:500;}
-  .period-stats .sep{color:#cbd5e1;font-size:14px;user-select:none;}
+  /* v18.03: 流光视图 — 整片就一张大卡片, 删掉 hero 与主卡之间的 18px 间距 + 卡片级兄弟选择器 */
+  /* v18.03: 流光的内联统计条 — 3 个统计各自一个圆角细框 (像 350ml 那个绿框), flex 横向排列 */
+  .period-stats{display:flex;gap:10px;justify-content:space-between;padding:14px 14px 6px;}
+  .period-stats .stat-cell{flex:1;border:1.5px solid #bbf7d0;border-radius:12px;padding:11px 6px;text-align:center;background:#fff;transition:.15s;}
+  .period-stats .stat-cell.clickable{cursor:pointer;}
+  .period-stats .stat-cell.clickable:hover{border-color:#86efac;background:#f0fdf4;}
+  .period-stats .stat-cell .n{font-size:20px;font-weight:800;color:#ec4899;line-height:1.1;}
+  .period-stats .stat-cell .l{font-size:11.5px;color:var(--muted);margin-top:4px;}
+  .period-stats .stat-cell.overdue{background:linear-gradient(180deg,#fee2e2 0%,#fff 100%);border-color:#fca5a5;}
+  .period-stats .stat-cell.overdue .n,.period-stats .stat-cell.overdue .l{color:#b91c1c;}
+  /* v18.03: 卡片内分段虚线 — hero ↔ 统计 ↔ 标题/列表 */
+  .period-divider{margin:0 14px;border-top:1px dashed #bbf7d0;}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
   .stat{padding:16px 18px;border:2px solid transparent;cursor:pointer;transition:.15s;min-height:92px;display:flex;align-items:center;justify-content:center;gap:14px;}   /* v17.42: 横排 label+num+hint 但 min-height:92px 保持原卡片高度(纵列时≈95px); padding 回 16/18 */
   .stat:hover{border-color:var(--accent-soft);}
@@ -474,19 +476,7 @@
   .period-list .row .date .tag{display:inline-block;font-size:11px;background:#ec4899;color:#fff;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:2px;}
   .period-list .row .del{background:transparent;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:8px;}
   .period-list .row .del:hover{background:#fee2e2;color:var(--red);}
-  .period-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
-  .period-summary .s{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 6px;text-align:center;}
-  .period-summary .s .n{font-size:22px;font-weight:800;color:#ec4899;line-height:1;}
-  .period-summary .s .l{font-size:12px;color:var(--muted);margin-top:6px;}
-  .period-summary .s.countdown{cursor:pointer;background:linear-gradient(180deg,#fce7f3 0%,#fff 100%);border-color:#fbcfe8;position:relative;}
-  .period-summary .s.countdown:hover{border-color:#ec4899;}
-  .period-summary .s.countdown .n{font-size:30px;color:#be185d;}
-  .period-summary .s.countdown .l{color:#9d174d;font-weight:600;}
-  .period-summary .s.countdown .cycle-hint{font-size:11px;color:#9d174d;margin-top:4px;opacity:.7;}
-  .period-summary .s.countdown.overdue{background:linear-gradient(180deg,#fee2e2 0%,#fff 100%);border-color:#fca5a5;}
-  .period-summary .s.countdown.overdue .n{color:#b91c1c;}
-  .period-summary .s.countdown.overdue .l{color:#b91c1c;}
-  .period-footer{text-align:center;color:var(--muted);font-size:11px;margin-top:8px;line-height:1.7;}
+  /* v18.03: 删 .period-summary 相关样式 (合并到 .period-stats/.stat-cell) */
 
 /* 护眼记 - 水池版 */
   .pool-wrap{display:flex;gap:36px;align-items:center;justify-content:center;padding:14px 0 26px;flex-wrap:wrap;}
@@ -1018,23 +1008,37 @@
 
   <!-- 暖记 -->
   <div id="viewPeriod" hidden>
-    <div class="card period-hero">
-      <div class="period-pool" id="periodPool" title="点一下记一笔">🌷</div>
-      <div class="period-info">
-        <div class="big" id="periodLastGap">—</div>
-        <div class="meta" id="periodLastWhen">还没有记录</div>
-        <div class="tip" id="periodTip" style="display:none"></div>
-      </div>
-    </div>
     <div class="card">
-      <!-- v18.02: 唯一一张大卡片 — 顶部内联统计条 (累计 / 距下次 / 平均) + 「流光记录」标题 + 年份折叠列表 -->
-      <div class="period-stats">
-        <span class="item"><span class="n" id="periodStatTotal">0</span><span class="l">累计记录</span></span>
-        <span class="sep">·</span>
-        <span class="item countdown" id="periodStatNext" title="点我调整周期长度"><span class="n" id="periodStatNextN">—</span><span class="l" id="periodStatNextL">距离下次天数</span></span>
-        <span class="sep">·</span>
-        <span class="item"><span class="n" id="periodStatAvg">—</span><span class="l">平均间隔(天)</span></span>
+      <!-- v18.03: 整片就这一张大卡片 — hero(上) + 统计三框(中) + 流光记录(下) 都在卡片内, 中间用虚线分段 -->
+      <!-- 上半: hero 区 (绿色大圆 + 右侧信息, 不再是独立 .card) -->
+      <div class="period-hero">
+        <div class="period-pool" id="periodPool" title="点一下记一笔">🌷</div>
+        <div class="period-info">
+          <div class="big" id="periodLastGap">—</div>
+          <div class="meta" id="periodLastWhen">还没有记录</div>
+          <div class="tip" id="periodTip" style="display:none"></div>
+        </div>
       </div>
+      <!-- hero ↔ 统计 虚线分隔 -->
+      <div class="period-divider"></div>
+      <!-- 中部: 3 个统计各自一个圆角细框 (像 350ml 绿框), 横向排列 -->
+      <div class="period-stats">
+        <div class="stat-cell">
+          <div class="n" id="periodStatTotal">0</div>
+          <div class="l">累计记录</div>
+        </div>
+        <div class="stat-cell clickable" id="periodStatNext" title="点我调整周期长度">
+          <div class="n" id="periodStatNextN">—</div>
+          <div class="l" id="periodStatNextL">距下次天数</div>
+        </div>
+        <div class="stat-cell">
+          <div class="n" id="periodStatAvg">—</div>
+          <div class="l">平均间隔(天)</div>
+        </div>
+      </div>
+      <!-- 统计 ↔ 列表 虚线分隔 -->
+      <div class="period-divider"></div>
+      <!-- 下部: 列表 (喝水同款, 各自 .water-row 虚线分隔) -->
       <div class="history-title">流光记录 <span class="right" id="periodHistRight" style="color:#6b7280;font-weight:400;font-size:12px;">共 0 条</span></div>
       <div class="water-list" id="periodWaterList">
         <div id="periodList"></div>
