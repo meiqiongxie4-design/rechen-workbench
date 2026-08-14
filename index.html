@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.87</title>
+<title>GrowTime · v17.88</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -172,7 +172,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.85 (存钱删除秒同步: 云端权威 + 待同步队列只保留本机新增, 删除不再被复活; 首屏并行加载降延迟) -->
+<!-- 版本：rechen-v2026-08-14-v17.88 (左侧菜单栏: 回 stretch + 删 spacer + 不推 footer 三件套; .wrap 取消 height:100dvh 锁高 + overflow:hidden, .main 取消 overflow:hidden, .viewX 取消 overflow:auto; 改用 .app{min-height:calc(100dvh-22)} 兜底首页 sidebar 满屏, 但备忘/流光超高时 sidebar 跟 .app 一起延长, 菜单图标紧凑靠顶不动) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -209,7 +209,7 @@
   .app.collapsed .sb-toggle{left:8px;}
   @media (max-width:640px){ .sb-toggle{left:76px;width:26px;height:26px;font-size:13px;} .app.collapsed .sb-toggle{left:8px;} }
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-  .wrap{max-width:none;margin:0 auto;padding:22px 24px 0;min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;height:100dvh;height:-webkit-fill-available;display:flex;flex-direction:column;overflow:hidden;}  /* v17.86: 桌面 padding-bottom 60→0,鼓励语视觉基线对齐侧栏绿条底(跟 v17.32 手机端同款); v17.86 加 height:100dvh 锁高+overflow:hidden, 内容超高不被撑大, 左侧菜单栏保持首页高度 */
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 0;min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;display:flex;flex-direction:column;}  /* v17.88: 取消 height:100dvh 锁高 + overflow:hidden; 改回 min-height:100dvh, .app{min-height:calc(100dvh-22)} 兜底首页 sidebar 满屏, 备忘/流光超高时 sidebar 跟 .app 一起延长 */
   header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
@@ -581,19 +581,19 @@
   .mod-error button:hover{color:#7f1d1d;}
 
   /* ============ v17 左侧栏 + 首页 4 卡片 ============ */
-  .app{display:flex;gap:14px;align-items:stretch;flex:1;min-height:0;}
-  .sidebar{width:84px;flex-shrink:0;background:linear-gradient(180deg,#bbf7d0 0%,#86efac 100%);border-right:1px solid #4ade80;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:flex-start;box-shadow:0 2px 12px rgba(34,197,94,.08);}   /* v17.87: align-self:flex-start 不要 stretch, 高度 = 内容自然高, 不再被右侧内容撑大撑长 */
+  .app{display:flex;gap:14px;align-items:stretch;flex:1;min-height:calc(100dvh - 22px);}   /* v17.88: min-height:calc(100dvh-22) 兜底首页 sidebar 满屏; 取消 min-height:0, 让 main 内容超高时 .app 跟着延长 → sidebar 也跟着延长 (配合 .sidebar{align-self:stretch}) */
+  .sidebar{width:84px;flex-shrink:0;background:linear-gradient(180deg,#bbf7d0 0%,#86efac 100%);border-right:1px solid #4ade80;border-radius:14px;padding:14px 0;display:flex;flex-direction:column;gap:8px;align-items:center;align-self:stretch;box-shadow:0 2px 12px rgba(34,197,94,.08);}   /* v17.88: 回 align-self:stretch (拉成 .app 同高, 首页 100dvh-22 满屏, 备忘/流光跟着内容延长), 但内部删 spacer + 不推 footer → 菜单紧凑靠顶 */
   .sb-item{width:60px;display:flex;flex-direction:column;align-items:center;gap:4px;background:transparent;border:none;cursor:pointer;padding:4px 0;border-radius:10px;color:var(--muted);transition:.15s;}
   .sb-item .ic{width:48px;height:48px;background:#fff;border:1px solid #bbf7d0;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;line-height:1;}
   .sb-item .lb{font-size:10.5px;color:#16a34a;font-weight:600;letter-spacing:.3px;}
   .sb-item.active .ic{background:#22c55e;border-color:#22c55e;box-shadow:0 4px 10px rgba(34,197,94,.3);}
   .sb-item.active .lb{color:#166534;font-weight:700;}
   .sb-item:active .ic{transform:scale(.94);}
-  .sb-spacer{flex:1;background:transparent;cursor:default;display:none;}   /* v17.87: display:none, 不再撑开(之前 flex:1 把"设置"推得和"喝水"分开很远) */
-  .sidebar-foot{margin-top:0;display:flex;flex-direction:column;gap:4px;}   /* v17.87: margin-top:0, 不再 margin-top:auto 推到底, 设置按钮紧跟最后一个 sb-item */
+  .sb-spacer{display:none;}   /* v17.88: 不显示 spacer, 菜单紧凑靠顶, 不再被拉成"被推到底" */
+  .sidebar-foot{margin-top:0;display:flex;flex-direction:column;gap:4px;}   /* v17.88: 设置按钮紧跟最后一个 sb-item (margin-top:auto 之前把设置推得太远) */
 
-  .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;overflow:hidden;}   /* v17.36: overflow:hidden 兜底,viewX 内容各自滚,侧栏高度永远固定在视口 */
-  #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto;}   /* v17.36: viewX 自带 overflow:auto,备忘/流光等长内容在 view 内滚,侧栏不会跟着拉长 */
+  .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}   /* v17.88: 取消 overflow:hidden (v17.86 那个会让 main 高度被截, sidebar 永远只能跟 .app 同高不跟内容延长); 保留 min-height:0 是 flex item 必需 (否则会被内容撑到 min-content) */
+  #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}   /* v17.88: 取消 overflow:auto (让 view 内容可超高撑大 main → 撑大 .app → sidebar 跟着延长; 同时 .app{min-height} 保证首页 sidebar 满屏) */
 
   /* 首页 4 卡片 - v17.27: 取消所有 flex:1，让卡片 content-size；
      顶卡 3 张之间靠相同 min-height:88 / max-height:124 自然等高；
