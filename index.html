@@ -235,8 +235,14 @@
   .period-stats .stat-cell .l{font-size:11.5px;color:var(--muted);margin-top:4px;}
   .period-stats .stat-cell.overdue{background:linear-gradient(180deg,#fee2e2 0%,#fff 100%);border-color:#fca5a5;}
   .period-stats .stat-cell.overdue .n,.period-stats .stat-cell.overdue .l{color:#b91c1c;}
-  /* v18.03: 卡片内分段虚线 — hero ↔ 统计 ↔ 标题/列表 */
+  /* v18.03: 卡片内分段虚线 — hero ↔ 统计 (统计 ↔ 列表这条在 v18.04 改由「流光记录」标题自带 border-top 提供, 跟喝水完全同款) */
   .period-divider{margin:0 14px;border-top:1px dashed #bbf7d0;}
+  /* v18.04: 流光大卡片加 18px 内 padding (跟 .water-card 一致), 解决「记录太靠两侧」 */
+  #viewPeriod > .card{padding:18px;}
+  /* v18.04: 流光列表 — 自身不再带 border-top, 「流光记录」标题自带 1 条虚线 (跟喝水同款: 虚线→标题→列表) */
+  #viewPeriod .water-list{margin-top:0;padding-top:0;border-top:none;}
+  #viewPeriod .water-list-title{font-size:13px;color:#16a34a;font-weight:700;margin:14px 0 8px;padding-top:14px;border-top:1px dashed #bbf7d0;display:flex;justify-content:space-between;align-items:center;}
+  #viewPeriod .water-list-title .sub{color:#6b7280;font-weight:500;font-size:12px;}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px;}
   .stat{padding:16px 18px;border:2px solid transparent;cursor:pointer;transition:.15s;min-height:92px;display:flex;align-items:center;justify-content:center;gap:14px;}   /* v17.42: 横排 label+num+hint 但 min-height:92px 保持原卡片高度(纵列时≈95px); padding 回 16/18 */
   .stat:hover{border-color:var(--accent-soft);}
@@ -1036,11 +1042,10 @@
           <div class="l">平均间隔(天)</div>
         </div>
       </div>
-      <!-- 统计 ↔ 列表 虚线分隔 -->
-      <div class="period-divider"></div>
-      <!-- 下部: 列表 (喝水同款, 各自 .water-row 虚线分隔) -->
-      <div class="history-title">流光记录 <span class="right" id="periodHistRight" style="color:#6b7280;font-weight:400;font-size:12px;">共 0 条</span></div>
+      <!-- v18.04: 删「统计 ↔ 列表」分隔线 — 改由「流光记录」标题的 border-top 自带, 跟喝水完全同款（虚线→标题→列表） -->
+      <!-- 下部: 列表 (喝水同款: 标题自带虚线在上方, 各自 .water-row 虚线分隔) -->
       <div class="water-list" id="periodWaterList">
+        <div class="water-list-title">流光记录 <span class="sub" id="periodHistRight">共 0 条</span></div>
         <div id="periodList"></div>
       </div>
     </div>
