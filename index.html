@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.38</title>
+<title>GrowTime · v17.39</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -115,6 +115,17 @@
        (此前首页护眼/喝水偶发 0 的根因: 启动没拉, 只靠切 view)
     8. WATER_SQL_HINT 给 banner 用; 完整 SQL 见对话
   验证: 跑 water_log 建表 SQL 后, 隐身开 → 手机点 +1, 电脑刷新/停留首页和喝水 view 都秒变
+<!-- v17.39 (8/14): 首页护眼数据没跟护眼 view 同步 —— 核心 bug 是 dropN 算 length 而非 count
+  根因复盘: drops 表结构是"每天唯一一行 + count 字段" (date text unique, count int)
+    护眼 view 用 rec.count 取值 → 显示 3/10 正确
+    首页用了 dropsToday.length(过滤后行数) → 今天 1 行 = 显示 1 滴 (永远 ≤ 1)
+    v17.35 修字段名 x.day→x.date 后, "永远 0" 变成"永远 1" — 暴露了这个真正的算法 bug
+  修法:
+    1. dropN = dropsToday[0]?.count || 0  (用 count 字段, date unique 决定最多 1 行)
+    2. loadDrops: limit(30) → gte('date', today-90) — 防 limit 太小把今天挤出
+       + 失败时不清空 drops 数组(保留上次值,避免错误瞬间首页清零)
+    3. setupError 跨模块占位问题(可能解释"刷新变 0"另一根因) 留作下一轮
+  验证: 首页显示"今日已滴 N 滴"=护眼 view 数字 (count 字段); 表情 face 随 count 变化
 -->
 <!--
   v17.20 首页打磨（基于你 8/14 反馈）：
@@ -1288,9 +1299,10 @@ function renderHomeCards(){
   const waterMl=waterCups*waterCupMl;
   const waterTarget=parseInt(localStorage.getItem('wbWaterTarget')||'2000',10);
   const waterPct=Math.min(100, Math.round(waterMl/waterTarget*100));
-  // 护眼（drops 表今日）— v17.35: 修笔误 x.day → x.date（之前 drops 表的列名是 date 不是 day，导致首页永远显示 0）
+  // 护眼（drops 表今日）— v17.39: 用 count 字段而非行数（date unique, 每天 1 行, count 才是真值）
+  //                  v17.35 修字段名 x.day→x.date 后, 行数=1 永远只能算到 1 滴, 根本 bug 在此
   const dropsToday=(drops||[]).filter(x=>(x.date||'')===today);
-  const dropN=dropsToday.length;
+  const dropN=dropsToday[0]?(dropsToday[0].count||0):0;
   const dropFace=getDropStatus(dropN).face||'😊';
   const dropText=getDropStatus(dropN).text||'眼睛舒适';
   const dropWarn=dropN>=10;
@@ -1947,11 +1959,14 @@ $('memoList').addEventListener('paste',async e=>{
 
 /* ---------- 护眼记 ---------- */
 async function loadDrops(){
-  const {data,error}=await sb.from('drops').select('*').order('date',{ascending:false}).limit(30);
+  // v17.39: 改用 gte 拉最近 90 天（避免 limit(30) 边缘情况把今天挤出, 也避免 limit 太小漏掉今天）
+  const since=new Date(); since.setDate(since.getDate()-90);
+  const sinceStr=since.toISOString().slice(0,10);
+  const {data,error}=await sb.from('drops').select('*').gte('date',sinceStr).order('date',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 护眼记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>create table if not exists public.drops (id uuid primary key default gen_random_uuid(), date text not null unique, count int not null default 0, max_count int not null default 10, created_at timestamptz default now());<br>alter table public.drops disable row level security;<br>grant insert, update, delete, select on table public.drops to anon;');} return; }
   $('banner').hidden=true; setupError=false;
   drops=data||[]; renderDrops();
-  // v17.26: 同步刷新首页卡（首页护眼数 = 今天 drops）
+  // v17.26: 同步刷新首页卡（首页护眼数 = 今天 drops count）
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
 }
 function comfortState(count){
