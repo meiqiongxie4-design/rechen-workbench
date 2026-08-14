@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.66</title>
+<title>GrowTime · v17.73</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -565,6 +565,10 @@
   @media(max-width:420px){
     .nav button{font-size:12px;padding:8px 4px;}
   }
+  /* v17.67: 喝水目标设置 — 手机端每杯 / 目标 各占一行 (避免挤一起) */
+  @media(max-width:560px){
+    .water-target-set .cup-row,.water-target-set .target-row{flex:1 1 100%;justify-content:flex-start;}
+  }
   .mod-error{margin:0 0 12px;padding:8px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;color:#b91c1c;font-size:12.5px;display:flex;justify-content:space-between;align-items:center;gap:8px;}
   .mod-error span{flex:1;line-height:1.4;}
   .mod-error button{background:none;border:none;color:#b91c1c;cursor:pointer;font-size:18px;line-height:1;padding:0 2px;}
@@ -647,9 +651,15 @@
   .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
   .water-row:last-child{border-bottom:none;}
   .water-empty{font-size:12px;color:#9ca3af;text-align:center;padding:8px 0;}
-  .water-target-set{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#6b7280;flex-wrap:wrap;}
-  .water-target-set input{width:80px;padding:5px 8px;border:1px solid #bbf7d0;border-radius:8px;font-size:12.5px;text-align:center;}
-  .water-target-set button{padding:5px 10px;border:1px solid #22c55e;background:var(--surface);color:#16a34a;border-radius:8px;font-size:12px;cursor:pointer;}
+  /* v17.68: 目标设置 — 两排整齐对齐 (label 42px + input 80px + unit ml + 启航 60px) */
+  .water-target-set{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;font-size:13px;color:#16a34a;font-weight:600;flex-wrap:wrap;}
+  .water-target-set .cup-row,.water-target-set .target-row{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;}
+  .water-target-set .lbl{width:42px;text-align:right;font-weight:700;color:#16a34a;}
+  .water-target-set input{width:80px;padding:6px 8px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:13px;text-align:center;background:#fff;color:#16a34a;font-weight:700;outline:none;transition:border-color .15s;}
+  .water-target-set input:focus{border-color:#16a34a;background:#f0fdf4;}
+  .water-target-set .unit{font-size:13px;font-weight:600;color:#16a34a;}
+  .water-target-set button{padding:6px 12px;min-width:60px;background:linear-gradient(180deg,#22c55e 0%,#16a34a 100%);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s;box-shadow:0 2px 6px rgba(22,163,74,.25);}
+  .water-target-set button:hover{background:linear-gradient(180deg,#16a34a 0%,#15803d 100%);}
 
   /* 喝水大水池（同护眼样式，绿系） */
   .water-pool-wrap{display:flex;gap:28px;align-items:center;justify-content:center;padding:8px 0 18px;flex-wrap:wrap;}
@@ -662,12 +672,19 @@
   .water-pool .pool-water{position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#86efac 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
   .water-pool .pool-face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;}
   .water-pool .pool-ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
-  .water-pool-info{text-align:left;min-width:200px;}
-  .water-pool-info .big{font-size:42px;font-weight:800;color:#166534;line-height:1;}
-  .water-pool-info .ml{font-size:14px;color:#6b7280;margin-top:6px;}
-  .water-pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:10px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;}
-  .water-pool-info .status.ok{background:#dcfce7;color:#166534;}
-  .water-pool-info .status.full{background:#bbf7d0;color:#166534;}
+  .water-pool-info{text-align:center;min-width:200px;}
+  /* v17.68/v17.69: "已喝 X 杯"和"累计 X ml"统一字号 + 行距加大 (不再挤) */
+  .water-pool-info .big{font-size:30px;font-weight:800;color:#16a34a;line-height:1.4;margin:0;}
+  .water-pool-info .total-ml{font-size:30px;font-weight:800;color:#16a34a;line-height:1.4;margin:10px 0 0;}
+  .water-pool-info .total-ml .unit{font-size:18px;color:#16a34a;font-weight:700;margin-left:4px;}
+  /* v17.69: 进度条移到 .water-pool-info 内, 居中, 一小长 (max-width 280) */
+  .water-progress-inline{width:100%;max-width:280px;margin:14px auto 0;text-align:left;}
+  .water-progress-inline .progress-meta{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-bottom:6px;color:#6b7280;}
+  .water-progress-inline .progress-meta .pct{color:#16a34a;font-weight:700;}
+  /* v17.68: 继续喝水按钮 — 同 #16a34a */
+  .water-pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:8px 14px;border-radius:999px;font-size:13px;font-weight:600;}
+  .water-pool-info .status.ok{background:#dcfce7;color:#16a34a;}
+  .water-pool-info .status.full{background:#bbf7d0;color:#16a34a;}
   .water-pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.5);z-index:2;pointer-events:none;}
 
   /* v17.54: 全局去掉 number 输入框的上下按钮（用户自己输金额） */
@@ -982,41 +999,52 @@
     </div>
   </div>
 
-  <!-- 喝水（v17.3 大水池 + 自定义每杯 + 记录可删） -->
+  <!-- 喝水（v17.68: 累计 ml 大字 / 两排整齐 / 启航 / 目标挪到继续喝水上方 / 默认 0） -->
   <div id="viewWater" hidden>
     <div class="water-card">
       <div class="water-pool-wrap">
         <div class="water-pool" id="waterPool" title="点一下水池喝一杯">
           <div class="pool-water" id="waterPoolWater"></div>
           <div class="pool-face" id="waterPoolFace">💧</div>
-          <div class="water-pool-hint">点水池喝一杯</div>
+          <!-- v17.69: 删「点水池喝一杯」提示文字 (水池本身就是按钮, 让用户自由点) -->
         </div>
         <div class="water-pool-info">
           <div class="big" id="waterBig">已喝 0 杯</div>
-          <div class="ml" id="waterMl">· 0 ml</div>
+          <!-- v17.71: 删「累计」两字, 只显多少 ML (跟"已喝 X 杯"对仗, 都是大字但单位不同) -->
+          <div class="total-ml" id="waterTotalMl">0<span class="unit">ml</span></div>
           <div class="status ok" id="waterStatus">💧 继续喝水</div>
           <div class="status" id="waterOverWarn" style="display:none;background:#fee2e2;color:#991b1b;">⚠️ 已超过目标</div>
+          <!-- v17.69: 进度条挪到「继续喝水」下方, 居中一小长 (max-width 280px) -->
+          <div class="water-progress-inline">
+            <div class="progress-meta">
+              <span class="pct" id="waterPct">已完成 0%</span>
+              <span class="target" id="waterTargetTxt">目标 0 ml</span>
+            </div>
+            <div class="progress-bar"><div class="progress-fill" id="waterFill" style="width:0%"></div></div>
+          </div>
+          <!-- v17.69: 目标设置 (在进度条下方, 启航按钮) -->
+          <div class="water-target-set">
+            <div class="cup-row">
+              <span class="lbl">每杯</span>
+              <!-- v17.69: 默认空 placeholder, 不预填 250 (用户自己填) -->
+              <input type="number" id="waterCupInput" min="50" max="2000" step="50" placeholder="250" />
+              <span class="unit">ml</span>
+              <button id="waterCupBtn">启航</button>
+            </div>
+            <div class="target-row">
+              <span class="lbl">目标</span>
+              <!-- v17.69: 默认空 placeholder, 不预填 0 (用户自己填) -->
+              <input type="number" id="waterTargetInput" min="0" max="5000" step="100" placeholder="目标" />
+              <span class="unit">ml</span>
+              <button id="waterTargetBtn">启航</button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="water-progress">
-        <div class="pct" id="waterPct">已完成 0%</div>
-        <div class="target" id="waterTargetTxt">目标 2000 ml</div>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" id="waterFill" style="width:0%"></div></div>
-
-      <div class="water-target-set" style="margin-top:14px;">
-        <span style="font-weight:600;">每杯：</span>
-        <input type="number" id="waterCupInput" min="50" max="2000" step="50" value="250" style="width:70px;" /> ml
-        <button id="waterCupBtn">保存</button>
-        <span style="margin-left:14px;font-weight:600;">目标：</span>
-        <input type="number" id="waterTargetInput" min="500" max="5000" step="100" value="2000" style="width:80px;" /> ml
-        <button id="waterTargetBtn">保存</button>
-      </div>
-
-      <div class="water-list">
-        <div class="water-list-title">今日打卡 <span id="waterCountTxt" style="color:#16a34a;font-weight:600;"></span>
-          <button id="waterClearToday" style="float:right;background:none;border:none;color:#dc2626;font-size:11.5px;cursor:pointer;padding:0 4px;">× 清空今日</button>
+      <div class="water-list" style="margin-top:18px;">
+        <!-- v17.69: 「今日打卡」→「喝水记录」, 杯子·毫升联动首页 -->
+        <div class="water-list-title">喝水记录 <span id="waterCountTxt" style="color:#16a34a;font-weight:600;"></span>
         </div>
         <div id="waterList"></div>
       </div>
@@ -1444,12 +1472,14 @@ function renderHomeCards(){
                   : hr<19 ? '傍晚啦，出去走走？'
                   : hr<22 ? '晚上好！今天辛苦啦'
                   :          '夜深了，记得早点休息';
-  // 喝水（localStorage）
+  // 喝水（localStorage） — v17.68: 没设置过目标默认 0 (而不是 2000); v17.69: 杯 ml 也未设默认 0
   const waterCups=getWaterCups(today);
-  const waterCupMl=parseInt(localStorage.getItem('wbWaterCup')||'250',10);
+  const _cupStored=localStorage.getItem('wbWaterCup');
+  const waterCupMl=_cupStored===null ? 0 : parseInt(_cupStored,10);
   const waterMl=waterCups*waterCupMl;
-  const waterTarget=parseInt(localStorage.getItem('wbWaterTarget')||'2000',10);
-  const waterPct=Math.min(100, Math.round(waterMl/waterTarget*100));
+  const _wStored=localStorage.getItem('wbWaterTarget');
+  const waterTarget=_wStored==null ? 0 : parseInt(_wStored,10);
+  const waterPct=waterTarget>0 ? Math.min(100, Math.round(waterMl/waterTarget*100)) : 0;
   // 护眼（drops 表今日）— v17.39: 用 count 字段而非行数（date unique, 每天 1 行, count 才是真值）
   //                  v17.35 修字段名 x.day→x.date 后, 行数=1 永远只能算到 1 滴, 根本 bug 在此
   const dropsToday=(drops||[]).filter(x=>(x.date||'')===today);
@@ -1514,7 +1544,14 @@ function renderHomeCards(){
   `;
 
   // 事件绑定 — 喝水 +1
-  const addBtn=$('hcWaterAdd'); if(addBtn) addBtn.onclick=()=>{ addWaterCup(today); /* emitWaterChange 会重渲两个 view */ };
+  const addBtn=$('hcWaterAdd');
+  if(addBtn){
+    // v17.69: 未设每杯 ml 时, +1 按钮禁用 — 避免"加一杯 0 ml"无意义
+    addBtn.disabled = waterCupMl<=0;
+    addBtn.title = waterCupMl>0 ? `记录一杯 ${waterCupMl} ml` : '先去喝水 view 设每杯 ml';
+    addBtn.style.opacity = waterCupMl>0 ? '' : '0.45';
+    addBtn.onclick=()=>{ if(!addBtn.disabled) addWaterCup(today); };
+  }
   // 护眼卡无按钮（汇总展示卡），点整张卡进【护眼】view
   const eyeCard=box.querySelector('.hc:nth-of-type(3)');  /* 第 3 张是护眼 */
   if(eyeCard) eyeCard.onclick=()=>switchView('counter');
@@ -1615,34 +1652,56 @@ function getWaterCups(day){
 }
 
 // v17.38: 从云端拉今天的喝水记录（realtime 触发 / 切换 view / 页面启动都会调）
+// v17.72 修复: 云端 SELECT 失败 (RLS 拒/网络等) 时降级走 localStorage, 不再 return 留空白
 async function loadWaterCups(){
   if(!sb){ waterLoaded=false; return; }   // 无 Supabase：退回 localStorage
   const today=todayStr();
-  const {data,error}=await sb.from('water_log').select('*').eq('date',today).order('ts',{ascending:true});
-  if(error){
-    if(!setupError){ setupError=true; showBanner('⚠️ 喝水记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>'+WATER_SQL_HINT); }
-    return;
+  let cloudOk=false;
+  try{
+    const {data,error}=await sb.from('water_log').select('*').eq('date',today).order('ts',{ascending:true});
+    if(error) throw error;
+    cloudOk=true;
+    $('banner').hidden=true; setupError=false;
+    waterRows=data||[]; waterLoaded=true;
+    // v17.72: 同时把云端数据镜像到 localStorage, 兜底源始终是当前真实数据
+    const o=getWaterLog();
+    o[today] = (data||[]).map(r=>{
+      const d = new Date(r.ts);
+      const p=n=>String(n).padStart(2,'0');
+      return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    });
+    setWaterLog(o);
+  }catch(err){
+    console.warn('[water] 云端拉取失败, 走 localStorage 兜底:', (err.message||err));
+    if(!setupError){ setupError=true; showBanner('⚠️ 喝水云端拉取失败, 本地记录保留。如未创建 water_log 表请在 Supabase 跑 SQL:<br><br>'+WATER_SQL_HINT); }
+    waterLoaded=false;   // 关键: 让 renderWater 走 localStorage 兜底, 列表不再空白
   }
-  $('banner').hidden=true; setupError=false;
-  waterRows=data||[]; waterLoaded=true;
-  renderWater();
+  renderWater();   // 不论云端成败都重渲, 让 UI 立刻反映最新状态
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}   // 同步首页卡
 }
 
 // 记录一杯（写云端；realtime 会自动推到其他端；本端手动 push 保证秒响应）
+// v17.72 修复: 无论云端是否成功, localStorage 都写一份 (作为本地主数据 + 云端 SELECT 失败时的兜底)
+//                之前只有 cloudOk=false 才写 localStorage → 云端 SELECT 被 RLS 拒时刷新后列表空白
 async function addWaterCup(day){
+  let cloudOk=false;
   if(sb){
-    const {data,error}=await sb.from('water_log').insert({date:day, ts:new Date().toISOString()}).select();
-    if(error){ showFatal('记录喝水失败: '+(error.message||'')); return; }
-    const row=(data&&data[0])||{date:day,ts:new Date().toISOString()};
-    if(day===todayStr()) waterRows.push(row);
-  }else{
-    const o=getWaterLog(); if(!o[day]) o[day]=[];
-    const t=new Date(); const p=n=>String(n).padStart(2,'0');
-    o[day].push(`${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`);
-    setWaterLog(o);
+    try{
+      const {data,error}=await sb.from('water_log').insert({date:day, ts:new Date().toISOString()}).select();
+      if(!error){
+        cloudOk=true;
+        const row=(data&&data[0])||{date:day,ts:new Date().toISOString()};
+        if(day===todayStr()) waterRows.push(row);
+      } else console.warn('[water] 云端写入失败, 仅本地记录:', error.message);
+    }catch(e){ console.warn('[water] 云端异常, 仅本地记录:', e); }
   }
-  toast('✅ 已记录一杯 250 ml');
+  // 永远写 localStorage 兜底 (云端 SELECT 失败/RLS 拒绝时仍能显示列表)
+  const o=getWaterLog(); if(!o[day]) o[day]=[];
+  const t=new Date(); const p=n=>String(n).padStart(2,'0');
+  o[day].push(`${p(t.getHours())}:${p(t.getMinutes())}:${p(t.getSeconds())}`);
+  setWaterLog(o);
+  // 云端失败时标记走 localStorage 模式 (列表渲染不依赖云端 SELECT)
+  if(!cloudOk) waterLoaded=false;
   emitWaterChange();   // → renderWater() + renderHomeCards() 同步两个 view
 }
 
@@ -1659,23 +1718,53 @@ async function delWaterCup(id){
 function renderWater(){
   const today=todayStr();
   const cups=getWaterCups(today);
-  const cupMl=parseInt(localStorage.getItem('wbWaterCup')||'250',10);
+  // v17.69: 未设过杯 ml = 0 (不再 fallback 250), input 显示空 + placeholder
+  const cupStored=localStorage.getItem('wbWaterCup');
+  const cupMl=cupStored===null ? 0 : parseInt(cupStored,10);
   const ml=cups*cupMl;
-  const target=parseInt(localStorage.getItem('wbWaterTarget')||'2000',10);
-  const pct=Math.min(100, Math.round(ml/target*100));
+  // v17.68: 没设置过目标, 默认 0 (而不是 2000); 已设置过才用 localStorage 值
+  const stored=localStorage.getItem('wbWaterTarget');
+  const target=stored==null ? 0 : parseInt(stored,10);
+  const pct=target>0 ? Math.min(100, Math.round(ml/target*100)) : 0;
   // 大水池
   $('waterBig').textContent = `已喝 ${cups} 杯`;
-  $('waterMl').textContent = `· ${ml} ml`;
+  // v17.71: 删「累计」两字, 只显多少 ML, 跟"已喝 X 杯"对仗
+  $('waterTotalMl').innerHTML = `${ml.toLocaleString()}<span class="unit">ml</span>`;
   $('waterPct').textContent = `已完成 ${pct}%`;
-  $('waterTargetTxt').textContent = `目标 ${target} ml`;
+  $('waterTargetTxt').textContent = `目标 ${target.toLocaleString()} ml`;
   $('waterFill').style.width = pct+'%';
-  $('waterTargetInput').value = target;
-  $('waterCupInput').value = cupMl;
-  $('waterCountTxt').textContent = cups>0?`(${cups} 杯 · ${ml} ml · 每杯 ${cupMl} ml)`:'';
-  // 水池水位 + 表情
-  const heightPct=Math.min(100, Math.round(ml/target*100));
+  // v17.73: input 一次性绑 input/blur 事件 (启动时一次性即可)
+//        —— 用户键入后设 dataset.userInput='1', renderWater() 看到标记就不再覆盖
+//        —— 用户清空 input = 解除保护, 之后保持空白
+//        —— localStorage 里的旧值永不回填 (用户明确: 不要默认填)
+['waterCupInput','waterTargetInput'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el || el._v17_73Bound) return;
+  el._v17_73Bound=true;
+  const sync=()=>{
+    if(el.value==='') delete el.dataset.userInput;
+    else el.dataset.userInput='1';
+  };
+  el.addEventListener('input', sync);
+  el.addEventListener('blur', sync);
+});
+
+// v17.73: input 永远不预填 localStorage 里的值 (用户明确要求不要自动填)
+  //        —— 但用户已在本 session 键入的值要保留到用户主动改/清为止
+  //        —— 用户当前正在输入时 (activeElement) 不覆盖, 让用户能改字
+  //        —— 用户清空 input = 解除保护, 之后仍保持空白
+  const cupEl=$('waterCupInput'), tgtEl=$('waterTargetInput');
+  const applyInput = (el)=>{
+    if(document.activeElement===el) return;     // 正在输入, 不动
+    if(el.dataset.userInput==='1' && el.value!=='') return;   // 本 session 用户已输入, 保留
+    el.value='';   // 否则一律空白 (placeholder 提示)
+  };
+  applyInput(cupEl); applyInput(tgtEl);
+  $('waterCountTxt').textContent = cups>0?`(${cups} 杯 · ${ml.toLocaleString()} ml · 每杯 ${cupMl} ml)`:'';
+  // 水池水位 + 表情 (没设目标水池不满, 一直显示水位 0; 满后再超)
+  const heightPct=target>0 ? Math.min(100, Math.round(ml/target*100)) : 0;
   $('waterPoolWater').style.height=heightPct+'%';
-  const over=ml>=target;
+  const over=target>0 && ml>=target;
   $('waterOverWarn').style.display=over?'':'none';
   $('waterStatus').textContent = over?'🎉 已完成今日目标':'💧 继续喝水';
   $('waterStatus').className = 'status '+(over?'full':'ok');
@@ -1686,12 +1775,13 @@ function renderWater(){
   if(arr.length===0) list.innerHTML = `<div class="water-empty">今天还没打卡，喝一杯吧～</div>`;
   else list.innerHTML = arr.slice().reverse().map((r,i)=>{
     const realIdx=arr.length-1-i;
+    const cupNo=arr.length-i;   // v17.69: 第 N 杯 (今日最新一杯 = 第 1 杯)
     const tsStr = waterLoaded ? (r.ts? new Date(r.ts).toLocaleTimeString('zh-CN',{hour12:false}) : '—') : esc(r);
     const delVal = waterLoaded ? esc(r.id) : realIdx;
     return `<div class="water-row" data-idx="${realIdx}">
       <span>${tsStr}</span>
       <span style="display:flex;align-items:center;gap:6px;">
-        <span style="color:#22c55e;font-weight:600;">${cupMl} ml</span>
+        <span style="color:#16a34a;font-weight:600;">第 ${cupNo} 杯 · ${cupMl} ml</span>
         <button class="water-row-del" data-del="${delVal}" data-loaded="${waterLoaded}" title="删除这条" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
       </span>
     </div>`;
@@ -1724,27 +1814,14 @@ $('waterPool').onclick=async(e)=>{
   setTimeout(()=>ripple.remove(),900);
   addWaterCup(todayStr());  // emitWaterChange 会重渲两个 view
 };
-// 清空今日（v17.38: 云端批量删 water_log 行 + 离线兜底）
-$('waterClearToday').onclick=async()=>{
-  if(!confirm('清空今日所有喝水打卡记录？')) return;
-  if(sb && waterLoaded){
-    const ids=(waterRows||[]).map(r=>r.id);
-    if(ids.length){
-      const {error}=await sb.from('water_log').delete().in('id',ids);
-      if(error){ showFatal('清空喝水失败: '+(error.message||'')); return; }
-    }
-    waterRows=[];
-  }else{
-    const o=getWaterLog(); delete o[todayStr()]; setWaterLog(o);
-  }
-  emitWaterChange();
-  toast('✅ 已清空');
-};
+// v17.67: 删「清空今日」按钮 (DOM 也已删), JS 一并清掉
+// v17.72: 删 v17.71 的 dataset.userInput 机制 — input 回填已用 activeElement 检查保护用户当前输入
 $('waterTargetBtn').onclick=()=>{
   const v=parseInt($('waterTargetInput').value,10);
-  if(!v||v<500){toast('⚠️ 目标至少 500 ml');return;}
+  if(isNaN(v)||v<0){toast('⚠️ 目标不能为负');return;}
   localStorage.setItem('wbWaterTarget', String(v));
-  toast('✅ 目标已更新');
+  // 用户已"保存", 保留输入框显示他设的值, 不强制清空
+  toast(v>0?`✅ 目标已设为 ${v.toLocaleString()} ml`:'✅ 已清空目标');
   emitWaterChange();  // v17.26: 同步首页百分比
 };
 // v17.3: 自定义每杯 ml
@@ -1752,8 +1829,9 @@ $('waterCupBtn').onclick=()=>{
   const v=parseInt($('waterCupInput').value,10);
   if(!v||v<50||v>2000){toast('⚠️ 每杯 50~2000 ml');return;}
   localStorage.setItem('wbWaterCup', String(v));
+  // 用户已"保存", 保留输入框显示他设的值
   toast('✅ 每杯已设为 '+v+' ml');
-  emitWaterChange();  // v17.26: 同步首页（首页显示 X 杯 + 0ml，需要刷新百分比）
+  emitWaterChange();  // v17.26: 同步（首页显示 X 杯 + 0ml，需要刷新百分比）
 };
 
 /* ============ v17.52: 存钱 — 金盖宝箱+金币永久留下+进度条+累计实时累加 ============ */
