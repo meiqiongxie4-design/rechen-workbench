@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.81</title>
+<title>GrowTime · v17.82</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.81 (修删除跨设备不同步: localStorage 不再镜像云端记录, 对方删除后本机不再复活) -->
+<!-- 版本：rechen-v2026-08-14-v17.82 (存钱记录: 去掉时间, 新增备注输入, 标题黄颜色加粗跟 ¥4,000 同色) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -653,6 +653,18 @@
   .water-row{display:flex;justify-content:space-between;font-size:12.5px;color:#4b5563;padding:5px 0;border-bottom:1px dashed #dcfce7;}
   .water-row:last-child{border-bottom:none;}
   .water-empty{font-size:12px;color:#9ca3af;text-align:center;padding:8px 0;}
+  /* v17.82: 存钱记录 — 黄颜色（跟 ¥4,000 同色 #d97706）加粗, 行布局: 日期 + 金额 + 备注 + × */
+  .saving-list-title{font-size:13px;color:#d97706;font-weight:700;margin-bottom:8px;}
+  .saving-list-title .right{color:#6b7280;font-weight:500;font-size:12px;}
+  .saving-row .saving-row-date{color:#6b7280;font-size:12.5px;font-weight:500;}
+  .saving-row .saving-row-right{display:flex;align-items:center;gap:8px;}
+  .saving-row .saving-row-amt{color:#d97706;font-weight:700;font-size:13px;}
+  .saving-row .saving-row-note{color:#6b7280;font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .saving-row .saving-row-del{background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;}
+  .saving-row .saving-row-del:hover{color:#b91c1c;}
+  /* 备注输入框 — 跟金额输入框一个色系, 单独一行窄一点 */
+  .save-add-note{display:block;width:100%;max-width:280px;margin:6px auto 0;padding:8px 14px;border:1.5px solid #fcd34d;border-radius:10px;font-size:14px;background:#fffbeb;outline:none;transition:border-color .15s;}
+  .save-add-note:focus{border-color:#d97706;background:#fff;}
   /* v17.68: 目标设置 — 两排整齐对齐 (label 42px + input 80px + unit ml + 启航 60px) */
   .water-target-set{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;font-size:13px;color:#16a34a;font-weight:600;flex-wrap:wrap;}
   .water-target-set .cup-row,.water-target-set .target-row{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;}
@@ -1081,6 +1093,7 @@
             <input type="number" id="saveAddInput" min="1" placeholder="存入金额…" />
             <button class="btn" id="saveAddBtn">存入</button>
           </div>
+          <input type="text" id="saveAddNote" class="save-add-note" maxlength="20" placeholder="备注（选填）" />
         </div>
       </div>
       <!-- v17.58: 「目标设置」行简化 — 去掉 🎯 表情、去掉「目标/金额¥」标签字, 只留 name input + amount input + 更新按钮 -->
@@ -1091,7 +1104,7 @@
       </div>
       <!-- v17.55: 存钱记录挪到 .save-wrap 外, 成为卡片下半部独立一块 (跟原来一样) -->
       <div class="history-section">
-        <div class="history-title">存钱记录 <span class="right" id="saveHistoryRight"></span></div>
+        <div class="saving-list-title">存钱记录 <span class="right" id="saveHistoryRight"></span></div>
         <div id="saveList"></div>
       </div>
     </div>
@@ -2169,13 +2182,16 @@ function renderSaving(){
     const realIdx=(d.history||[]).length-1-revIdx;
     const dt=new Date(h.t);
     const p=n=>String(n).padStart(2,'0');
-    const ts=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}`;
+    // v17.82: 只显日期 (YYYY-MM-DD), 不显时间; 新增备注列
+    const dateStr=`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`;
+    const noteTxt=(h.note||'').trim();
+    const noteHtml=noteTxt ? `<span class="saving-row-note" title="${esc(noteTxt)}">${esc(noteTxt)}</span>` : '';
     return `<div class="water-row saving-row" data-idx="${realIdx}">
-      <span>${ts}</span>
-      <span style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:13px;color:#92400e;font-weight:700;">¥${h.amount.toLocaleString()}</span>
-        <span style="color:#9ca3af;font-size:12px;">元</span>
-        <button class="saving-row-del" data-del="${realIdx}" title="删除这条记录" style="background:none;border:none;color:#dc2626;font-size:16px;line-height:1;cursor:pointer;padding:0 4px;">×</button>
+      <span class="saving-row-date">${dateStr}</span>
+      <span class="saving-row-right">
+        <span class="saving-row-amt">¥${h.amount.toLocaleString()}</span>
+        ${noteHtml}
+        <button class="saving-row-del" data-del="${realIdx}" title="删除这条记录">×</button>
       </span>
     </div>`;
   }).join('');
@@ -2201,6 +2217,7 @@ $('saveAddBtn').onclick=()=>{ doSaveFromInput(); };
 function doSaveFromInput(){
   const v=parseFloat($('saveAddInput').value);
   if(!v||v<=0){toast('⚠️ 请输入金额');return;}
+  const note=($('saveAddNote').value||'').trim();   // v17.82: 备注 (选填)
   const d=getSaving();
   // 满罐后不能再存, 必须先倒出
   const goalNow = d.goal||10000;
@@ -2209,9 +2226,11 @@ function doSaveFromInput(){
   // v17.54: 累计存款, 每存一笔都 +v (不管倒不倒出都累计)
   d.totalDeposited=(d.totalDeposited||0)+v;
   d.history=d.history||[];
-  d.history.push({t:Date.now(), amount:v});
+  // v17.82: 记录带备注 (note 字段, 旧记录没有就空)
+  d.history.push({t:Date.now(), amount:v, note});
   setSaving(d);
   $('saveAddInput').value='';
+  $('saveAddNote').value='';   // 清空备注框
   coinBurst(v);   // 🎇 金币落入罐底永久保留 + 叮叮声
   renderSaving();
   if(d.saved >= (d.goal||10000)){
