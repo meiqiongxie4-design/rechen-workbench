@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.36</title>
+<title>GrowTime · v17.37</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -89,6 +89,19 @@
   - .todo-summary 加 flex:1 与 3 张 .hc 等高撑满
   - mobile media query 去掉残留的 grid-template-columns:1fr 覆写
   保留 v17.20 改的：.hc-face !important 兜底去外圈 + 鼓励语按日缓存 + renderHomeCards 不渲染 "喝水"/"护眼" 标签
+<!-- v17.37 (8/14 反馈): 护眼卡回退到 v17.20 大表情设计
+  根因: v17.35 给护眼卡加 +1 按钮 + 缩小表情到 24px, 跟喝水卡强行同节奏, 但
+    1) 护眼卡是"今日汇总展示卡", 不是操作入口 —— 滴眼操作应只走【护眼】view
+    2) 24px 小表情在 88px 高卡片里视觉孤立, 看着像 emoji 飘
+    3) 用户要求"表情跟【护眼】模块一样", 护眼 view 是 font-size:64px 大表情
+  修法:
+    1. 护眼卡 HTML: 删 .eye-right 容器 + hcEyeAdd 按钮 + hc-face-mini, 只剩 .hc-face 大表情
+    2. .hc-face: font-size 42px → 64px (跟 .pool .face 一致); 加 cursor:pointer + hover scale(1.08) + active .95
+    3. 删 .hc-face-mini / .hc-add-sm / .eye-right (不再用)
+    4. 删 homeAddDrop 函数 (按钮没了, 函数没用); eyeBtn 事件绑定删
+    5. 整张护眼卡可点 → switchView('counter') (让用户能跳到【护眼】去操作)
+  联动保留: emitEyeChange 监听 + renderHomeCards 重算 dropFace, 护眼 view 滴眼后首页大表情自动同步
+-->
 <!--
   v17.20 首页打磨（基于你 8/14 反馈）：
   1. 左 3 卡（时间/喝水/护眼）严格等分左列高度 = 右待办卡高度（用 grid-template-rows:1fr 1fr 1fr 强制等分；align-items:stretch 让两列齐高）
@@ -548,11 +561,9 @@
   .hc-add{width:74px;height:74px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;box-shadow:0 4px 10px rgba(34,197,94,.3);cursor:pointer;border:none;transition:.15s;}
   .hc-add:active{transform:scale(.94);}
     /* v17.20: 护眼 😄 表情 - 去掉任何外圈/边框/背景，只留 emoji 本身 */
-  .hc-face{font-size:42px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;}
-    /* v17.35: 首页护眼卡 - 缩小表情让位给 +1 按钮，跟喝水卡统一节奏（横向 [😊 +1]）*/
-  .hc-face-mini{font-size:24px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;}
-  .hc-add-sm{width:46px;height:46px;font-size:16px;}
-  .eye-right{flex-direction:row;gap:6px;}
+  .hc-face{font-size:64px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;cursor:pointer;transition:transform .2s;}
+  .hc-face:hover{transform:scale(1.08);}    /* v17.37: 大表情 hover 轻微放大（表示可点） */
+  .hc-face:active{transform:scale(.95);}
 
   /* 今日待办卡（首页底部）- v17.27: 之前被后加的 flex:1 覆盖了上行的 flex:0 0 auto，所以卡片总是撑满整段；
      这里强制 content-size + max-height 6 条 (JS 已 .slice(0,6) 限流，CSS 兜底)。 */
@@ -1302,13 +1313,13 @@ function renderHomeCards(){
         <div class="hc-right"><button class="hc-add" id="hcWaterAdd" title="记录一杯 ${waterCupMl} ml">+1</button></div>
       </div>
 
-      <!-- ③ 护眼卡 — v17.35: 加 +1 按钮（face 缩小让位），字段名笔误一并修 -->
+      <!-- ③ 护眼卡 — v17.37: 恢复大表情（跟护眼 view .pool .face 一样 64px），表情随【护眼】模块同步。去掉 +1 按钮（汇总展示卡不是操作入口） -->
       <div class="hc">
         <div class="hc-left">
           <div class="num ${dropWarn?'warn':''}">${dropWarn?'⚠️ ':''}今日已滴 ${dropN} 滴</div>
           <div class="sub">${dropText} · 上限 10 滴</div>
         </div>
-        <div class="hc-right eye-right"><span class="hc-face-mini" id="hcFace">${dropFace}</span><button class="hc-add hc-add-sm" id="hcEyeAdd" title="点一下记录一次滴眼">+1</button></div>
+        <div class="hc-right"><span class="hc-face" id="hcFace">${dropFace}</span></div>
       </div>
     </div>
 
@@ -1325,9 +1336,11 @@ function renderHomeCards(){
     </div>
   `;
 
-  // 事件绑定
+  // 事件绑定 — 喝水 +1
   const addBtn=$('hcWaterAdd'); if(addBtn) addBtn.onclick=()=>{ addWaterCup(today); /* emitWaterChange 会重渲两个 view */ };
-  const eyeBtn=$('hcEyeAdd'); if(eyeBtn) eyeBtn.onclick=(e)=>{ e.stopPropagation(); homeAddDrop(eyeBtn); };
+  // 护眼卡无按钮（汇总展示卡），点整张卡进【护眼】view
+  const eyeCard=box.querySelector('.hc:nth-of-type(3)');  /* 第 3 张是护眼 */
+  if(eyeCard) eyeCard.onclick=()=>switchView('counter');
   const todoCard=box.querySelector('.todo-summary');
   if(todoCard) todoCard.onclick=(e)=>{ if(e.target.classList&&e.target.classList.contains('ck')) return; switchView('todo'); };
 }
@@ -1342,24 +1355,8 @@ document.addEventListener('eye:changed',()=>{
   try{ if($('dropCount')) renderDrops(); }catch(e){}
 });
 
-/* v17.35: 首页护眼 +1 — 复用 addDrop()，自带按钮涟漪（不依赖 护眼 view 的水池涟漪） */
-async function homeAddDrop(btn){
-  // 涟漪反馈（按钮位置）
-  try{
-    const rect=btn.getBoundingClientRect();
-    const ripple=document.createElement('div');
-    ripple.className='ripple';
-    const size=46;
-    ripple.style.width=ripple.style.height=size+'px';
-    ripple.style.left=(rect.width/2-size/2)+'px';
-    ripple.style.top=(rect.height/2-size/2)+'px';
-    ripple.style.position='absolute';
-    btn.appendChild(ripple);
-    setTimeout(()=>ripple.remove(),700);
-  }catch(e){}
-  await addDrop();
-  emitEyeChange();  // v17.35: 通知护眼 view（如果用户已切换过去）立即重渲
-}
+/* v17.37: 护眼卡去 +1 按钮（汇总展示卡非操作入口）— 取消 homeAddDrop，操作只走护眼 view。
+   保留 emitEyeChange 监听：护眼 view 滴眼后 -> renderHomeCards 重算 dropFace -> 大表情自动同步。 */
 async function homeToggleTodo(id){
   const t=(todos||[]).find(x=>x.id===id);
   if(!t){ return; }
