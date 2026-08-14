@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.82</title>
+<title>GrowTime · v17.83</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.82 (存钱记录: 去掉时间, 新增备注输入, 标题黄颜色加粗跟 ¥4,000 同色) -->
+<!-- 版本：rechen-v2026-08-14-v17.83 (修存钱第二次存入数据丢失: 移除 settings-rt 对 loadSavings 的无条件覆盖触发 + loadSavings 加本机较新保护) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -2139,8 +2139,17 @@ async function loadSavings(){
     return;
   }
   if(data && data.length && data[0].value && typeof data[0].value==='object'){
-    saving = {...SAVING_DEFAULT, ...data[0].value};
-    try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
+    const cloud = data[0].value;
+    const cloudHist = (cloud.history||[]);
+    const memHist = (saving.history||[]);
+    // v17.83: 防御 — 本机历史条数 > 云端(刚存入尚未同步到云端) 时保留本机, 不覆盖丢失;
+    //         否则用云端(包含另一台设备存入的数据)。这样即使未来又有触发也不会吞掉本机刚存的记录
+    if(memHist.length > cloudHist.length){
+      try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
+    }else{
+      saving = {...SAVING_DEFAULT, ...cloud};
+      try{ localStorage.setItem('wbSaving', JSON.stringify(saving)); }catch(e){}
+    }
   }
   savingLoaded = true;
   // v17.66: 拉完后刷一次视图 (如果当前正好在存钱页面)
@@ -3108,8 +3117,10 @@ if(sb){
                        || payload && payload.old && payload.old.key==='water_settings';
       safeReload('settings',loadSettings);
       safeReload('water-set',loadWaterSettings);
-      safeReload('savings',loadSavings);
       if(isWaterSet) safeReload('water-set-input',loadWaterSettings);  // 再触发一次确保显示更新
+      // v17.83: 存钱(savings)不在此触发 loadSavings — 任意 app_settings 变化会无条件覆盖内存 saving,
+      //         与本机刚存入的写入竞态(覆盖窗口读到旧值) → 存第二次数据丢失。
+      //         存钱跨端同步改由 switchView / visibilitychange / 页面启动 拉取(这些时机云端已是本机最新值, 覆盖安全)
     }).subscribe((status)=>{
       if(status==='SUBSCRIBED') _RT_STATES.connectedAt=Date.now();
     });
@@ -3142,6 +3153,8 @@ let _syncPollTimer=null;
     loadWaterCups().catch(()=>{});
     // settings (每杯/目标) 也轮询, 保证设置跨设备同步
     loadWaterSettings().catch(()=>{});
+    // v17.83: 存钱跨端自动同步 — 移除 realtime 触发后, 改用低频轮询拉云端 (loadSavings 内部已有本机较新保护, 不丢本机数据)
+    loadSavings().catch(()=>{});
   }, 8000);
 })();
 // v17.79: realtime 连接诊断 — 如果 30s 内没收到 SUBSCRIBED, 在 debugBar 提示用户 (不阻塞, 轮询继续兜底)
