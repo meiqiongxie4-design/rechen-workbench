@@ -153,7 +153,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
 <!-- v17.87 (8/14 反馈): 左侧菜单栏内"喝水"和"设置"分开远 — 删 .sb-spacer 撑开 + sidebar-foot margin-top:0 + sidebar 不要 align-self:stretch, 8个菜单项紧凑排顶部, 设置紧跟喝水 -->
-<!-- 版本：rechen-v2026-08-15-v18.25-home-card-center (1) 时间卡的「03:34:46」时间字 + 日期 + 鼓励语都在卡片水平中心: 加 text-align:center+width:100% 让字符本身在 .hc-left 内居中(之前 inline 元素在 flex column 里 align-items:center 仍按自然宽度左对齐,字符内容看起来偏左); (2) 右边的 🌙/+1/😊 三个图标位置统一: .hc-right 加 width:74px(min-width:74px) 固定 emoji 区宽度,让三个 emoji 都在相同 x 坐标对齐; 手机端 @media 同步加 width:56px 跟 .hc-add 同宽 -->
+<!-- 版本：rechen-v2026-08-15-v18.26-card-true-center (用户原话"三个卡片的字都不是对齐中间的", v18.25 我误解成「.hc-left 区域居中」,实际用户要「整张卡片正中央」; v18.26 改成 absolute 布局: .hc-left 满铺 left:18 right:92(74 icon+18 padding), .hc-right absolute 钉在卡片右侧垂直中心, 文字字符现在真居中于整张卡片中心; 同时 .hc-right 加 height:74px 跟 .hc-add 同高, 🌙(38px字)+1(74px圆)+😊(64px字)三个不同尺寸图标 y 坐标统一在卡片中心, 月亮卡视觉偏上问题解决) -->
 <!-- v18.22 (8/15 03:18 反馈): 用户抱怨"删了重装, 图标还是比 WorkBuddy 小, 报错就让它修不是让我手动关"
      根因1: v18.21 我做了「白底圆角 + 猫头缩 94%」, 实际猫头只占 180/192=93.8%, 外圈 6% 是白边 → PWA 看到白边再加 8-10% safe zone → 视觉上小一截
             真正 WorkBuddy 桌面图标是「猫头占满整个 256x256 + 4 角圆角切口 (透明)」, PWA 不能这样用
@@ -637,20 +637,19 @@
   .home-cards{display:flex;flex-direction:column;gap:18px;}
   .home-left{display:flex;flex-direction:column;gap:12px;}
   .home-right{display:flex;flex-direction:column;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:132px;max-height:186px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}   /* v17.98: 喝水/护眼卡加高 + 今日已喝高度一半 (88+44=132 / 124+62=186) */
-  .home-left>.hc:first-child{min-height:200px;max-height:230px;}   /* v17.96: 时间卡再增加约「今日已喝 0 杯」卡片 (max 186px) 高度的一半 (62px), 即原 max 168 + 62 ≈ 230 */
-  /* v17.99: 时间卡三行行距由通用 .hc-left gap:14px 统一管理, 删掉 v17.97 first-child 冗余覆盖 */
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:132px;max-height:186px;position:relative;display:block;box-shadow:var(--shadow);transition:transform .15s;}   /* v17.98: 喝水/护眼卡加高; v18.26: 改 position:relative+display:block 准备 absolute 子元素居中 */
+  .home-left>.hc:first-child{min-height:200px;max-height:230px;}   /* v17.96: 时间卡 */
   .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
-  .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:14px;min-width:0;}   /* v17.99: 行距 8→14 跟时间卡 v17.97 一致, 喝水/护眼卡"文字行距跟时间三行字的行距一样" */
+  .hc-left{position:absolute;left:18px;right:92px;top:14px;bottom:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-width:0;pointer-events:none;}   /* v18.26: 改 absolute 满铺左 18→右 92(74 icon +18 padding); 文字字符现在居中于整张卡片(用户原话"三个卡片的正中间") */
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
-  .hc-left .num{font-size:22px;font-weight:800;color:#22c55e;line-height:1.1;white-space:nowrap;}   /* v17.45: 回退到 22px (v17.43 误升到 32px 已被用户否决, 只有 .stat .num 保持 32px) */
+  .hc-left .num{font-size:22px;font-weight:800;color:#22c55e;line-height:1.1;white-space:nowrap;pointer-events:auto;}   /* v18.26: pointer-events:auto 让按钮可点 */
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
   .hc-left .num.warn{color:#dc2626;font-size:28px;font-weight:800;}
-  .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:74px;min-width:74px;}   /* v18.25: 固定 width=74px 让三个 emoji (🌙+1+😊) 都在相同 x 坐标对齐 */
-  .hc-time{font-size:56px;font-weight:600;color:#22c55e;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';text-align:center;width:100%;}   /* v17.97: 时间字号 52→56 (大两个号); v18.25: 加 text-align:center+width:100% 让字符本身水平居中(之前 inline 元素在 flex column 里默认左对齐) */
-  .hc-date{font-size:12.5px;color:#6b7280;text-align:center;width:100%;}   /* v18.25: text-align:center 跟时间字同步居中 */
-  .hc-greet{font-size:13px;color:#16a34a;font-weight:500;text-align:center;width:100%;}   /* v18.25: text-align:center 跟时间字同步居中 */
+  .hc-right{position:absolute;right:18px;top:50%;transform:translateY(-50%);width:74px;height:74px;flex-shrink:0;display:flex;align-items:center;justify-content:center;}   /* v18.26: absolute 钉右侧垂直中心 (right:18 + top:50% + translateY-50%); height:74px 跟 .hc-add 同高让 🌙/+1/😊 都在 y=37px 同一对齐 */
+  .hc-time{font-size:56px;font-weight:600;color:#22c55e;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}   /* v18.26: 删 text-align/width:100%(absolute 父容器已让字符居中,再设反而破坏布局) */
+  .hc-date{font-size:12.5px;color:#6b7280;}
+  .hc-greet{font-size:13px;color:#16a34a;font-weight:500;}
   /* v17.25: 时间卡右边的 ☀ 太阳 去掉金黄色外圈（与 .hc-face 一致，只剩 emoji 本身） */
   .hc-sun{font-size:38px;background:none !important;border:none !important;box-shadow:none !important;width:auto !important;height:auto !important;border-radius:0 !important;padding:0 !important;display:inline-block;line-height:1;}
   .hc-add{width:74px;height:74px;background:#22c55e;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;box-shadow:0 4px 10px rgba(34,197,94,.3);cursor:pointer;border:none;transition:.15s;}
@@ -853,7 +852,8 @@
     .home-left>.hc:first-child{min-height:160px;max-height:188px;}   /* v17.96: 手机端时间卡等比例再加高,喝水卡 (min 80) 一半 = 40, 即原 max 148 + 40 = 188 */
     .hc-add{width:56px;height:56px;font-size:18px;}
     .hc-time{font-size:44px;}   /* v17.97: 手机端时间字号 40→44 (同步大两个号) */
-    .hc-right{width:56px;min-width:56px;}   /* v18.25: 手机端 emoji 区跟 .hc-add 同宽 (56px), 跟桌面一样 emoji 都在相同 x 坐标 */
+    .hc-right{right:14px;width:56px;height:56px;}   /* v18.26: 手机端 absolute 定位跟着改 (right:14 对应 padding 14, width/height:56 跟 .hc-add 同高) */
+    .hc-left{right:74px;}   /* v18.26: 手机端 absolute 占左 14 → 右 74(56 icon +14 padding +4 安全距) */
     .hc-left{gap:14px;}   /* v17.99b: 手机端行距同步桌面 14, 之前 v17.99 漏改手机端 @media 的 gap:5px 覆盖 */
     .hc-left .num{font-size:20px;}
     .hc-left .lb{font-size:11.5px;}
