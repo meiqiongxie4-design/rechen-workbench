@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.80</title>
+<title>GrowTime · v17.81</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.80 (delWaterCup 不依赖 waterRows.find 也能删 + realtime INSERT/DELETE 拆开监听 + 喝水记录标题绿加粗+副文灰色) -->
+<!-- 版本：rechen-v2026-08-14-v17.81 (修删除跨设备不同步: localStorage 不再镜像云端记录, 对方删除后本机不再复活) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -1630,6 +1630,14 @@ function getWaterLog(){
   try{ return JSON.parse(localStorage.getItem('wbWaterLog')||'{}'); }catch(e){ return {}; }
 }
 function setWaterLog(o){ localStorage.setItem('wbWaterLog', JSON.stringify(o)); }
+// v17.81: 清空旧版镜像缓存 — 之前 loadWaterCups 会把云端记录也写进 wbWaterLog,
+//         导致另一台设备删除时本机从 localStorage 「复活」该记录。云端现在为权威源,
+//         清掉后由 loadWaterCups 重新从云端拉取, 已同步的记录不会丢 (仍在云端)。
+(function migrateWaterLogV1781(){
+  if(localStorage.getItem('wbWaterLog_v1781_cleared')) return;
+  localStorage.removeItem('wbWaterLog');
+  localStorage.setItem('wbWaterLog_v1781_cleared','1');
+})();
 
 // 今天的 water_log 行（Supabase 真相源）；waterLoaded=true 表示已用云端数据渲染
 let waterRows=[];
@@ -1685,13 +1693,11 @@ async function loadWaterCups(){
     // 并集: 云端优先, 本地 pending 补充 (保证本地数据永不丢失)
     waterRows=cloudRows.concat(localRows);
     waterLoaded=true;
-    // 重新镜像 localStorage = 并集 (确保不丢也不重复)
+    // v17.81: 关键修复 — localStorage 只保留「本机自己创建、尚未进云端」的 pending 记录
+    //         绝不再把云端已确认记录镜像进 localStorage (否则另一台设备删除时, 本机从 localStorage 复活该记录)
+    //         云端是权威源, 对方删除后云端没了, 本机 loadWaterCups 不会再把它加回来 → 删除能真正跨设备生效
     const o=getWaterLog();
-    o[today]=waterRows.map(r=>{
-      if(r._local) return r._local;
-      const d=new Date(r.ts); const p=n=>String(n).padStart(2,'0');
-      return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-    });
+    o[today]=localStrs.filter(s=>!cloudKey.has(s));   // 仅本机 pending (云端已确认的不写回, 避免镜像复活)
     setWaterLog(o);
   }catch(err){
     console.warn('[water] 云端拉取失败, 走 localStorage 兜底:', (err.message||err));
@@ -1755,35 +1761,26 @@ async function delWaterCup(id){
       console.warn('[water-del] 云端 delete 异常:', (e.message||e));
     }
   }
-  // 2. 内存 waterRows 立刻 splice (按 id 或 pending- / local- 都匹配)
+  // 2. 先找到要删的行 (splice 前), 记下 ts 以便清 localStorage; 同时内存 splice
   if(id){
+    const row=waterRows.find(r=>r.id===id || ('local-'+r._local)===id);
+    let delTs=null;
+    if(row){
+      if(row._local){ delTs=row._local; }
+      else { const d=new Date(row.ts); const p=n=>String(n).padStart(2,'0'); delTs=`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+    }
     const idx=waterRows.findIndex(r=>r.id===id || ('local-'+r._local)===id);
     if(idx>=0) waterRows.splice(idx,1);
-    // 同样删掉 pending- 副本 (如果 addWaterCup 还没拿到真实 id)
-    const pidx=waterRows.findIndex(r=>r.id && String(r.id).startsWith('pending-') && r._delMarker===id);
-    if(pidx>=0) waterRows.splice(pidx,1);
-  }
-  // 3. 同步 localStorage — 删除对应 HH:MM:SS 副本 (避免下次 reload 又被并集回来)
-  const today=todayStr();
-  const o=getWaterLog();
-  if(o[today]){
-    if(id && id.startsWith('local-')){
-      const ts=id.replace('local-','');
-      o[today]=o[today].filter(s=>s!==ts);
-    }else{
-      // 云端行: 用 ts (创建时间) 反查 HH:MM:SS
-      const row=waterRows.concat([]).find(r=>r.id===id);   // 可能已 splice, 找不到就靠时间匹配
-      // 简化: 如果这条 row 在 waterRows 里存在并有 ts, 转成 HH:MM:SS 删 localStorage
-      const allRows=waterRows.concat([]);
-      const r=allRows.find(r=>r.id===id);
-      if(r && r.ts){
-        const d=new Date(r.ts); const p=n=>String(n).padStart(2,'0');
-        const hh=`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-        o[today]=o[today].filter(s=>s!==hh);
+    // 清 localStorage 对应副本 (避免下次 reload 又并集回来复活)
+    if(delTs){
+      const today=todayStr();
+      const o=getWaterLog();
+      if(o[today]){
+        o[today]=o[today].filter(s=>s!==delTs);
+        if(o[today].length===0) delete o[today];
+        setWaterLog(o);
       }
     }
-    if(o[today].length===0) delete o[today];
-    setWaterLog(o);
   }
   // 4. 立刻 emit 让 UI 反映变化 (renderWater 重新计算 list)
   emitWaterChange();
