@@ -3,10 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.27</title>
+<title>GrowTime · v17.28</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
+<!-- v17.28 (8/14 反馈): 时间卡加高 + 删除电脑端右上角齿轮
+  1. 时间卡 .home-left>.hc:first-child 单独 min-height:128(max 148),比喝水/护眼的 88 明显高,内容更舒展
+  2. 删掉 <header> 块(只剩 settingsBtn 一个按钮)和 #$('settingsBtn').onclick 行
+     — 侧栏底部 ⚙️ "设置" 按钮完全够用,用户已经走侧栏进入设置
+  3. .settings-btn CSS / mobile display:none 规则变成 dead code,留着不影响
+-->
 <!-- v17.27 (8/14 反馈): 待办卡"4 条却占 6 条高度" + 鼓励语没贴底
   1. .todo-summary 后加的 flex:1 覆盖了上行的 flex:0 0 auto → 全部改 flex:0 0 auto + max-height:340px + overflow-y:auto
   2. .home-cards / .home-left / .home-right 全部去掉 flex:1,改为纯 content-size
@@ -487,6 +493,7 @@
   .home-left{display:flex;flex-direction:column;gap:12px;}
   .home-right{display:flex;flex-direction:column;}
   .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:88px;max-height:124px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
+  .home-left>.hc:first-child{min-height:128px;max-height:148px;}   /* v17.28: 时间卡加高,其它卡不变 */
   .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
@@ -580,6 +587,7 @@
     .home-cards{flex-direction:column;gap:14px;}
     .home-left{flex-direction:column;gap:10px;}
     .hc{padding:12px 14px;min-height:80px;}
+    .home-left>.hc:first-child{min-height:108px;}   /* v17.28: 手机端时间卡加高 */
     .hc-add{width:56px;height:56px;font-size:18px;}
     .hc-time{font-size:32px;}
     .hc-left{gap:5px;}
@@ -599,10 +607,6 @@
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <button id="settingsBtn" class="settings-btn" title="自定义工作台和模块名称">⚙️</button>
-  </header>
-
   <div id="banner" class="banner" hidden></div>
   <div id="debugBar" class="debug-bar" hidden></div>
 
@@ -1014,7 +1018,6 @@ function resetLabels(){
   if(sb){ cloudLabelsStr=null; saveSettings('labels',null).then(ok=>{ if(!ok) toast('云端同步未成功'); }); }
 }
 applyLabels(); // 启动时立即用 localStorage 覆盖默认
-$('settingsBtn').onclick=openSettings;
 const _sbBtn=$('settingsBtnSb'); if(_sbBtn) _sbBtn.onclick=openSettings;
 $('labCancel').onclick=closeSettings;
 $('labSave').onclick=saveLabels;
