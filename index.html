@@ -4,7 +4,14 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>热忱工作台</title>
-<!-- 版本：rechen-v2026-08-14-v17.20-home-grid-stretch-daily-greet
+<!-- 版本：rechen-v2026-08-14-v17.21-home-single-column
+  v17.21 由 v17.20 改回单列堆叠：4 张卡纵向排列（时间/喝水/护眼/待办）
+  - .home-cards{display:grid;columns:1fr 1.1fr} → display:flex;flex-direction:column
+  - .home-left{display:grid;rows:1fr 1fr 1fr} → display:flex;flex-direction:column
+  - .todo-summary 加 flex:1 与 3 张 .hc 等高撑满
+  - mobile media query 去掉残留的 grid-template-columns:1fr 覆写
+  保留 v17.20 改的：.hc-face !important 兜底去外圈 + 鼓励语按日缓存 + renderHomeCards 不渲染 "喝水"/"护眼" 标签
+-->
   v17.20 首页打磨（基于你 8/14 反馈）：
   1. 左 3 卡（时间/喝水/护眼）严格等分左列高度 = 右待办卡高度（用 grid-template-rows:1fr 1fr 1fr 强制等分；align-items:stretch 让两列齐高）
   2. 去掉"喝水"和"护眼"两个标签（含原 "已喝 X 杯 · 0 ml · 已完成 0% · 每杯 250 ml" 等 sub 也精简）
@@ -437,11 +444,12 @@
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}
   #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}
 
-  /* 首页 4 卡片 - v17.20 网格 2 列；左 3 卡 grid 强制等分撑满左列高度 */
-  .home-cards{display:grid;grid-template-columns:1fr 1.1fr;gap:14px;flex:1;min-height:0;align-items:stretch;}
-  .home-left{display:grid;grid-template-rows:1fr 1fr 1fr;gap:14px;min-height:0;}
-  .home-right{display:flex;flex-direction:column;min-height:0;}
-  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);min-height:96px;gap:12px;transition:transform .15s;}
+  /* 首页 4 卡片 - v17.21 单列堆叠：4 张卡纵向排列，每张等高 */
+  .home-cards{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;}
+  .home-left{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;}
+  .home-right{display:flex;flex-direction:column;flex:1;min-height:0;}
+  .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:1;min-height:96px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
+  .todo-summary{flex:1;min-height:96px;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
   .hc-left .lb{font-size:14px;color:#374151;font-weight:600;letter-spacing:.3px;}
@@ -532,9 +540,9 @@
     .sb-item .lb{font-size:9.5px;letter-spacing:0;}
     .sb-spacer{display:none;}
     .sidebar-foot{margin-top:0;gap:2px;}
-    .home-cards{grid-template-columns:1fr;gap:10px;}
-    .home-left{grid-template-columns:1fr;}
-    .hc{padding:14px 16px;min-height:80px;}
+    .home-cards{flex-direction:column;gap:10px;}
+    .home-left{flex-direction:column;gap:10px;}
+    .hc{padding:12px 14px;min-height:80px;}
     .hc-add{width:56px;height:56px;font-size:18px;}
     .hc-time{font-size:32px;}
     .hc-left{gap:5px;}
