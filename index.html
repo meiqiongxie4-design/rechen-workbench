@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.43</title>
+<title>GrowTime · v17.44</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -684,9 +684,38 @@
     .water-pool-wrap{gap:16px;padding:6px 0 12px;}
   }
 
+  /* v17.44: .view{display:flex} 会覆盖 [hidden]{display:none} 默认 UA 样式, 导致 JS el.hidden=true 不生效
+     这里给 .wrap 内所有 view 加 [hidden] 兜底, 让 hidden 属性真正隐藏元素 */
+  .wrap [id^="view"][hidden]{display:none !important;}
+
   </style>
 </head>
 <body>
+<script>
+  /* v17.44: 在 DOM 形成前同步按 localStorage 决定展示哪个 view, 避免刷新先闪首页几秒
+     CSS .view{display:flex} 会覆盖 [hidden]{display:none}, 所以这里用 inline <style> + !important 兜底 */
+  (function(){
+    try{
+      var v = (localStorage.getItem('rechen_current_view')||'home').trim();
+      var VALID = ['home','todo','memo','counter','period','farm','water','saving'];
+      var target = VALID.indexOf(v) >= 0 ? v : 'home';
+      // 1) 默认全部 view 隐藏(含 viewHome)
+      var css = '#viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{display:none !important;}';
+      // 2) 仅显示 saved view(对应 ID = "view" + 大写首字母)
+      if(target !== 'home'){
+        var cap = target.charAt(0).toUpperCase() + target.slice(1);
+        css += '#view' + cap + '{display:flex !important;}';
+      } else {
+        css += '#viewHome{display:flex !important;}';
+      }
+      document.write('<style>' + css + '</style>');
+      window.__initialView = target;
+    }catch(e){
+      window.__initialView = 'home';
+      document.write('<style>#viewHome{display:flex !important;}#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{display:none !important;}</style>');
+    }
+  })();
+</script>
 <div class="wrap">
   <div id="banner" class="banner" hidden></div>
   <div id="debugBar" class="debug-bar" hidden></div>
@@ -709,7 +738,7 @@
     <div class="main">
 
   <!-- 首页（默认显示） -->
-  <div id="viewHome">
+  <div id="viewHome" hidden>   <!-- v17.44: 默认 hidden, 由 body 顶部同步 <script> 按 localStorage 决定是否显示, 避免刷新先闪首页 -->
     <div class="home-cards" id="homeCards">
       <!-- 4 张聚合卡片由 JS renderHomeCards() 注入 -->
     </div>
