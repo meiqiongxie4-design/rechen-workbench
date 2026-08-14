@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.88</title>
+<title>GrowTime · v17.89</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -172,7 +172,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.88 (左侧菜单栏: 回 stretch + 删 spacer + 不推 footer 三件套; .wrap 取消 height:100dvh 锁高 + overflow:hidden, .main 取消 overflow:hidden, .viewX 取消 overflow:auto; 改用 .app{min-height:calc(100dvh-22)} 兜底首页 sidebar 满屏, 但备忘/流光超高时 sidebar 跟 .app 一起延长, 菜单图标紧凑靠顶不动) -->
+<!-- 版本：rechen-v2026-08-14-v17.89 (护眼页: 1) 水池边框改细用 .tip-card 同款 (border:1px solid var(--line)+bg var(--surface-2)); 2) 删 .pool-hint「点水池滴一滴」+ .tip-card「点水池即可记录一次」+ .history-sub「点日期看详情...真棒」; 3) 「近7天记录」→「护眼记录」, 标题改跟 .water-list-title 同款绿色加粗; 4) 整体行间距加大 (pool-wrap gap 32→36, history-section mt 6→14, history-title mb 0→12, history-item padding 12 6→14 8); 5) 超过10次水池中央表情下加 .warn-text「你滴太多了」(白色脉冲字+红字阴影)) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -482,40 +482,40 @@
   .period-footer{text-align:center;color:var(--muted);font-size:11px;margin-top:8px;line-height:1.7;}
 
 /* 护眼记 - 水池版 */
-  .pool-wrap{display:flex;gap:32px;align-items:center;justify-content:center;padding:10px 0 22px;flex-wrap:wrap;}
-  .pool{position:relative;width:220px;height:220px;border-radius:50%;background:#ecfdf5;box-shadow:inset 0 0 30px rgba(0,0,0,.06), 0 8px 24px rgba(34,197,94,.15);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;border:1.5px solid var(--accent);}   /* v17.49: 外圈细边框, 颜色跟数字3同色 (var(--accent)=#22c55e) */
+  .pool-wrap{display:flex;gap:36px;align-items:center;justify-content:center;padding:14px 0 26px;flex-wrap:wrap;}
+  .pool{position:relative;width:220px;height:220px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);box-shadow:inset 0 0 30px rgba(0,0,0,.05), 0 6px 18px rgba(34,197,94,.12);overflow:hidden;cursor:pointer;transition:background .5s, transform .15s;flex-shrink:0;}   /* v17.89: 外圈改细, 用 .tip-card 同款 border:1px solid var(--line) + bg var(--surface-2) */
   .pool:active{transform:scale(.97);}
   .pool::before,.pool::after{content:'';position:absolute;left:50%;top:60%;width:240%;height:240%;border-radius:42%;background:rgba(255,255,255,.35);transform:translate(-50%,-50%);animation:wave 7s linear infinite;z-index:1;}
   .pool::after{background:rgba(255,255,255,.2);animation:wave 10s linear infinite reverse;}
   @keyframes wave{0%{transform:translate(-50%,-50%) rotate(0);}100%{transform:translate(-50%,-50%) rotate(360deg);}}
-  .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#bbf7d0 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}   /* v17.49: 绿渐变(浅绿→数字3同色), 营造动态水池感 */
-  .pool .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;text-shadow:0 2px 6px rgba(255,255,255,.6);}   /* v17.49: 取消兜底隐藏, 加 text-shadow 表情在水面上更清晰 */
+  .pool .water{position:absolute;bottom:0;left:0;right:0;height:100%;background:linear-gradient(180deg,#bbf7d0 0%,#22c55e 100%);transition:height .6s ease, background .6s ease;z-index:0;}
+  .pool .face{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;z-index:2;pointer-events:none;transition:transform .3s;text-shadow:0 2px 6px rgba(255,255,255,.6);}
   .pool .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.9);transform:scale(0);animation:ripple .9s ease-out;pointer-events:none;z-index:3;box-shadow:0 0 24px rgba(255,255,255,.7);}
   @keyframes ripple{to{transform:scale(7);opacity:0;}}
+  /* v17.89: 水池超 10 滴 — 水池中央表情下加一行警告文字"你滴太多了" */
+  .pool .warn-text{position:absolute;left:0;right:0;bottom:46px;text-align:center;font-size:14px;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(190,18,60,.55);z-index:3;pointer-events:none;letter-spacing:.5px;animation:warnPulse 1.6s ease-in-out infinite;}
+  @keyframes warnPulse{0%,100%{opacity:.85;}50%{opacity:1;}}
+  .pool .warn-text[hidden]{display:none;}
   /* v17.49: 水池漏水 (>10 滴) — 波浪停止 + 水色转警告 + 下方 💧 滴下动画 */
   .pool.leaking::before,.pool.leaking::after{display:none;}
   .pool.leaking .water{background:linear-gradient(180deg,#fed7aa 0%,#ea580c 100%);}
   .pool .leak{position:absolute;bottom:-30px;left:50%;transform:translateX(-50%);font-size:22px;z-index:4;pointer-events:none;animation:leakDrip 1.4s ease-in infinite;}
   .pool .leak::after{content:'💧';display:block;}
   @keyframes leakDrip{0%{opacity:1;transform:translate(-50%,0);}100%{opacity:0;transform:translate(-50%,16px);}}
-  .pool-hint{position:absolute;bottom:18px;left:0;right:0;text-align:center;font-size:12px;color:rgba(0,0,0,.45);z-index:2;pointer-events:none;}
   .pool-info{text-align:left;min-width:210px;}
-  .pool-info .today{font-size:15px;color:var(--muted);margin-bottom:2px;}
+  .pool-info .today{font-size:15px;color:var(--muted);margin-bottom:6px;}
   .pool-info .count{font-size:58px;font-weight:800;color:var(--accent);line-height:1;}
   .pool-info .count.warn{color:var(--red);}
-  .pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:12px;padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;transition:background .3s, color .3s;}
+  .pool-info .status{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;transition:background .3s, color .3s;}
   .pool-info .status.ok{background:#dcfce7;color:#166534;}
   .pool-info .status.mid{background:#fef9c3;color:#854d0e;}
   .pool-info .status.tired{background:#ffedd5;color:#9a3412;}
   .pool-info .status.bad{background:#fee2e2;color:#991b1b;}
-  .pool-info .max{font-size:13px;color:var(--muted);margin-top:10px;}
-  .tip-card{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted);margin-top:16px;display:inline-flex;align-items:center;gap:6px;}
-  .history-section{margin-top:6px;}
-  .history-title{font-size:13px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:space-between;}
-  .history-title .right{font-size:12px;color:var(--muted);font-weight:500;opacity:.85;}
-  .history-sub{font-size:12px;color:var(--muted);font-weight:400;margin-left:4px;}
-  .history-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:10px;}
-  .history-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 6px;text-align:center;min-width:0;cursor:pointer;transition:.15s;position:relative;}
+  .pool-info .max{font-size:13px;color:var(--muted);margin-top:14px;}
+  .history-section{margin-top:14px;}   /* v17.89: 加大和上面 pool-wrap 的间距 */
+  .history-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:12px;}   /* v17.89: 改跟 .water-list-title 同款绿色加粗; 删 .history-sub 提示文字 */
+  .history-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
+  .history-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px 8px;text-align:center;min-width:0;cursor:pointer;transition:.15s;position:relative;}   /* v17.89: padding 12 6 → 14 8, 行间隙大一点 */
   .history-item:hover{border-color:var(--accent);transform:translateY(-2px);}
   .history-item.today{background:#eef1fe;border-color:var(--accent);}
   .history-item .d{font-size:12px;color:var(--muted);}
@@ -802,6 +802,10 @@
     .water-pool{width:160px;height:160px;}
     .water-pool .pool-face{font-size:48px;}
     .water-pool-wrap{gap:16px;padding:6px 0 12px;}
+    .pool{width:160px;height:160px;}
+    .pool .face{font-size:48px;}
+    .pool-wrap{gap:18px;padding:10px 0 16px;}
+    .pool .warn-text{bottom:32px;font-size:12px;}   /* v17.89: 手机端缩小水池警告字 */
     /* v17.56: 手机端存钱模块 — 罐子和信息栏仍上下排, 罐子置底 */
     .save-wrap{flex-direction:column;align-items:center;gap:18px;padding:10px 0 18px;}
     .save-pool{width:180px;height:270px;align-self:center;}   /* 手机端罐子略小, 居中 */
@@ -916,19 +920,18 @@
         <div class="pool" id="dropPool" title="点一下水池滴一次">
           <div class="water" id="poolWater"></div>
           <div class="face" id="poolFace">😊</div>
-          <div class="pool-hint">点水池滴一滴</div>
-          <div class="leak" id="poolLeak" hidden></div>   <!-- v17.49: 超过10滴显示漏水动画 -->
+          <div class="warn-text" id="poolWarnText" hidden>你滴太多了</div>   <!-- v17.89: 超 10 滴水池中央表情下加一行红色警告字 -->
+          <div class="leak" id="poolLeak" hidden></div>
         </div>
         <div class="pool-info">
           <div class="today">今日已滴</div>
           <div class="count" id="dropCount">0<span style="font-size:22px;color:var(--muted);margin-left:4px;">/ 10</span></div>
           <div class="status ok" id="dropStatus">😊 眼睛舒适</div>
           <div class="max">每天上限 10 次 · 次日自动清零</div>
-          <div class="tip-card">💡 点水池即可记录一次</div>
         </div>
       </div>
       <div class="history-section">
-        <div class="history-title">近 7 天记录 <span class="history-sub">点日期看详情，滴得少显示「真棒」</span></div>
+        <div class="history-title">护眼记录</div>
         <div class="history-list" id="dropHistory"></div>
         <div class="history-detail" id="dropDetail" hidden>
           <div class="detail-head">
@@ -2720,6 +2723,8 @@ function renderDrops(){
   numEl.classList.toggle('warn',overLimit);
   $('poolFace').textContent=st.face;
   $('poolWater').style.height=heightPct+'%';
+  // v17.89: 超 10 滴水池中央表情下显示"你滴太多了"警告文字
+  $('poolWarnText').hidden=!overLimit;
   // v17.49: 正常时绿渐变(JS 不再覆盖, 走 CSS), 超 10 时 CSS .pool.leaking 接管
   if(!overLimit){
     $('dropPool').classList.remove('leaking');
