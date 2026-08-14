@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.85</title>
+<title>GrowTime · v17.86</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -152,6 +152,7 @@
   （截图里所有 view 同时显示、侧栏跑到顶部），所以彻底回退到 v17.3 layout
 -->
 <!-- 版本：rechen-v2026-08-13-v17.3-iterate （整体色系统一绿：body #dcfce7 + 卡片 #f0fdf4；护眼水池 11+ 显示水位满+报警挂右侧不再 banner；喝水分水池 UI+自定义每杯 ml+记录可删+清空今日；首页/侧栏图标读设置-DEFAULT_LABELS 加 home；手机端隐藏顶部齿轮；流光改绿；鼓励语 sticky bottom）-->
+<!-- v17.86 (8/14 反馈): 锁 .wrap 高度 100dvh + overflow:hidden, 备忘/流光内容超高时不再撑大 .wrap/.app/.sidebar, 左侧菜单栏始终保持首页高度(原 min-height 在内容超高时被撑大, sb-spacer 撑开变空旷) -->
 <!-- 版本：rechen-v2026-08-13-v16-restore-original-icon （恢复 workbuddy 原图标 favicon_extracted.png；删除顶部日期 div；设置按钮保留在右上角；保留 H1 已删除避免重复显示名）-->
 <!-- v17.46 (8/14 反馈): 待办统计数字字号 32→52px 跟首页 .hc-time 一样大
   用户: 这两个字号跟首页的时间一样大, 把待办的这两个字段的字号改成跟首页的时间一样大, 不要去动首页
@@ -208,7 +209,7 @@
   .app.collapsed .sb-toggle{left:8px;}
   @media (max-width:640px){ .sb-toggle{left:76px;width:26px;height:26px;font-size:13px;} .app.collapsed .sb-toggle{left:8px;} }
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-  .wrap{max-width:none;margin:0 auto;padding:22px 24px 0;min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;display:flex;flex-direction:column;}  /* v17.36: 桌面 padding-bottom 60→0,鼓励语视觉基线对齐侧栏绿条底(跟 v17.32 手机端同款) */
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 0;min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;height:100dvh;height:-webkit-fill-available;display:flex;flex-direction:column;overflow:hidden;}  /* v17.86: 桌面 padding-bottom 60→0,鼓励语视觉基线对齐侧栏绿条底(跟 v17.32 手机端同款); v17.86 加 height:100dvh 锁高+overflow:hidden, 内容超高不被撑大, 左侧菜单栏保持首页高度 */
   header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
