@@ -2794,6 +2794,7 @@ function renderDrops(){
 }
 /* v17.97: 抽出详情渲染函数 — 供 history-item 点击 + realtime 拉到 drop_clicks 后重渲染 (秒同步显示新时间, 不用刷新) */
 function renderDropDetail(date){
+  const today=todayStr();   /* v17.97b: 顶层函数取不到外层闭包的 today, 内部重算 */
   const d=drops.find(x=>x.date===date) || {date:date,count:0,max_count:10};
   const s=comfortState(d.count);
   const label=date===today?'今天':date;
