@@ -3,10 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.28</title>
+<title>GrowTime · v17.29</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
+<!-- v17.29 (8/14 反馈): 时间卡再高 + 字号更大 + 手机端鼓励语真正贴底
+  1. 时间卡 .home-left>.hc:first-child 桌面 128→148(max168)、手机 108→128(max148),明显高过喝水/护眼的 88/80
+  2. .hc-time 桌面 42→52px、手机 32→40px
+  3. .wrap 加 min-height:100dvh 兜底 — 手机端浏览器地址栏让 100vh 比可视区大,#viewHome 被拉到屏幕外,
+     margin-top:auto 推到"虚拟底部"看不见;dvh 计入浏览器栏后鼓励语到可视底部
+-->
 <!-- v17.28 (8/14 反馈): 时间卡加高 + 删除电脑端右上角齿轮
   1. 时间卡 .home-left>.hc:first-child 单独 min-height:128(max 148),比喝水/护眼的 88 明显高,内容更舒展
   2. 删掉 <header> 块(只剩 settingsBtn 一个按钮)和 #$('settingsBtn').onclick 行
@@ -117,7 +123,7 @@
   .app.collapsed .sb-toggle{left:8px;}
   @media (max-width:640px){ .sb-toggle{left:76px;width:26px;height:26px;font-size:13px;} .app.collapsed .sb-toggle{left:8px;} }
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;display:flex;flex-direction:column;}
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;}
   header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
@@ -493,7 +499,7 @@
   .home-left{display:flex;flex-direction:column;gap:12px;}
   .home-right{display:flex;flex-direction:column;}
   .hc{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;flex:0 0 auto;min-height:88px;max-height:124px;display:flex;justify-content:space-between;align-items:center;box-shadow:var(--shadow);gap:12px;transition:transform .15s;}
-  .home-left>.hc:first-child{min-height:128px;max-height:148px;}   /* v17.28: 时间卡加高,其它卡不变 */
+  .home-left>.hc:first-child{min-height:148px;max-height:168px;}   /* v17.29: 时间卡再加高,明显高过喝水/护眼(88) */
   .todo-summary{flex:0 0 auto;min-height:0;display:flex;flex-direction:column;gap:6px;}
   .hc:active{transform:scale(.99);}
   .hc-left{display:flex;flex-direction:column;flex:1;align-items:center;justify-content:center;gap:8px;min-width:0;}
@@ -502,7 +508,7 @@
   .hc-left .sub{font-size:12px;color:#6b7280;text-align:center;line-height:1.4;}
   .hc-left .num.warn{color:#dc2626;font-size:20px;font-weight:800;}
   .hc-right{flex-shrink:0;display:flex;align-items:center;justify-content:center;}
-  .hc-time{font-size:42px;font-weight:600;color:#22c55e;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
+  .hc-time{font-size:52px;font-weight:600;color:#22c55e;letter-spacing:1px;line-height:1;font-feature-settings:'tnum';}
   .hc-date{font-size:12.5px;color:#6b7280;}
   .hc-greet{font-size:13px;color:#16a34a;font-weight:500;}
   /* v17.25: 时间卡右边的 ☀ 太阳 去掉金黄色外圈（与 .hc-face 一致，只剩 emoji 本身） */
@@ -587,9 +593,9 @@
     .home-cards{flex-direction:column;gap:14px;}
     .home-left{flex-direction:column;gap:10px;}
     .hc{padding:12px 14px;min-height:80px;}
-    .home-left>.hc:first-child{min-height:108px;}   /* v17.28: 手机端时间卡加高 */
+    .home-left>.hc:first-child{min-height:128px;max-height:148px;}   /* v17.29: 手机端时间卡加高 */
     .hc-add{width:56px;height:56px;font-size:18px;}
-    .hc-time{font-size:32px;}
+    .hc-time{font-size:40px;}
     .hc-left{gap:5px;}
     .hc-left .num{font-size:20px;}
     .hc-left .lb{font-size:11.5px;}
