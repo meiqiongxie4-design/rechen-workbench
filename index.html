@@ -172,7 +172,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.92 (1) comfortState 阈值放宽: ≤2 😊 / ≤5 🙂 / ≤10 😐 / >10 💔 (之前 >8 太激进, 9 就被当超限); (2) 新增"护眼点击时间"功能 — 每次 addDrop 都 push 时间戳到 dropClicks map, 存到 app_settings key='drop_clicks' (复用现有表, 无需 ALTER); (3) dropDetail 详情面板在原状态文案下面追加"点击时间 (N 次)" 网格展示; (4) realtime settings-rt 监听 drop_clicks 变化, 跨设备秒同步; (5) loadDrops 末尾 loadDropClicks 拉取 -->
+<!-- 版本：rechen-v2026-08-14-v17.93 (1) 详情面板点击时间排版改为最朴素 — 不加标题, 不加虚线分隔, 不加白底胶囊网格, 就是详情文案下面一行一行垂直列时间 (12px → 13px + line-height:2); (2) 修复 v17.92 阈值放宽(v17.91 ≤8 太激进 9 就被当超限)— 用户浏览器可能缓存 v17.91 显示 💔+「超过 10 次」, 硬刷 Ctrl+Shift+R 加载 v17.93 才生效 -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -2765,11 +2765,11 @@ function renderDrops(){
       const d=drops.find(x=>x.date===date) || {date:date,count:0,max_count:10};
       const s=comfortState(d.count);
       const label=date===today?'今天':date;
-      /* v17.92: 该日点击时间列表 (从 dropClicks map 拿, 跨设备同步) */
+      /* v17.93: 改朴素排版 — 不加"点击时间"标题、不加虚线分隔、不加白底胶囊网格, 就是一行一行垂直列时间 */
       const clickList = getDropClicks(date);
       const clickHtml = clickList.length > 0
-        ? `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);"><div style="font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;">点击时间（${clickList.length} 次）</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;">${clickList.map(c => `<div style="padding:5px 8px;background:#fff;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:12px;color:#475569;font-weight:600;">${esc(c.time)}</div>`).join('')}</div></div>`
-        : `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);">（暂无详细点击时间 — 升级 v17.92 前已点击的不记录时间）</div>`;
+        ? `<div style="margin-top:10px;font-size:13px;color:#475569;line-height:2;">${clickList.map(c => esc(c.time)).join('<br>')}</div>`
+        : `<div style="margin-top:10px;font-size:12px;color:var(--muted);">（暂无 — 升级 v17.92 前已点击的不记录时间）</div>`;
       $('detailDate').textContent=`${label} · 滴了 ${d.count} 次`;
       $('detailBody').innerHTML=`<span class="status ${s.cls}" style="display:inline-flex;margin-bottom:8px;">${s.face} ${s.text}</span><br>${s.tip}${d.count<=2?'<br><strong>真棒！今天用眼很健康。</strong>':''}${clickHtml}`;
       $('dropDetail').dataset.date=date;
