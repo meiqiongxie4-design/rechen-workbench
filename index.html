@@ -172,7 +172,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-14-v17.90 (护眼页超 10 滴: 1) 表情 😵 → 💔 (破碎的心, 视觉"破碎感"更直接); 2) .warn-text 改为红色背景胶囊 + 白字, 紧贴表情下方 (top:calc(50%+42px), 加 padding+border+box-shadow+脉冲缩放); 3) 手机端同步缩小 (top:calc(50%+32px) + font-size 11px)) — 基于 v17.89 字体不明显的反馈 -->
+<!-- 版本：rechen-v2026-08-14-v17.91 (1) 首页护眼卡 getDropStatus 改走 comfortState: 跟护眼 view + 历史格子统一表情规则 (含 >8 💔); (2) 护眼记录标题 margin-bottom 12→18 + .history-section padding-top:6px, 跟喝水记录保持一致间距 -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -512,8 +512,8 @@
   .pool-info .status.tired{background:#ffedd5;color:#9a3412;}
   .pool-info .status.bad{background:#fee2e2;color:#991b1b;}
   .pool-info .max{font-size:13px;color:var(--muted);margin-top:14px;}
-  .history-section{margin-top:14px;}   /* v17.89: 加大和上面 pool-wrap 的间距 */
-  .history-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:12px;}   /* v17.89: 改跟 .water-list-title 同款绿色加粗; 删 .history-sub 提示文字 */
+  .history-section{margin-top:14px;padding-top:6px;}   /* v17.91: 加 padding-top, 标题与上方分离 */
+  .history-title{font-size:13px;color:#16a34a;font-weight:700;margin-bottom:18px;}   /* v17.91: margin-bottom 12→18, 跟喝水记录保持一致间距 */
   .history-list{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
   .history-item{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px 8px;text-align:center;min-width:0;cursor:pointer;transition:.15s;position:relative;}   /* v17.89: padding 12 6 → 14 8, 行间隙大一点 */
   .history-item:hover{border-color:var(--accent);transform:translateY(-2px);}
@@ -2407,10 +2407,8 @@ $('saveAddInput').onkeydown = (e)=>{
 
 /* 把护眼表情函数注入全局（原代码可能在 window 作用域） */
 function getDropStatus(n){
-  if(n<=2) return {face:'😊', text:'眼睛舒适'};
-  if(n<=5) return {face:'🙂', text:'状态正常'};
-  if(n<=8) return {face:'😐', text:'有点疲劳'};
-  return {face:'😵', text:'需要休息'};
+  // v17.91: 直接走 comfortState, 首页护眼卡 / 护眼 view / 历史格子 全部联动同一份表情规则 (包括 >8 用 💔 破碎的心)
+  return comfortState(n);
 }
 
 /* 自动增高 */
