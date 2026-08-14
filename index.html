@@ -171,7 +171,7 @@
 -->
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
-<!-- 版本：rechen-v2026-08-13-v6-fix-banner-stuck （修复 loadSettings 错误后 setupError 锁住导致 banner 永远卡住的 bug：现在任何 loadXxx 成功都会无条件隐藏 banner） -->
+<!-- 版本：rechen-v2026-08-14-v17.78 (修 loadSettings 网络抖动误报 banner + input 显示已保存值 + realtime 重连兜底) -->
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png" />
@@ -1727,6 +1727,7 @@ async function delWaterCup(id){
   emitWaterChange();
 }
 // v17.74: input 当前值是 source of truth — 用户输入即生效, localStorage 仅作持久化兜底
+// v17.78: input 显示「已保存值」 — 用户设过 250/2500 后, 显示在框里方便知道当前配置; 用户键入则立即覆盖
 function readCupMl(){
   const el=document.getElementById('waterCupInput');
   if(el){
@@ -1745,47 +1746,57 @@ function readTargetMl(){
   const stored=localStorage.getItem('wbWaterTarget');
   return stored===null ? 0 : parseInt(stored,10);
 }
-// v17.76: 喝水 input 强制空白 — 应用启动/切回/每次 render 三个时机都清, 用户不填 = 永远空
-//        (用户最新诉求「你不填的情况下一定要空着」, 不留 250 之类的残留)
-function clearWaterInputs(){
+// v17.78: input 显示/同步已保存值
+//  - 调用时, 如果 input 当前为空 (placeholder 状态) 且云端/本地有持久值 → 写回 input 显示
+//  - 如果用户正在键入 (value 非空) → 完全不动 (避免打断输入)
+//  - 供 loadWaterSettings / 启航保存后 / realtime 触发刷新 时调用
+function reflectWaterInputsToUI(){
   ['waterCupInput','waterTargetInput'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el || document.activeElement===el) return;
-    el.value='';
+    const el=document.getElementById(id); if(!el) return;
+    // 用户正在输入 → 不动
+    if(document.activeElement===el) return;
+    // input 已经有显示值 → 不动 (避免覆写用户键入)
+    if(el.value && el.value.trim()!=='') return;
+    // 读 localStorage 兜底 (loadWaterSettings 已经把云端值镜像到这里)
+    const key=id==='waterCupInput'?'wbWaterCup':'wbWaterTarget';
+    const stored=localStorage.getItem(key);
+    if(stored!==null && stored!==''){
+      el.value=stored;   // 显示已保存值, 用户一眼看到自己设的 250/2500
+    }
   });
 }
-// v17.76: DOMContentLoaded 时强制清空一次 — 防浏览器 autocomplete 把旧的 250/2500 塞进 input
-document.addEventListener('DOMContentLoaded', clearWaterInputs);
-// 同时启动后 100/500ms 再清两次 (autocomplete 可能在 DOMContentLoaded 后才填入, 也可能在用户首次聚焦后才填)
-setTimeout(clearWaterInputs, 100);
-setTimeout(clearWaterInputs, 500);
-// 防 autocomplete 在用户首次 focus 后塞值: focus 时如果 input 是空的(用户没主动键入), 不保留 autocomplete
+// v17.78: 喝水 input 显示已保存值策略 — 用户键入/启航后值保留显示在框里
+//  - 启动时通过 reflectWaterInputsToUI 一次性把 localStorage 里的持久值显示到 input
+//  - loadWaterSettings 拉到云端后也会调 reflectWaterInputsToUI
+//  - realtime 收到变化时再调一次
+//  - 用户键入不再被任何机制清空 (v17.75-v17.77 的「多时机清空」取消, 用户明确要求显示已设置值)
+// 输入框防 autocomplete: 仅在 input 为空且用户从未键入过时, ignore placeholder 干扰
 ['waterCupInput','waterTargetInput'].forEach(id=>{
-  const el=document.getElementById(id);
-  if(!el || el._v17_76FocusBound) return;
-  el._v17_76FocusBound=true;
+  const el=document.getElementById(id); if(!el) return;
+  // 阻止浏览器自动填充 (Chrome 会记忆上次输入并塞回, 用户不要这个)
+  el.setAttribute('autocomplete','off');
+  el.setAttribute('autocorrect','off');
+  el.setAttribute('autocapitalize','off');
+  el.setAttribute('spellcheck','false');
+  el.setAttribute('data-form-type','other');
+  // 标记: 用户一旦主动键入, 这个标记 = true, 永远不让自动机制覆盖
+  el.addEventListener('input', ()=>{ el.dataset.userTyped='1'; });
   el.addEventListener('focus', ()=>{
-    // 延后 50ms 看 input.value 是否被 autocomplete 填了, 如果填了且用户还没开始输入, 清掉
+    // 50ms 后检查: 如果是空 (用户没主动键入过) 且浏览器要 autocomplete 没塞值进来, 啥都不做
+    // 如果浏览器塞了值且用户没键入, 把那个值清掉 (避免 "250" 残留)
     setTimeout(()=>{
-      if(el.value!=='' && !el.dataset.userTyped){
-        el.value='';
-      }
-    }, 50);
+      if(el.value && !el.dataset.userTyped){ el.value=''; }
+    }, 60);
   });
-  el.addEventListener('input', ()=>{ el.dataset.userTyped='1'; });  // 用户主动键入 = 标记
 });
-// 启动时一次性绑 blur/input 事件, 用户键入 → blur 后立刻清空
-['waterCupInput','waterTargetInput'].forEach(id=>{
-  const el=document.getElementById(id);
-  if(!el || el._v17_76Bound) return;
-  el._v17_76Bound=true;
-  el.addEventListener('blur', ()=>{
-    setTimeout(()=>{ el.value=''; }, 0);   // 延后一帧清, 让 :focus 样式先收起
-  });
+// 启动时立刻把已保存值显示到 input (防 autocomplete 之后又被覆盖)
+document.addEventListener('DOMContentLoaded', ()=>{
+  setTimeout(reflectWaterInputsToUI, 50);   // 等 input 元素 ready
+  setTimeout(reflectWaterInputsToUI, 800);  // 等可能的 autocomplete 跑完再覆盖
 });
 function renderWater(){
-  // v17.76: input 永远不预填 (用户「你不填就一定要空着」), 在读 cupMl/target 前先清空
-  clearWaterInputs();
+  // v17.78: input 永远显示已保存值 (用户键入/启航后保留显示) — 不再强制清空
+  reflectWaterInputsToUI();
 
   const today=todayStr();
   const cups=getWaterCups(today);
@@ -1801,23 +1812,6 @@ function renderWater(){
   $('waterPct').textContent = `已完成 ${pct}%`;
   $('waterTargetTxt').textContent = `目标 ${target.toLocaleString()} ml`;
   $('waterFill').style.width = pct+'%';
-  // v17.75: input 完全空白 — focus 期间用户键入显示, blur 立即清空回 placeholder
-//        (跟用户最新诉求「你空着不要填」一致; 用户已输入的值在 blur 时被擦掉)
-//        —— 但用户本次 session 内点启航后, 由于 render 跳过 activeElement=本身, 值保留到那次 render 结束
-//        —— 但 renderWater 会在 emitWaterChange 里被调, 那时 activeElement 已不在 input 上, 会清空
-//        —— 所以启航后 input 也清空, 跟用户预期一致: input 永远不保留显示
-  ['waterCupInput','waterTargetInput'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(!el || el._v17_75Bound) return;
-    el._v17_75Bound=true;
-    el.addEventListener('blur', ()=>{ setTimeout(()=>{ el.value=''; }, 0); });
-  });
-
-  // v17.75: input 永远不预填 + blur 后立即清空 — 应用启动时一次性清空两个 input
-  const cupEl=$('waterCupInput'), tgtEl=$('waterTargetInput');
-  // 只在 input 不是 activeElement 时清空 (用户正在输入不要打断)
-  if(document.activeElement!==cupEl) cupEl.value='';
-  if(document.activeElement!==tgtEl) tgtEl.value='';
   $('waterCountTxt').textContent = cups>0?`(${cups} 杯 · ${ml.toLocaleString()} ml · 每杯 ${cupMl} ml)`:'';
   // v17.76: 水池水位 — 设目标时按比例涨; 没设目标但已喝水 ≥1 杯也给点水 (10% ~ 30% 阶梯), 用户至少看到「水进来了」
   let heightPct;
@@ -2877,50 +2871,71 @@ async function saveCycleLen(){
 
 /* ---------- app_settings：跨设备同步 labels + cycle_len ---------- */
 // 单行 key='labels' 存 {app,todo,memo,eye,warm,farm}；单行 key='cycle_len' 存 18-60 整数
-async function loadSettings(){
+// v17.78: fetch 网络抖动 (TypeError: Failed to fetch) 不再弹 banner — 自动 3 次重试 (1s/2s/4s),
+//        只在 debugBar 静默记录. 表不存在 (42P01) 才弹 APP_SETTINGS_GUIDE
+async function loadSettings(retry=0){
   if(!sb) return;
-  const {data,error}=await sb.from('app_settings').select('*').in('key',['labels','cycle_len']);
-  if(error){
-    // 42P01 = 表不存在，给出明确引导
-    if(/relation .* does not exist|app_settings/i.test(error.message||'')){
+  try{
+    const {data,error}=await sb.from('app_settings').select('*').in('key',['labels','cycle_len']);
+    if(error) throw error;
+    // 拉到设置时清掉 banner（如果用户已经建好表了）
+    $('banner').hidden=true; setupError=false;
+    const byKey={};
+    (data||[]).forEach(r=>{ byKey[r.key]=r.value; });
+    // labels：以云端为准，本地立刻套用（手机电脑实时一致）
+    if(byKey.labels){
+      const newStr=JSON.stringify(byKey.labels);
+      if(newStr!==cloudLabelsStr){
+        cloudLabelsStr=newStr;
+        try{ localStorage.setItem('wbLabels',newStr); }catch(e){}
+        applyLabels();
+      }
+    }else{
+      cloudLabelsStr=null;
+    }
+    // cycle_len
+    const cl=byKey.cycle_len;
+    if(typeof cl==='number'&&cl>=18&&cl<=60){
+      periodCycleLen=cl;
+      renderPeriod();
+    }else if(cl!==undefined && cl!==null){
+      periodCycleLen=null; // 云端值非法就退回默认/自动
+      renderPeriod();
+    }
+  }catch(error){
+    const msg=(error&&error.message)||String(error||'');
+    const isNetwork=(/failed to fetch|networkerror|load failed|network request failed/i.test(msg));
+    const isMissingTable=(/relation .* does not exist|app_settings/i.test(msg));
+    if(isMissingTable){
+      // 用户没建表 — 弹引导 banner
       if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
-    }else if(!setupError){
-      setupError=true;
-      showBanner('⚠️ 加载 app_settings 失败：<b>'+(error.message||error)+'</b><br>当前请求的 Supabase 项目：<code>'+SUPABASE_URL+'</code><br>请把这条错误截图发给 AI。');
+      recordError('loadSettings', msg+' @ '+SUPABASE_URL);
+      setTimeout(()=>{ setupError=false; }, 2500);
+      return;
     }
-    recordError('loadSettings', (error.message||error)+' @ '+SUPABASE_URL);
-    // banner 短延迟重置，给当前错误留出展示时间，但不再阻塞后续 loadXxx 的 hide
-    setTimeout(()=>{ setupError=false; }, 2500);
-    return;
-  }
-  // 拉到设置时清掉 banner（如果用户已经建好表了）
-  $('banner').hidden=true; setupError=false;
-  const byKey={};
-  (data||[]).forEach(r=>{ byKey[r.key]=r.value; });
-  // labels：以云端为准，本地立刻套用（手机电脑实时一致）
-  if(byKey.labels){
-    const newStr=JSON.stringify(byKey.labels);
-    if(newStr!==cloudLabelsStr){
-      cloudLabelsStr=newStr;
-      try{ localStorage.setItem('wbLabels',newStr); }catch(e){}
-      applyLabels();
+    // 网络抖动 / DNS 失败 / CORS 拦截 — 静默重试, 不弹 banner
+    if(retry<3){
+      const wait=Math.min(8000, 1000*Math.pow(2,retry));
+      console.warn('[loadSettings] 网络抖动, '+wait+'ms 后重试 ('+(retry+1)+'/3):', msg);
+      recordError('loadSettings.net', 'retry '+(retry+1)+'/3: '+msg);
+      setTimeout(()=>{ loadSettings(retry+1).catch(()=>{}); }, wait);
+      return;
     }
-  }else{
-    cloudLabelsStr=null;
-  }
-  // cycle_len
-  const cl=byKey.cycle_len;
-  if(typeof cl==='number'&&cl>=18&&cl<=60){
-    periodCycleLen=cl;
-    renderPeriod();
-  }else if(cl!==undefined && cl!==null){
-    periodCycleLen=null; // 云端值非法就退回默认/自动
-    renderPeriod();
+    // 重试 3 次都失败 — 只在 debugBar 静默记录, 不弹 banner 干扰用户
+    recordError('loadSettings', msg+' @ '+SUPABASE_URL+' (3次重试后放弃)');
   }
 }
 async function saveSettings(key, value){
   if(!sb) return false;
   const payload={key,value:value===null?null:JSON.parse(JSON.stringify(value)),updated_at:new Date().toISOString()};
+  // v17.78: 写云端同时, 把 value 镜像到 localStorage 兜底键, 让本端 readXxx 立刻拿到值
+  //        (realtime 还没回传时, 渲染也能用新值; 用户切换/刷新后立刻看到已保存值)
+  if(key==='water_settings' && value && typeof value==='object'){
+    if(typeof value.cupMl==='number'&&value.cupMl>0) localStorage.setItem('wbWaterCup', String(value.cupMl));
+    if(typeof value.target==='number'&&value.target>=0) localStorage.setItem('wbWaterTarget', String(value.target));
+    // 同步显示到 input (用户「设置了就保留显示在那里」)
+    reflectWaterInputsToUI();
+  }
   // v9 修复：不再用 upsert（supabase-js 的 upsert 默认 Prefer: resolution=merge-duplicate 在我们的表上会 409 主键冲突）
   // 改成 select-then-update-or-insert：select 用 'key' 而非 'id'（表里只有 key 列）
   const {data:rows,error:se}=await sb.from('app_settings').select('key').eq('key',key).limit(1);
@@ -2967,37 +2982,78 @@ function safeReload(table,fn){
     try{ fn(); }catch(e){ showFatal('realtime['+table+']: '+(e.message||e)); }
   },200);
 }
+// v17.78: realtime channel 全部用独立 try-catch 包裹, 单个 channel 失败不阻塞其他; 启动后延迟 2s 检测连接 + 失败重连
+const _RT_STATES={channels:[], connectedAt:0};
 if(sb){
-  sb.channel('todos-rt').on('postgres_changes',{event:'*',schema:'public',table:'todos'},()=>safeReload('todos',loadTodos)).subscribe();
-  sb.channel('memos-rt').on('postgres_changes',{event:'*',schema:'public',table:'memos'},()=>safeReload('memos',loadMemos)).subscribe();
-  sb.channel('drops-rt').on('postgres_changes',{event:'*',schema:'public',table:'drops'},()=>{ try{ loadDrops(); }catch(e){ showFatal('realtime[drops]: '+(e.message||e)); } }).subscribe();   /* v17.26: 总是拉一次（首页 + 护眼 view 都要同步） */
-  sb.channel('water-rt').on('postgres_changes',{event:'*',schema:'public',table:'water_log'},()=>{ try{ loadWaterCups(); }catch(e){ showFatal('realtime[water]: '+(e.message||e)); } }).subscribe();   /* v17.38: 喝水云端 insert/delete → 秒同步到所有端 */
-  sb.channel('period-rt').on('postgres_changes',{event:'*',schema:'public',table:'period_log'},()=>{ safeReload('period',loadPeriod); }).subscribe();
-  sb.channel('farm-rt').on('postgres_changes',{event:'*',schema:'public',table:'farm'},()=>{
+  const _bind=(name, table, handler)=>{
+    try{
+      const ch=sb.channel(name).on('postgres_changes',{event:'*',schema:'public',table},handler).subscribe((status)=>{
+        if(status==='SUBSCRIBED') _RT_STATES.connectedAt=Date.now();
+      });
+      _RT_STATES.channels.push({name,ch});
+    }catch(e){ console.warn('[rt] '+name+' 绑定失败:', (e.message||e)); }
+  };
+  _bind('todos-rt',  'todos',       ()=>safeReload('todos', loadTodos));
+  _bind('memos-rt',  'memos',       ()=>safeReload('memos', loadMemos));
+  _bind('drops-rt',  'drops',       ()=>{ try{ loadDrops(); }catch(e){ showFatal('realtime[drops]: '+(e.message||e)); } });
+  // v17.38: 喝水云端 insert/delete → 秒同步到所有端
+  _bind('water-rt',  'water_log',   ()=>{ try{ loadWaterCups(); }catch(e){ showFatal('realtime[water]: '+(e.message||e)); } });
+  _bind('period-rt', 'period_log',  ()=>safeReload('period', loadPeriod));
+  _bind('farm-rt',   'farm',        ()=>{
     if(Date.now()-farmPushAt<1500) return;
     safeReload('farm',()=>pullFarm(true));
-  }).subscribe();
-  // app_settings 任何变化都重拉（手机电脑同步 labels / cycle_len）
-  try{ sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},()=>{ safeReload('settings',loadSettings); safeReload('water-set',loadWaterSettings); safeReload('savings',loadSavings); }).subscribe(); }catch(e){}
+  });
+  // app_settings 任何变化都重拉 (手机电脑同步 labels / cycle_len / water_settings / savings)
+  try{
+    sb.channel('settings-rt').on('postgres_changes',{event:'*',schema:'public',table:'app_settings'},(payload)=>{
+      // v17.78: 喝水设置单独监听 — 拉到值后写回 input 显示
+      const isWaterSet = payload && payload.new && payload.new.key==='water_settings'
+                       || payload && payload.old && payload.old.key==='water_settings';
+      safeReload('settings',loadSettings);
+      safeReload('water-set',loadWaterSettings);
+      safeReload('savings',loadSavings);
+      if(isWaterSet) safeReload('water-set-input',loadWaterSettings);  // 再触发一次确保显示更新
+    }).subscribe((status)=>{
+      if(status==='SUBSCRIBED') _RT_STATES.connectedAt=Date.now();
+    });
+  }catch(e){ console.warn('[rt] settings-rt 绑定失败:', (e.message||e)); }
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ loadTodos(); loadMemos(); loadFarm(); loadSettings(); loadSavings(); loadWaterSettings(); if(view==='counter') loadDrops(); if(view==='period') loadPeriod(); if(view==='water') loadWaterCups(); if(view==='saving') { loadSavings(); } } });
+// v17.78: visibilitychange 强制兜底拉一次 (realtime 失败/睡眠醒来都能修复同步)
+let _lastVisibilityReload=0;
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden) return;
+  // 防抖: 1.5s 内不重复 reload
+  if(Date.now()-_lastVisibilityReload<1500) return;
+  _lastVisibilityReload=Date.now();
+  Promise.allSettled([
+    loadTodos(), loadMemos(), loadFarm(),
+    loadSettings(), loadSavings(), loadWaterSettings(), loadWaterCups()
+  ]).catch(()=>{});
+  if(view==='counter') loadDrops();
+  if(view==='period') loadPeriod();
+});
 
 // v17.75: 喝水设置 (每杯 ml + 目标 ml) — 跨设备同步, app_settings 表 key='water_settings'
+// v17.78: 拉到云端值后, 把值显示回 input (用户明确要求「设置了就保留显示在那里」)
 async function loadWaterSettings(){
   if(!sb) return;
-  const {data,error}=await sb.from('app_settings').select('*').eq('key','water_settings').limit(1);
-  if(error){
-    if(!/relation .* does not exist|app_settings/i.test(error.message||'')){
-      console.warn('[water-set] 云端拉取失败, 走 localStorage:', error.message);
+  try{
+    const {data,error}=await sb.from('app_settings').select('*').eq('key','water_settings').limit(1);
+    if(error) throw error;
+    const row=(data&&data[0]); if(!row || !row.value) { reflectWaterInputsToUI(); return; }
+    const {cupMl, target} = row.value;
+    // 镜像到 localStorage 兜底, 让 readCupMl/readTargetMl 也能拿到
+    if(typeof cupMl==='number'&&cupMl>0) localStorage.setItem('wbWaterCup', String(cupMl));
+    if(typeof target==='number'&&target>=0) localStorage.setItem('wbWaterTarget', String(target));
+    // v17.78: 关键修复 — 把已保存值显示到 input (用户「设置了就保留显示」)
+    reflectWaterInputsToUI();
+    emitWaterChange();   // 重渲两个 view, 让设置变化立即生效
+  }catch(err){
+    const msg=(err&&err.message)||String(err||'');
+    if(!/relation .* does not exist|app_settings/i.test(msg)){
+      console.warn('[water-set] 云端拉取失败, 走 localStorage:', msg);
     }
-    return;
   }
-  const row=(data&&data[0]); if(!row || !row.value) return;
-  const {cupMl, target} = row.value;
-  // 镜像到 localStorage 兜底, 让 readCupMl/readTargetMl 也能拿到
-  if(typeof cupMl==='number'&&cupMl>0) localStorage.setItem('wbWaterCup', String(cupMl));
-  if(typeof target==='number'&&target>=0) localStorage.setItem('wbWaterTarget', String(target));
-  emitWaterChange();   // 重渲两个 view, 让设置变化立即生效
 }
 
 /* ---------- 我的农场 v5：自由农场 ---------- */
