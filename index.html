@@ -3,18 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.30</title>
+<title>GrowTime · v17.31</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
-<!-- v17.30 (8/14 反馈): 手机端 layout 兜底 + 侧栏设置贴底 + 排查下拉报错
-  1. .wrap 改用 --vvh 动态变量 (JS 监听 visualViewport+resize+orientationchange)
-     + 保留 min-height:100dvh / -webkit-fill-available 兜底 — 100dvh 在 iOS Safari 仍可能 = layout viewport (含 URL bar 区),
-     导致 #viewHome flex:1 撑到 URL bar 下方, .site-foot{margin-top:auto} 推到"看不见的底部"= 视觉上半空
-  2. @media(max-width:640px) .sidebar-foot{margin-top:0} → auto (之前把设置按钮浮中段)
-  3. 顶层 touchmove 监听: 仅在 scrollY<=0 + 下拉 + 非表单元素时 preventDefault, 阻止 iOS Safari pull-to-refresh
-     (用户说"手机每次下拉都有一个报错时间很短" — pull-to-refresh 触发整页刷新,Supabase realtime 重连瞬间报错;
-     阻止后既不刷新也不报错,正常页面滚动不受影响)
+<!-- v17.31 (8/14 反馈): 修 v17.30 calc 单位 bug + 排查顶部一闪报错
+  1. 修 v17.30 calc bug: --vvh 直接用 px (vh+'px'), wrap 改 min-height: var(--vvh, 100dvh)
+     (v17.30 --vvh=(vh/innerWidth)+'px' 配 calc(...*100) = 130px 废值, flex 链全断, sidebar/footer 全部不贴底)
+  2. showFatal 改走 debugBar (recordError + 持久化到 localStorage + 常驻显示)
+     原: 顶部 banner 显示后立刻被 loadXxx 成功后的 $('banner').hidden=true 关掉,用户看到"一闪就没"
+     现: 走 debugBar 留痕,用户可截图或点 debugBar 复制内容发我
 -->
 <!-- v17.28 (8/14 反馈): 时间卡加高 + 删除电脑端右上角齿轮
   1. 时间卡 .home-left>.hc:first-child 单独 min-height:128(max 148),比喝水/护眼的 88 明显高,内容更舒展
@@ -126,7 +124,7 @@
   .app.collapsed .sb-toggle{left:8px;}
   @media (max-width:640px){ .sb-toggle{left:76px;width:26px;height:26px;font-size:13px;} .app.collapsed .sb-toggle{left:8px;} }
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;min-height:100dvh;min-height:-webkit-fill-available;min-height:calc(var(--vvh,1dvh) * 100);display:flex;flex-direction:column;}
+  .wrap{max-width:none;margin:0 auto;padding:22px 24px 60px;min-height:100vh;min-height:100dvh;min-height:-webkit-fill-available;min-height:var(--vvh,100dvh);display:flex;flex-direction:column;}
   header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:16px;}
   header h1{font-size:22px;margin:0;letter-spacing:1px;}
   .nav{display:flex;gap:8px;margin-bottom:16px;}
@@ -1068,13 +1066,13 @@ if(typeof supabase==='undefined' || !supabase.createClient){
 
 let todos=[], memos=[], drops=[], pet=null, filter='open', view='home', editId=null, setupError=false;
 
-/* 全局错误兜底：把任何 JS 异常显示到顶部 banner，方便诊断 */
+/* 全局错误兜底：v17.31 改成走 debugBar (常驻 + localStorage 持久化) — 不再用顶部 banner
+   (原 banner 会被 loadXxx 成功后的 $('banner').hidden=true 立刻关掉,用户看到"一闪就没"诊断不到) */
 function showFatal(msg){
+  recordError('fatal', msg);
   try{
-    const b=$('banner'); if(!b) return;
-    b.innerHTML='<b>⚠️ 系统异常：</b> '+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))
-      +' <button onclick="this.parentNode.hidden=true" style="margin-left:8px;padding:2px 8px;border:1px solid #c33;background:#fff;color:#c33;border-radius:6px;cursor:pointer">关闭</button>';
-    b.hidden=false;
+    const b=$('banner');
+    if(b){ b.innerHTML='<b>⚠️ 系统异常：</b> '+msg.replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); b.hidden=false; }
   }catch(e){}
 }
 window.addEventListener('error',e=>{ showFatal(e.message+' ('+(e.filename||'')+':'+(e.lineno||'')+')'); });
@@ -2942,11 +2940,12 @@ function sellAll(){
 
 bindFarmEvents();
 
-/* v17.30: iOS Safari 100dvh 不可靠 — 用 visualViewport 动态设 --vvh，让 .wrap 高度 = 真实可视区
-   (移动端浏览器地址栏折叠/展开时,100dvh 在 iOS Safari 仍可能 = layout viewport, 鼓励语会被推到 URL bar 区域看不见) */
+/* v17.31: iOS Safari 100dvh 不可靠 — 用 visualViewport 动态设 --vvh (px),让 .wrap 高度 = 真实可视区
+   (v17.30 把 --vvh 设成 (vh/innerWidth)+'px' 然后 calc(...*100) → 130px 废值,flex 链全断,sidebar/footer 全部不贴底)
+   移动端浏览器地址栏折叠/展开时,visualViewport.height 是真实可视区,单位直接 px */
 function updateVVH(){
   const vh=(window.visualViewport && window.visualViewport.height) || window.innerHeight;
-  document.documentElement.style.setProperty('--vvh', (vh/window.innerWidth)+'px');
+  document.documentElement.style.setProperty('--vvh', vh+'px');
 }
 updateVVH();
 if(window.visualViewport){
