@@ -1769,8 +1769,8 @@ const FOOT_LINES=[
 ];
 /* v17.20: 按日期缓存鼓励语，一天一条，刷新不变
    v18.29: 把"每台设备各自 Math.random"改成"按日期哈希取索引" → 同一天手机/电脑天然拿到同一条，且不依赖任何云端 */
-const FOOT_KEY_DATE='footDate';
-const FOOT_KEY_IDX='footIdx';
+const FOOT_KEY_DATE='footDate_v1829';   /* v18.29: 加后缀强制今天两台设备都 miss 缓存 → 立刻走 _footDateIdx(today) → 同一条 */
+const FOOT_KEY_IDX='footIdx_v1829';
 function _footDateIdx(dateStr){
   let h=0; for(let i=0;i<dateStr.length;i++) h=(h*31+dateStr.charCodeAt(i))|0;
   return Math.abs(h)%FOOT_LINES.length;
