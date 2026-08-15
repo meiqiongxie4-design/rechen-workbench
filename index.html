@@ -899,6 +899,7 @@
       var v = (localStorage.getItem('rechen_current_view')||'home').trim();
       var VALID = ['home','todo','memo','counter','period','farm','water','saving'];
       var target = VALID.indexOf(v) >= 0 ? v : 'home';
+      if(target === 'farm') target = 'home';   /* v18.28: 农场已隐藏，刷新恢复时回落到首页，不自动打开农场 */
       // 1) 默认全部 view 隐藏(含 viewHome)
       var css = '#viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{display:none !important;}';
       // 2) 仅显示 saved view(对应 ID = "view" + 大写首字母)
@@ -928,7 +929,7 @@
       <button class="sb-item" data-view="memo" data-label-key="memo" title="备忘"><span class="ic">📒</span><span class="lb">备忘</span></button>
       <button class="sb-item" data-view="period" data-label-key="warm" title="流光"><span class="ic">🌈</span><span class="lb">流光</span></button>
       <button class="sb-item" data-view="counter" data-label-key="eye" title="护眼"><span class="ic">🌿</span><span class="lb">护眼</span></button>
-      <button class="sb-item" data-view="farm" data-label-key="farm" title="农场"><span class="ic">🐔</span><span class="lb">农场</span></button>
+      <button class="sb-item" data-view="farm" data-label-key="farm" title="农场" style="display:none"><span class="ic">🐔</span><span class="lb">农场</span></button>
       <button class="sb-item" data-view="saving" data-label-key="saving" title="存钱"><span class="ic">💰</span><span class="lb">存钱</span></button>
       <button class="sb-item" data-view="water" data-label-key="water" title="喝水"><span class="ic">💧</span><span class="lb">喝水</span></button>
       <div class="sb-spacer"></div>
@@ -1225,7 +1226,7 @@
       <div class="field"><label>备忘录</label><input id="labMemo" maxlength="14" /></div>
       <div class="field"><label>护眼记</label><input id="labEye" maxlength="14" /></div>
       <div class="field"><label>暖记</label><input id="labWarm" maxlength="14" /></div>
-      <div class="field"><label>我的农场</label><input id="labFarm" maxlength="14" /></div>
+      <div class="field" style="display:none"><label>我的农场</label><input id="labFarm" maxlength="14" /></div>
       <div class="field"><label>喝水</label><input id="labWater" maxlength="14" placeholder="💧 喝水" /></div>
       <div class="field"><label>存钱</label><input id="labSaving" maxlength="14" placeholder="💰 存钱" /></div>
       <div style="font-size:12px;color:var(--muted);">前面带 emoji 的会用作侧栏图标；emoji 后是侧栏显示名。保存后立即生效；不填则恢复默认。</div>
@@ -1545,6 +1546,7 @@ function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
 
 /* 导航 */
 function switchView(v){
+  if(v === 'farm') return;   /* v18.28: 农场已隐藏，禁止切换到该视图（数据/同步逻辑保留不动） */
   view=v;
   try{ localStorage.setItem('rechen_current_view', v); }catch(e){}   /* v17.43: 持久化当前 view,F5/刷新后停留此页(不再默认回首页) */
   /* v17.45: 同步更新 body 顶部 viewBootStyle (内联 !important 锁死初始 view, 必须更新它才能切到新 view)
@@ -4483,7 +4485,7 @@ try{ renderStats(); renderList(); }catch(e){}
   try{
     const saved=(localStorage.getItem('rechen_current_view')||'').trim();
     const VALID=['home','todo','memo','counter','period','farm','water','saving'];
-    switchView(VALID.includes(saved)?saved:'home');   /* v17.43: 记住上次停留的 view,F5/刷新后不再默认回首页 */
+    switchView(VALID.includes(saved) && saved!=='farm' ? saved : 'home');   /* v18.28: 农场已隐藏，即使上次停在农场也回落首页 */
   }catch(e){ showFatal('switchView init: '+(e.message||e)); }
 })();
 setInterval(tickFarm,1000);
