@@ -197,9 +197,9 @@
 
 <!-- 版本：rechen-v2026-08-15-v17.99 (1) 通用 .hc-left gap 8→14 跟 v17.97 时间卡行距统一; 删掉 .home-left>.hc:first-child .hc-left 冗余覆盖 (现通用已是 14); (2) 喝水/护眼卡「今日已喝 0 杯」+「0 ml · 已完成 0%」两行行距跟时间卡三行一致; (3) 高度 v17.98 (132/186 桌面 120min 手机) 不变, 部署后请硬刷一次解决 CDN 缓存未显示 v17.98 的问题 --><!-- 版本：rechen-v2026-08-15-v17.99b (1) 修手机端 .hc-left 漏改: @media(max-width:640px) 里有 .hc-left{gap:5px} 覆盖桌面 14, 导致手机上行距仍为 5px 偏紧; (2) 改为 gap:14px 跟桌面统一 --><!-- 版本：rechen-v2026-08-15-v17.99c (1) 今日待办标题 .todo-summary-hd .lb 改跟 .water-list-title 同款绿色加粗 (#16a34a + 700 + 13px); (2) 删「· 还剩 N 条」文案, 标题只留「📝 今日待办」 --><!-- 版本：rechen-v2026-08-15-v18.20-white-rounded-icon (1) PWA 图标透明 4 角造成桌面图标比 WorkBuddy 小一圈: 本版用 Pillow 把 alpha=0 的 4 角填白 + 22.5% 圆角, 重新导出 apple-touch-icon/favicon-192/favicon-512/.ico, manifest 改 purpose:'any' (去掉 maskable 二次裁剪), theme/background 改 #ffffff 与图标白底一致 → 跟原生 WorkBuddy 等大; (2) 共享报错 Script error (:) 修复: v18.19 banner 加「复制」按钮, 用户可一键复制错误内容发我 -->
 <link rel="apple-touch-icon" sizes="180x180" href="pwa-apple-180-v18.24.png" />
-<link rel="manifest" href="manifest.json" />
+<link rel="manifest" href="manifest.json?v=18.29" />
 <link rel="icon" type="image/png" sizes="192x192" href="pwa-icon-192-v18.24.png" />
-<link rel="shortcut icon" href="favicon-v18.24.ico" />
+<link rel="shortcut icon" href="favicon-v18.29.ico" />
 <meta name="apple-mobile-web-app-title" content="热忱工作台" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -1767,9 +1767,14 @@ const FOOT_LINES=[
   {cn:'把大事拆成小事，一件一件做。', en:'Break it down.'},
   {cn:'你已经比昨天更厉害了。', en:'You are improving.'},
 ];
-/* v17.20: 按日期缓存鼓励语，一天一条，刷新不变 */
+/* v17.20: 按日期缓存鼓励语，一天一条，刷新不变
+   v18.29: 把"每台设备各自 Math.random"改成"按日期哈希取索引" → 同一天手机/电脑天然拿到同一条，且不依赖任何云端 */
 const FOOT_KEY_DATE='footDate';
 const FOOT_KEY_IDX='footIdx';
+function _footDateIdx(dateStr){
+  let h=0; for(let i=0;i<dateStr.length;i++) h=(h*31+dateStr.charCodeAt(i))|0;
+  return Math.abs(h)%FOOT_LINES.length;
+}
 function rotateFoot(){
   const today=new Date().toDateString();
   let idx=null;
@@ -1779,10 +1784,10 @@ function rotateFoot(){
     if(cachedDate===today && cachedIdx>=0 && cachedIdx<FOOT_LINES.length){
       idx=cachedIdx;
     } else {
-      idx=Math.floor(Math.random()*FOOT_LINES.length);
+      idx=_footDateIdx(today);
       try{ localStorage.setItem(FOOT_KEY_DATE,today); localStorage.setItem(FOOT_KEY_IDX,String(idx)); }catch(e){}
     }
-  }catch(e){ idx=Math.floor(Math.random()*FOOT_LINES.length); }
+  }catch(e){ idx=_footDateIdx(today); }
   const cn=$('footCN'); if(cn) cn.textContent=FOOT_LINES[idx].cn;
   const en=$('footEN'); if(en) en.textContent=FOOT_LINES[idx].en;
 }
