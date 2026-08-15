@@ -1,39 +1,39 @@
 {
-  "id": "/?v=18.34",
+  "id": "/?v=18.35",
   "name": "GrowTime",
   "short_name": "GrowTime",
-  "start_url": "./index.html?v=18.34",
+  "start_url": "./index.html?v=18.35",
   "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "pwa-icon-192-v18.34.png",
+      "src": "pwa-icon-192-v18.35.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "pwa-icon-512-v18.34.png",
+      "src": "pwa-icon-512-v18.35.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "pwa-maskable-192-v18.34.png",
+      "src": "pwa-maskable-192-v18.35.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "pwa-maskable-512-v18.34.png",
+      "src": "pwa-maskable-512-v18.35.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "pwa-apple-180-v18.34.png",
+      "src": "pwa-apple-180-v18.35.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
