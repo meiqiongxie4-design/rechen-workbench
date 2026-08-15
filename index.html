@@ -195,16 +195,16 @@
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 
-<!-- 版本：rechen-v2026-08-15-v17.99 (1) 通用 .hc-left gap 8→14 跟 v17.97 时间卡行距统一; 删掉 .home-left>.hc:first-child .hc-left 冗余覆盖 (现通用已是 14); (2) 喝水/护眼卡「今日已喝 0 杯」+「0 ml · 已完成 0%」两行行距跟时间卡三行一致; (3) 高度 v17.98 (132/186 桌面 120min 手机) 不变, 部署后请硬刷一次解决 CDN 缓存未显示 v17.98 的问题 --><!-- 版本：rechen-v2026-08-15-v18.33-maskable (1) PWA 图标四 alpha=0 透明角造成桌面图标比 WorkBuddy 小一圈: v18.32 之前是「图标主体居中、外圈透明」的浮动版本, Chrome PWA 安装时把透明区识别为 safe-zone padding → 视觉缩小; (2) v18.33 用 Pillow 把 alpha=0 的 4 角填品牌绿 + 新增 maskable 192/512 档（中心 80% = 猫头, 外圈 20% = 品牌绿 → Chrome 拿到 maskable 不再叠 safe-zone padding, 桌面图标满版 100% = WorkBuddy 等大）; (3) manifest.json 加 id:'/?v=18.33' 字段强制 Chrome 识别为新应用, 清掉旧 PWA icon 缓存; (4) refreshManifest() Blob 注入同步加 maskable 条目; (5) 部署后请清 Chrome 缓存后重新安装 PWA --><!-- 版本：rechen-v2026-08-15-v17.99b (1) 修手机端 .hc-left 漏改: @media(max-width:640px) 里有 .hc-left{gap:5px} 覆盖桌面 14, 导致手机上行距仍为 5px 偏紧; (2) 改为 gap:14px 跟桌面统一 --><!-- 版本：rechen-v2026-08-15-v17.99c (1) 今日待办标题 .todo-summary-hd .lb 改跟 .water-list-title 同款绿色加粗 (#16a34a + 700 + 13px); (2) 删「· 还剩 N 条」文案, 标题只留「📝 今日待办」 --><!-- 版本：rechen-v2026-08-15-v18.20-white-rounded-icon (1) PWA 图标透明 4 角造成桌面图标比 WorkBuddy 小一圈: 本版用 Pillow 把 alpha=0 的 4 角填白 + 22.5% 圆角, 重新导出 apple-touch-icon/favicon-192/favicon-512/.ico, manifest 改 purpose:'any' (去掉 maskable 二次裁剪), theme/background 改 #ffffff 与图标白底一致 → 跟原生 WorkBuddy 等大; (2) 共享报错 Script error (:) 修复: v18.19 banner 加「复制」按钮, 用户可一键复制错误内容发我 -->
-<link rel="apple-touch-icon" sizes="180x180" href="pwa-apple-180-v18.33.png" />
-<link rel="manifest" href="manifest.json?v=18.33" />
-<link rel="icon" type="image/png" sizes="192x192" href="pwa-icon-192-v18.33.png" />
-<link rel="shortcut icon" href="favicon-v18.33.ico" />
+<!-- 版本：rechen-v2026-08-15-v17.99 (1) 通用 .hc-left gap 8→14 跟 v17.97 时间卡行距统一; 删掉 .home-left>.hc:first-child .hc-left 冗余覆盖 (现通用已是 14); (2) 喝水/护眼卡「今日已喝 0 杯」+「0 ml · 已完成 0%」两行行距跟时间卡三行一致; (3) 高度 v17.98 (132/186 桌面 120min 手机) 不变, 部署后请硬刷一次解决 CDN 缓存未显示 v17.98 的问题 --><!-- 版本：rechen-v2026-08-15-v18.34-rounded (1) v18.33 解决了"大小一致"但图标四角方角 vs WorkBuddy 圆角: v18.33 PNG 是 100% 满版方角, Windows 11 不给 PWA 自动加圆角 mask (只给 UWP/Electron 原生应用加); (2) v18.34 用 PIL rounded_rectangle mask 加 22% 圆角 (Apple/Win11 应用图标标准), 圆角外填品牌绿保持不透明满版 → Chrome 不加 safe-zone padding, 图标本身就是圆角 → 跟 WorkBuddy 圆角视觉一致; (3) maskable 也加 22% 圆角 (圆角 rect 内 80% 缩放 cat + 外圈 20% 品牌绿); (4) favicon.ico 重生成 7 档; (5) manifest id 改 /?v=18.34 强制 Chrome 识别为新应用清缓存 --><!-- 版本：rechen-v2026-08-15-v18.33-maskable (1) PWA 图标四 alpha=0 透明角造成桌面图标比 WorkBuddy 小一圈: v18.32 之前是「图标主体居中、外圈透明」的浮动版本, Chrome PWA 安装时把透明区识别为 safe-zone padding → 视觉缩小; (2) v18.33 用 Pillow 把 alpha=0 的 4 角填品牌绿 + 新增 maskable 192/512 档（中心 80% = 猫头, 外圈 20% = 品牌绿 → Chrome 拿到 maskable 不再叠 safe-zone padding, 桌面图标满版 100% = WorkBuddy 等大）; (3) manifest.json 加 id:'/?v=18.33' 字段强制 Chrome 识别为新应用, 清掉旧 PWA icon 缓存; (4) refreshManifest() Blob 注入同步加 maskable 条目; (5) 部署后请清 Chrome 缓存后重新安装 PWA --><!-- 版本：rechen-v2026-08-15-v17.99b (1) 修手机端 .hc-left 漏改: @media(max-width:640px) 里有 .hc-left{gap:5px} 覆盖桌面 14, 导致手机上行距仍为 5px 偏紧; (2) 改为 gap:14px 跟桌面统一 --><!-- 版本：rechen-v2026-08-15-v17.99c (1) 今日待办标题 .todo-summary-hd .lb 改跟 .water-list-title 同款绿色加粗 (#16a34a + 700 + 13px); (2) 删「· 还剩 N 条」文案, 标题只留「📝 今日待办」 --><!-- 版本：rechen-v2026-08-15-v18.20-white-rounded-icon (1) PWA 图标透明 4 角造成桌面图标比 WorkBuddy 小一圈: 本版用 Pillow 把 alpha=0 的 4 角填白 + 22.5% 圆角, 重新导出 apple-touch-icon/favicon-192/favicon-512/.ico, manifest 改 purpose:'any' (去掉 maskable 二次裁剪), theme/background 改 #ffffff 与图标白底一致 → 跟原生 WorkBuddy 等大; (2) 共享报错 Script error (:) 修复: v18.19 banner 加「复制」按钮, 用户可一键复制错误内容发我 -->
+<link rel="apple-touch-icon" sizes="180x180" href="pwa-apple-180-v18.34.png" />
+<link rel="manifest" href="manifest.json?v=18.34" />
+<link rel="icon" type="image/png" sizes="192x192" href="pwa-icon-192-v18.34.png" />
+<link rel="shortcut icon" href="favicon-v18.34.ico" />
 <meta name="apple-mobile-web-app-title" content="热忱工作台" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="theme-color" content="#ffffff" />
-<link rel="icon" type="image/png" sizes="512x512" href="pwa-icon-512-v18.33.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="pwa-icon-512-v18.34.png" />
 <script crossorigin="anonymous" src="./supabase.min.js"></script>
 <style>
   :root{
@@ -1296,7 +1296,7 @@ function applyLabels(){
 }
 function refreshManifest(appName){
   const manifest={
-    id:'/?v=18.33',
+    id:'/?v=18.34',
     name:appName,
     short_name:appName,
     start_url:'./index.html',
@@ -1305,11 +1305,11 @@ function refreshManifest(appName){
     background_color:'#ffffff',
     theme_color:'#ffffff',
     icons:[
-      {src:'pwa-icon-192-v18.33.png',sizes:'192x192',type:'image/png',purpose:'any'},
-      {src:'pwa-icon-512-v18.33.png',sizes:'512x512',type:'image/png',purpose:'any'},
-      {src:'pwa-maskable-192-v18.33.png',sizes:'192x192',type:'image/png',purpose:'maskable'},
-      {src:'pwa-maskable-512-v18.33.png',sizes:'512x512',type:'image/png',purpose:'maskable'},
-      {src:'pwa-apple-180-v18.33.png',sizes:'180x180',type:'image/png',purpose:'any'}
+      {src:'pwa-icon-192-v18.34.png',sizes:'192x192',type:'image/png',purpose:'any'},
+      {src:'pwa-icon-512-v18.34.png',sizes:'512x512',type:'image/png',purpose:'any'},
+      {src:'pwa-maskable-192-v18.34.png',sizes:'192x192',type:'image/png',purpose:'maskable'},
+      {src:'pwa-maskable-512-v18.34.png',sizes:'512x512',type:'image/png',purpose:'maskable'},
+      {src:'pwa-apple-180-v18.34.png',sizes:'180x180',type:'image/png',purpose:'any'}
     ]
   };
   const blob=new Blob([JSON.stringify(manifest)],{type:'application/manifest+json'});
