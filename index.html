@@ -194,6 +194,7 @@
 <!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
+<!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
 
 <!-- 版本：rechen-v2026-08-15-v17.99 (1) 通用 .hc-left gap 8→14 跟 v17.97 时间卡行距统一; 删掉 .home-left>.hc:first-child .hc-left 冗余覆盖 (现通用已是 14); (2) 喝水/护眼卡「今日已喝 0 杯」+「0 ml · 已完成 0%」两行行距跟时间卡三行一致; (3) 高度 v17.98 (132/186 桌面 120min 手机) 不变, 部署后请硬刷一次解决 CDN 缓存未显示 v17.98 的问题 --><!-- 版本：rechen-v2026-08-15-v18.35-transparent-rounded (1) v18.34 解决了"大小+圆角"但 v18.34 把四角 alpha=0 填了品牌绿 → 跟用户截图 WorkBuddy 的圆角视觉一样但 Win11 桌面渲染 .lnk 时不读 .png，只读 .ico / embedded .lnk icon 数据 → v18.34 .ico 也填了品牌绿 (opaque square) → Win11 看到 100% 不透明方角 = 视觉方块. (2) v18.35 真因: Win11 .lnk 圆角渲染**必须**有 alpha=0 透明角 (桌面壁纸从透明透出来 = 圆角视觉). 但 Chrome PWA 安全区会缩透明图 = 又回到"图标小". (3) v18.35 正确解法: any 图标 (pwa-icon-180/192/360/512 + apple-touch-180 + favicon.ico) = 17.6% 圆角 + 四角 alpha=0 透明 (匹配 WorkBuddy ICO 测量值 45/256 ≈ 17.578% = 一致). (4) maskable 图标 = 满版 80% cat + 外圈 20% 品牌绿 (不圆角, 不透明) → Chrome 看到 maskable 不再 safe-zone 缩图. (5) manifest id 改 /?v=18.35 强制 Chrome 视为新 PWA 清缓存. (6) 部署后请按"完全卸载 + chrome://apps 移除 + 硬刷 + 重新安装为应用"操作 --><!-- 版本：rechen-v2026-08-15-v18.34-rounded (1) v18.33 解决了"大小一致"但图标四角方角 vs WorkBuddy 圆角: v18.33 PNG 是 100% 满版方角, Windows 11 不给 PWA 自动加圆角 mask (只给 UWP/Electron 原生应用加); (2) v18.34 用 PIL rounded_rectangle mask 加 22% 圆角 (Apple/Win11 应用图标标准), 圆角外填品牌绿保持不透明满版 → Chrome 不加 safe-zone padding, 图标本身就是圆角 → 跟 WorkBuddy 圆角视觉一致; (3) maskable 也加 22% 圆角 (圆角 rect 内 80% 缩放 cat + 外圈 20% 品牌绿); (4) favicon.ico 重生成 7 档; (5) manifest id 改 /?v=18.34 强制 Chrome 识别为新应用清缓存 --><!-- 版本：rechen-v2026-08-15-v18.33-maskable (1) PWA 图标四 alpha=0 透明角造成桌面图标比 WorkBuddy 小一圈: v18.32 之前是「图标主体居中、外圈透明」的浮动版本, Chrome PWA 安装时把透明区识别为 safe-zone padding → 视觉缩小; (2) v18.33 用 Pillow 把 alpha=0 的 4 角填品牌绿 + 新增 maskable 192/512 档（中心 80% = 猫头, 外圈 20% = 品牌绿 → Chrome 拿到 maskable 不再叠 safe-zone padding, 桌面图标满版 100% = WorkBuddy 等大）; (3) manifest.json 加 id:'/?v=18.33' 字段强制 Chrome 识别为新应用, 清掉旧 PWA icon 缓存; (4) refreshManifest() Blob 注入同步加 maskable 条目; (5) 部署后请清 Chrome 缓存后重新安装 PWA --><!-- 版本：rechen-v2026-08-15-v17.99b (1) 修手机端 .hc-left 漏改: @media(max-width:640px) 里有 .hc-left{gap:5px} 覆盖桌面 14, 导致手机上行距仍为 5px 偏紧; (2) 改为 gap:14px 跟桌面统一 --><!-- 版本：rechen-v2026-08-15-v17.99c (1) 今日待办标题 .todo-summary-hd .lb 改跟 .water-list-title 同款绿色加粗 (#16a34a + 700 + 13px); (2) 删「· 还剩 N 条」文案, 标题只留「📝 今日待办」 --><!-- 版本：rechen-v2026-08-15-v18.20-white-rounded-icon (1) PWA 图标透明 4 角造成桌面图标比 WorkBuddy 小一圈: 本版用 Pillow 把 alpha=0 的 4 角填白 + 22.5% 圆角, 重新导出 apple-touch-icon/favicon-192/favicon-512/.ico, manifest 改 purpose:'any' (去掉 maskable 二次裁剪), theme/background 改 #ffffff 与图标白底一致 → 跟原生 WorkBuddy 等大; (2) 共享报错 Script error (:) 修复: v18.19 banner 加「复制」按钮, 用户可一键复制错误内容发我 -->
 <link rel="apple-touch-icon" sizes="180x180" href="pwa-apple-180-v18.35.png" />
@@ -318,6 +319,13 @@
   .thumb-wrap .x{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;font-size:12px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;opacity:0;transition:.15s;}
   .thumb-wrap:hover .x{opacity:1;}
   .thumb-wrap .x:hover{background:var(--red);}
+  /* v18.36: 顶部快速输入框贴图预览 (新建时可贴图, 添加按钮一并上传) */
+  .quick-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--line);border-radius:10px;background:var(--surface-2);}
+  .quick-thumb{position:relative;width:56px;height:56px;border-radius:6px;overflow:hidden;border:1px solid var(--line);background:#fff;cursor:zoom-in;flex-shrink:0;}
+  .quick-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .quick-thumb .x{position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+  .quick-thumb .x:hover{background:var(--red);}
+  .topbar .quick-thumbs,.add-row .quick-thumbs{width:100%;}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;animation:fadeIn .2s;}
   .overlay img{max-width:95vw;max-height:95vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
   .time{font-size:11px;color:var(--muted);white-space:nowrap;}
@@ -954,11 +962,12 @@
     <div class="grid" id="stats"></div>
     <div class="card panel">
       <div class="add-row">
-        <textarea class="title" id="qTitle" placeholder="写点什么…随手记一条待办（回车换行，点「添加」按钮提交）"></textarea>
+        <textarea class="title" id="qTitle" placeholder="写点什么…随手记一条待办（回车换行，点「添加」按钮提交，可粘贴图片）"></textarea>
         <div class="add-bar">
           <input type="date" id="qDue" title="提醒日期（可选）" />
           <button class="btn" id="qAdd">添加</button>
         </div>
+        <div class="quick-thumbs" id="qTitleThumbs" hidden></div>
       </div>
       <div class="list-title" id="listTitle"></div>
       <div id="list"></div>
@@ -968,8 +977,9 @@
   <!-- 备忘录 -->
   <div id="viewMemo" hidden>
     <div class="topbar">
-      <textarea id="memoQuick" placeholder="随时记一笔（回车换行，点「添加」按钮提交，卡片内可继续编辑、贴图）"></textarea>
+      <textarea id="memoQuick" placeholder="随时记一笔（回车换行，点「添加」按钮提交，卡片内可继续编辑、可粘贴图片）"></textarea>
       <button class="btn" id="memoAdd" title="用左侧输入框内容新建一条备忘录">添加</button>
+      <div class="quick-thumbs" id="memoQuickThumbs" hidden></div>
     </div>
     <div class="card panel">
       <div id="memoList"></div>
@@ -1413,6 +1423,8 @@ if(typeof supabase==='undefined' || !supabase.createClient){
 }
 
 let todos=[], memos=[], drops=[], pet=null, filter='open', view='home', editId=null, setupError=false;
+let pendingMemoImages=[];   // v18.36: 顶部 #memoQuick 待上传图片
+let pendingTodoImages=[];   // v18.36: 顶部 #qTitle 待上传图片
 /* v17.92: drop_clicks 缓存 (key=YYYY-MM-DD -> [{t:'HH:MM:SS', t:'ISO'}]) — 存在 app_settings 表 key='drop_clicks', 避免给 drops 加列(无需 ALTER) */
 let dropClicks = {};
 
@@ -2777,6 +2789,7 @@ function renderList(){
           ${fmtTime(t.created_at)?`<span class="time">${fmtTime(t.created_at)}</span>`:''}
           ${(t.title||'').split('\n').length>3||(t.title||'').length>90?`<button class="badge b-gray" data-act="expand" data-id="${t.id}" style="cursor:pointer;border:none;background:#eef0f5">${collapsed?'展开 ↓':'收起 ↑'}</button>`:''}
         </div>
+        ${(t.images&&t.images.length)?`<div class="thumbs">${t.images.map((im,i)=>`<div class="thumb-wrap"><img src="${im.data}" data-tview="${t.id}" data-i="${i}" title="点击查看大图"/></div>`).join('')}</div>`:''}
       </div>
       <div class="row-actions">
         <button class="btn ghost sm" data-act="edit" data-id="${t.id}">编辑</button>
@@ -2786,11 +2799,13 @@ function renderList(){
   }).join('');
 }
 async function addTodo(){
-  const title=$('qTitle').value.trim(); if(!title){toast('先写点内容');return;}
+  const title=$('qTitle').value.trim(); if(!title && !pendingTodoImages.length){toast('先写点内容');return;}
   if(!sb){ toast('本地预览模式：未连接云端，无法保存'); return; }
   const qd=$('qDue').value;
-  await sb.from('todos').insert({title,due:qd||null});
-  $('qTitle').value=''; $('qDue').value=''; filter='open'; toast('已添加'); loadTodos();
+  const payload={title,due:qd||null};
+  if(pendingTodoImages.length) payload.images=pendingTodoImages;
+  await sb.from('todos').insert(payload);
+  $('qTitle').value=''; $('qDue').value=''; pendingTodoImages=[]; renderQuickThumbs('qTitleThumbs',pendingTodoImages); filter='open'; toast('已添加'); loadTodos();
   fitTitleBox();
 }
 $('qAdd').onclick=addTodo;
@@ -2807,6 +2822,8 @@ $('qTitle').addEventListener('focus',fitTitleBox);
 $('qTitle').addEventListener('blur',fitTitleBox);
 fitTitleBox();
 requestAnimationFrame(fitTitleBox);
+attachQuickPaste($('qTitle'),pendingTodoImages,'qTitleThumbs');
+bindQuickThumbs('qTitleThumbs',pendingTodoImages);
 $('list').onclick=async e=>{
   const b=e.target.closest('[data-act]'); if(!b) return;
   const id=b.dataset.id, act=b.dataset.act, t=todos.find(x=>x.id===id); if(!t) return;
@@ -2814,6 +2831,9 @@ $('list').onclick=async e=>{
   else if(act==='del'){ if(confirm('确定删除这条待办吗？')){ await sb.from('todos').delete().eq('id',id); toast('已删除'); loadTodos(); } }
   else if(act==='edit'){ openEdit(t); }
   else if(act==='expand'){ t.expanded=!t.expanded; renderList(); }
+  // v18.36: 待办图片点击放大
+  const tv=e.target.closest('[data-tview]');
+  if(tv){ const tt=todos.find(x=>x.id===tv.dataset.tview); const im2=tt&&tt.images&&tt.images[+tv.dataset.i]; if(im2){ $('overlayImg').src=im2.data; $('overlay').hidden=false; } return; }
 };
 function openEdit(t){
   editId=t.id; $('eTitle').value=t.title||''; $('modal').hidden=false;
@@ -2918,14 +2938,16 @@ function refreshAllMemoHeightsSoon(){
   setTimeout(refreshAllMemoHeights,350);
   setTimeout(refreshAllMemoHeights,900);
 }
-async function addMemo(text){
+async function addMemo(text,images){
   if(!sb){ toast('本地预览模式：未连接云端，无法保存'); return; }
-  const {data}=await sb.from('memos').insert({text:text||''}).select();
+  const payload={text:text||''};
+  if(images && images.length) payload.images=images;
+  const {data}=await sb.from('memos').insert(payload).select();
   if(data && data.length) memos=data.concat(memos);
   renderMemos();
   // 不自动 focus —— 新建的卡片默认收起，用户自己想编辑再点「展开」或点卡片内文
 }
-$('memoAdd').onclick=()=>{ const v=_memoQuick?_memoQuick.value:''; if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } addMemo(v); };
+$('memoAdd').onclick=()=>{ const v=_memoQuick?_memoQuick.value:''; const imgs=pendingMemoImages.slice(); if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } pendingMemoImages=[]; renderQuickThumbs('memoQuickThumbs',pendingMemoImages); addMemo(v,imgs); };
 // 顶部快速输入框：回车=换行（textarea 默认行为），需要添加时点击「＋ 新建」按钮
 const _memoQuick=$('memoQuick');
 // 输入框自适应：写多长显示多长，不出滚动条
@@ -2937,6 +2959,37 @@ const _fitMemoQuick=()=>{
 };
 _memoQuick&&_memoQuick.addEventListener('input',_fitMemoQuick);
 _fitMemoQuick();
+// v18.36: 顶部快速输入框贴图支持 — 新建时可粘贴图片, 添加时连同图片一起保存
+function renderQuickThumbs(boxId,list){
+  const box=$(boxId); if(!box) return;
+  if(!list.length){ box.hidden=true; box.innerHTML=''; return; }
+  box.hidden=false;
+  box.innerHTML=list.map((im,i)=>`<div class="quick-thumb" data-i="${i}"><img src="${im.data}" title="点击查看大图" data-big="${im.data}"/><button class="x" data-rm="${i}" title="移除图片">×</button></div>`).join('');
+}
+async function attachQuickPaste(ta,list,boxId){
+  ta.addEventListener('paste',async e=>{
+    const item=[...(e.clipboardData||window.clipboardData).items].find(it=>it.type.indexOf('image')>-1);
+    if(!item) return;
+    e.preventDefault();
+    const file=item.getAsFile(); if(!file) return;
+    const dataUrl=await compressImage(file,900,0.7);
+    list.push({name:file.name||('paste_'+Date.now()+'.jpg'),data:dataUrl});
+    renderQuickThumbs(boxId,list);
+  });
+}
+// 顶部缩略图点击：点图片本身 = 全屏预览 / 点 × = 删除该图
+function bindQuickThumbs(boxId,list){
+  const box=$(boxId); if(!box) return;
+  box.onclick=e=>{
+    const x=e.target.closest('[data-rm]');
+    if(x){ const i=+x.dataset.rm; list.splice(i,1); renderQuickThumbs(boxId,list); return; }
+    const img=e.target.closest('[data-big]');
+    if(img){ $('overlayImg').src=img.dataset.big; $('overlay').hidden=false; }
+  };
+}
+// v18.36: 给两个顶部输入框绑贴图 + 缩略图操作
+attachQuickPaste(_memoQuick,pendingMemoImages,'memoQuickThumbs');
+bindQuickThumbs('memoQuickThumbs',pendingMemoImages);
 $('memoList').addEventListener('input',async e=>{
   const ta=e.target.closest('.memo'); if(!ta) return;
   const id=ta.dataset.id, m=memos.find(x=>x.id===id); if(!m) return;
