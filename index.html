@@ -191,12 +191,16 @@
        待办 .stat .num 仍保持 32px
   验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
 -->
-<!-- 版本：rechen-v2026-08-13-v12-pwa-manifest-sync
+<!-- 版本：rechen-v2026-08-16-v18.38-image-zoom-render (1) 修 list.onclick handler 顺序 — 把 [data-tview] 图片放大检查移到 [data-act] 检查之前 (之前 closest('[data-act]') 在 <img> 上找不到 → 整 handler return → 永远走不到放大分支, 所以待办图片点不放大); (2) 强化 todoNoteSplit 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 含 TODO_IMG_PREFIX 就强制 split (防御手机 PWA 缓存了 v18.37 之前的旧 JS, fallback 路径写出去后渲染时 todoNoteSplit 没生效, raw __TODO_PASTE_V1__ 字符串泄露给用户); (3) memoQuick textarea paste 防御升级 — 即使剪贴板只有 text/plain 是 data URL 也拦截, 加 input 事件兜底防止 Chrome 偶发 paste event 不触发时 base64 漏进 textarea; (4) HTML head 加 Cache-Control/Pragma/Expires no-cache meta, 强制 PWA 不缓存 HTML, 手机端重新拉新版 JS -->
 <!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
 
 <!-- 版本：rechen-v2026-08-15-v17.99 (1) 通用 .hc-left gap 8→14 跟 v17.97 时间卡行距统一; 删掉 .home-left>.hc:first-child .hc-left 冗余覆盖 (现通用已是 14); (2) 喝水/护眼卡「今日已喝 0 杯」+「0 ml · 已完成 0%」两行行距跟时间卡三行一致; (3) 高度 v17.98 (132/186 桌面 120min 手机) 不变, 部署后请硬刷一次解决 CDN 缓存未显示 v17.98 的问题 --><!-- 版本：rechen-v2026-08-15-v18.35-transparent-rounded (1) v18.34 解决了"大小+圆角"但 v18.34 把四角 alpha=0 填了品牌绿 → 跟用户截图 WorkBuddy 的圆角视觉一样但 Win11 桌面渲染 .lnk 时不读 .png，只读 .ico / embedded .lnk icon 数据 → v18.34 .ico 也填了品牌绿 (opaque square) → Win11 看到 100% 不透明方角 = 视觉方块. (2) v18.35 真因: Win11 .lnk 圆角渲染**必须**有 alpha=0 透明角 (桌面壁纸从透明透出来 = 圆角视觉). 但 Chrome PWA 安全区会缩透明图 = 又回到"图标小". (3) v18.35 正确解法: any 图标 (pwa-icon-180/192/360/512 + apple-touch-180 + favicon.ico) = 17.6% 圆角 + 四角 alpha=0 透明 (匹配 WorkBuddy ICO 测量值 45/256 ≈ 17.578% = 一致). (4) maskable 图标 = 满版 80% cat + 外圈 20% 品牌绿 (不圆角, 不透明) → Chrome 看到 maskable 不再 safe-zone 缩图. (5) manifest id 改 /?v=18.35 强制 Chrome 视为新 PWA 清缓存. (6) 部署后请按"完全卸载 + chrome://apps 移除 + 硬刷 + 重新安装为应用"操作 --><!-- 版本：rechen-v2026-08-15-v18.34-rounded (1) v18.33 解决了"大小一致"但图标四角方角 vs WorkBuddy 圆角: v18.33 PNG 是 100% 满版方角, Windows 11 不给 PWA 自动加圆角 mask (只给 UWP/Electron 原生应用加); (2) v18.34 用 PIL rounded_rectangle mask 加 22% 圆角 (Apple/Win11 应用图标标准), 圆角外填品牌绿保持不透明满版 → Chrome 不加 safe-zone padding, 图标本身就是圆角 → 跟 WorkBuddy 圆角视觉一致; (3) maskable 也加 22% 圆角 (圆角 rect 内 80% 缩放 cat + 外圈 20% 品牌绿); (4) favicon.ico 重生成 7 档; (5) manifest id 改 /?v=18.34 强制 Chrome 识别为新应用清缓存 --><!-- 版本：rechen-v2026-08-15-v18.33-maskable (1) PWA 图标四 alpha=0 透明角造成桌面图标比 WorkBuddy 小一圈: v18.32 之前是「图标主体居中、外圈透明」的浮动版本, Chrome PWA 安装时把透明区识别为 safe-zone padding → 视觉缩小; (2) v18.33 用 Pillow 把 alpha=0 的 4 角填品牌绿 + 新增 maskable 192/512 档（中心 80% = 猫头, 外圈 20% = 品牌绿 → Chrome 拿到 maskable 不再叠 safe-zone padding, 桌面图标满版 100% = WorkBuddy 等大）; (3) manifest.json 加 id:'/?v=18.33' 字段强制 Chrome 识别为新应用, 清掉旧 PWA icon 缓存; (4) refreshManifest() Blob 注入同步加 maskable 条目; (5) 部署后请清 Chrome 缓存后重新安装 PWA --><!-- 版本：rechen-v2026-08-15-v17.99b (1) 修手机端 .hc-left 漏改: @media(max-width:640px) 里有 .hc-left{gap:5px} 覆盖桌面 14, 导致手机上行距仍为 5px 偏紧; (2) 改为 gap:14px 跟桌面统一 --><!-- 版本：rechen-v2026-08-15-v17.99c (1) 今日待办标题 .todo-summary-hd .lb 改跟 .water-list-title 同款绿色加粗 (#16a34a + 700 + 13px); (2) 删「· 还剩 N 条」文案, 标题只留「📝 今日待办」 --><!-- 版本：rechen-v2026-08-15-v18.20-white-rounded-icon (1) PWA 图标透明 4 角造成桌面图标比 WorkBuddy 小一圈: 本版用 Pillow 把 alpha=0 的 4 角填白 + 22.5% 圆角, 重新导出 apple-touch-icon/favicon-192/favicon-512/.ico, manifest 改 purpose:'any' (去掉 maskable 二次裁剪), theme/background 改 #ffffff 与图标白底一致 → 跟原生 WorkBuddy 等大; (2) 共享报错 Script error (:) 修复: v18.19 banner 加「复制」按钮, 用户可一键复制错误内容发我 -->
+<!-- v18.38: 强制 PWA / 浏览器不缓存 HTML — 防止手机 PWA 安装版本用了 v18.37 之前的旧 JS, 导致 fallback 路径写出去后渲染时 todoNoteSplit 没生效 (raw __TODO_PASTE_V1__ JSON 泄露给用户) -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <link rel="apple-touch-icon" sizes="180x180" href="pwa-apple-180-v18.35.png" />
 <link rel="manifest" href="manifest.json?v=18.35" />
 <link rel="icon" type="image/png" sizes="192x192" href="pwa-icon-192-v18.35.png" />
@@ -1432,17 +1436,27 @@ let __todosHasImages=null;  // null=未探测, true=有 images jsonb 列, false=
 const TODO_IMG_PREFIX='\n__TODO_PASTE_V1__';
 function todoImgsEncode(imgs){ try{ return JSON.stringify(imgs); }catch(e){ return '[]'; } }
 function todoNoteSplit(t){
-  // 根据 __todosHasImages 决定如何拆图片段
-  if(__todosHasImages){
-    return { note:(t.note||''), imgs:(Array.isArray(t.images)?t.images:[]) };
-  }
-  // fallback 模式: 把图片 JSON 从 note 末尾 magic prefix 处拆出来
+  // v18.38: 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 里含 TODO_IMG_PREFIX 就强制 split.
+  //   防御场景: 手机 PWA 缓存了 v18.37 之前的旧 JS (探测到 images 列 false → 写 note 兜底),
+  //            后来缓存刷新探测变 true → 老数据还在 note 里, 不 split 就会泄露 __TODO_PASTE_V1__ 给用户看.
   const note=typeof t.note==='string'?t.note:'';
   const i=note.indexOf(TODO_IMG_PREFIX);
-  if(i<0) return { note, imgs:[] };
-  const raw=note.slice(i+TODO_IMG_PREFIX.length);
-  let imgs=[]; try{ const j=JSON.parse(raw); if(Array.isArray(j)) imgs=j; }catch(e){}
-  return { note:note.slice(0,i), imgs };
+  if(i>=0){
+    const raw=note.slice(i+TODO_IMG_PREFIX.length);
+    let imgs=[];
+    try{ const j=JSON.parse(raw); if(Array.isArray(j)) imgs=j; }catch(e){}
+    // imgs 与 t.images (有列时可能也有) 合并, 去重按 data 前 64 字符当 key
+    if(__todosHasImages && Array.isArray(t.images) && t.images.length){
+      const seen=new Set(imgs.map(x=>(x.data||'').slice(0,64)));
+      for(const x of t.images){ const k=(x.data||'').slice(0,64); if(k && !seen.has(k)){ imgs.push(x); seen.add(k); } }
+    }
+    return { note:note.slice(0,i), imgs };
+  }
+  // 没 magic prefix — 普通路径
+  if(__todosHasImages){
+    return { note, imgs:(Array.isArray(t.images)?t.images:[]) };
+  }
+  return { note, imgs:[] };
 }
 async function probeTodosHasImages(){
   if(__todosHasImages!==null || !sb) return;
@@ -2871,15 +2885,16 @@ requestAnimationFrame(fitTitleBox);
 attachQuickPaste($('qTitle'),pendingTodoImages,'qTitleThumbs');
 bindQuickThumbs('qTitleThumbs',pendingTodoImages);
 $('list').onclick=async e=>{
+  // v18.38: 优先级 1 — 图片缩略图点击放大 (必须放在 data-act 检查之前! 否则 closest('[data-act]') 在 <img> 上找不到 → 整个 handler return → 永远走不到放大分支)
+  const tv=e.target.closest('[data-tview]');
+  if(tv){ const tt=todos.find(x=>x.id===tv.dataset.tview); const _sp=tt?todoNoteSplit(tt):{imgs:[]}; const im2=_sp.imgs[+tv.dataset.i]; if(im2){ $('overlayImg').src=im2.data; $('overlay').hidden=false; } return; }
+  // 优先级 2 — 操作按钮 (toggle/del/edit/expand)
   const b=e.target.closest('[data-act]'); if(!b) return;
   const id=b.dataset.id, act=b.dataset.act, t=todos.find(x=>x.id===id); if(!t) return;
   if(act==='toggle'){ await sb.from('todos').update({done:!t.done,done_at:t.done?null:new Date().toISOString()}).eq('id',id); if(!t.done) filter='done'; loadTodos(); }
   else if(act==='del'){ if(confirm('确定删除这条待办吗？')){ await sb.from('todos').delete().eq('id',id); toast('已删除'); loadTodos(); } }
   else if(act==='edit'){ openEdit(t); }
   else if(act==='expand'){ t.expanded=!t.expanded; renderList(); }
-  // v18.36: 待办图片点击放大 (v18.37: 兼容 fallback 模式 — 从 note 拆出 imgs)
-  const tv=e.target.closest('[data-tview]');
-  if(tv){ const tt=todos.find(x=>x.id===tv.dataset.tview); const _sp=tt?todoNoteSplit(tt):{imgs:[]}; const im2=_sp.imgs[+tv.dataset.i]; if(im2){ $('overlayImg').src=im2.data; $('overlay').hidden=false; } return; }
 };
 function openEdit(t){
   editId=t.id; $('eTitle').value=t.title||''; $('modal').hidden=false;
@@ -3014,26 +3029,52 @@ function renderQuickThumbs(boxId,list){
   box.innerHTML=list.map((im,i)=>`<div class="quick-thumb ${im.data?'':'loading'}" data-i="${i}"><img ${im.data?`src="${im.data}"`:`alt="压缩中…"`} title="点击查看大图" data-big="${im.data||''}"/><button class="x" data-rm="${i}" title="移除图片">×</button></div>`).join('');
 }
 async function attachQuickPaste(ta,list,boxId){
-  // v18.37: 用同步函数先 preventDefault + 提取 File, 防止 async 期间浏览器插入图片二进制到 textarea (Chrome/Edge 历史上偶发出现)
-  ta.addEventListener('paste',e=>{
-    const item=[...(e.clipboardData||window.clipboardData).items].find(it=>it.type.indexOf('image')>-1);
-    if(!item) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const file=item.getAsFile(); if(!file) return;
-    // 缩略图同步占位 — 让用户立刻看见"已收到", 压缩完成后替换 src
+  // v18.37: 用同步函数先 preventDefault + 提取 File, 防止 async 期间浏览器插入图片二进制到 textarea
+  // v18.38: 加强防御 — (a) 监听 input 事件兜底, 处理某些 Chrome 版本 paste event 不触发的情况;
+  //                 (b) 检查剪贴板 text/plain 形式含 data: URL 时也当图片处理, 防止 base64 字符串漏进 textarea
+  function processFile(file){
     const tmpId='paste_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
-    list.push({name:file.name||(tmpId+'.jpg'),data:''});   // 临时空 src, 压缩完成再覆盖
+    list.push({name:file.name||(tmpId+'.jpg'),data:''});
     renderQuickThumbs(boxId,list);
     const idx=list.length-1;
     compressImage(file,900,0.7).then(dataUrl=>{
       if(list[idx]){ list[idx].data=dataUrl; renderQuickThumbs(boxId,list); }
     }).catch(err=>{
-      // 压缩失败 → 移除占位
       if(list[idx]) list.splice(idx,1);
       toast('图片处理失败：'+(err&&err.message||err));
       renderQuickThumbs(boxId,list);
     });
+  }
+  ta.addEventListener('paste',e=>{
+    const cd=e.clipboardData||window.clipboardData;
+    const items=cd?[...(cd.items||[])]:[];
+    const item=items.find(it=>it.type && it.type.indexOf('image')>-1);
+    // 即使没有 image item, 但 text/plain 是 data URL (data:image/...), 也要拦截 (避免 base64 漏进 textarea 显示为乱码)
+    const txt=cd?cd.getData('text/plain'):'';
+    const isDataUrl=typeof txt==='string' && /^data:image\//i.test(txt.slice(0,40));
+    if(!item && !isDataUrl) return;
+    e.preventDefault();
+    e.stopPropagation();
+    // 清空剪贴板 text/plain 形式, 防止 base64 残留在 textarea
+    try{ if(cd && cd.setData) cd.setData('text/plain',''); }catch(_){}
+    if(item){ const file=item.getAsFile(); if(file) processFile(file); }
+    else if(isDataUrl){ /* data URL 形式无法转回 File, 用 fetch 取 blob */
+      fetch(txt).then(r=>r.blob()).then(blob=>{
+        processFile(new File([blob],'paste_'+Date.now()+'.png',{type:blob.type||'image/png'}));
+      }).catch(_=>toast('图片处理失败'));
+    }
+  });
+  // v18.38: input 事件兜底 — 如果 paste event 因任何原因没拦截到 (Chrome 偶发), 用户粘贴后立即清掉 textarea 里的乱码
+  let _pasteGuard=false;
+  ta.addEventListener('input',e=>{
+    if(_pasteGuard) return;
+    const v=ta.value;
+    if(/data:image\/[a-z]+;base64,/i.test(v) && v.length>500){
+      _pasteGuard=true;
+      ta.value='';   // 清掉乱码
+      toast('已拦截图片二进制 (Chrome paste event 漏触发, 已自动清空)');
+      setTimeout(()=>{ _pasteGuard=false; },500);
+    }
   });
 }
 // 顶部缩略图点击：点图片本身 = 全屏预览 / 点 × = 删除该图
