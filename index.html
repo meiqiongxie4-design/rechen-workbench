@@ -323,6 +323,8 @@
   .quick-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding:8px;border:1px dashed var(--line);border-radius:10px;background:var(--surface-2);}
   .quick-thumb{position:relative;width:56px;height:56px;border-radius:6px;overflow:hidden;border:1px solid var(--line);background:#fff;cursor:zoom-in;flex-shrink:0;}
   .quick-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+  .quick-thumb.loading{background:var(--surface-2);}                  /* v18.37: 压缩中占位 */
+  .quick-thumb.loading img{width:24px;height:24px;margin:16px;object-fit:contain;opacity:.4;}
   .quick-thumb .x{position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
   .quick-thumb .x:hover{background:var(--red);}
   .topbar .quick-thumbs,.add-row .quick-thumbs{width:100%;}
@@ -1425,6 +1427,30 @@ if(typeof supabase==='undefined' || !supabase.createClient){
 let todos=[], memos=[], drops=[], pet=null, filter='open', view='home', editId=null, setupError=false;
 let pendingMemoImages=[];   // v18.36: 顶部 #memoQuick 待上传图片
 let pendingTodoImages=[];   // v18.36: 顶部 #qTitle 待上传图片
+/* v18.37: todos 表自动探测 images 列. 旧建表 SQL 没加 images 列, 所以走 note 字段 magic prefix 兜底 */
+let __todosHasImages=null;  // null=未探测, true=有 images jsonb 列, false=塞 note 末尾
+const TODO_IMG_PREFIX='\n__TODO_PASTE_V1__';
+function todoImgsEncode(imgs){ try{ return JSON.stringify(imgs); }catch(e){ return '[]'; } }
+function todoNoteSplit(t){
+  // 根据 __todosHasImages 决定如何拆图片段
+  if(__todosHasImages){
+    return { note:(t.note||''), imgs:(Array.isArray(t.images)?t.images:[]) };
+  }
+  // fallback 模式: 把图片 JSON 从 note 末尾 magic prefix 处拆出来
+  const note=typeof t.note==='string'?t.note:'';
+  const i=note.indexOf(TODO_IMG_PREFIX);
+  if(i<0) return { note, imgs:[] };
+  const raw=note.slice(i+TODO_IMG_PREFIX.length);
+  let imgs=[]; try{ const j=JSON.parse(raw); if(Array.isArray(j)) imgs=j; }catch(e){}
+  return { note:note.slice(0,i), imgs };
+}
+async function probeTodosHasImages(){
+  if(__todosHasImages!==null || !sb) return;
+  try{
+    const {error}=await sb.from('todos').select('images').limit(1);
+    __todosHasImages=!error;
+  }catch(e){ __todosHasImages=false; }
+}
 /* v17.92: drop_clicks 缓存 (key=YYYY-MM-DD -> [{t:'HH:MM:SS', t:'ISO'}]) — 存在 app_settings 表 key='drop_clicks', 避免给 drops 加列(无需 ALTER) */
 let dropClicks = {};
 
@@ -2737,6 +2763,7 @@ function fmtTime(iso){
 /* ---------- 待办 ---------- */
 async function loadTodos(){
   if(!sb){ todos=[]; safeHideBanner(); renderStats(); renderList(); return; }
+  if(__todosHasImages===null) await probeTodosHasImages();   // v18.37: 进入待办视图先探测列, 决定 images vs note 兜底
   const {data,error}=await sb.from('todos').select('*').order('created_at',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
   // 仅在 banner 不是 app_settings 引导时才隐藏（避免抢走错误信息显示时间）
@@ -2779,17 +2806,21 @@ function renderList(){
     const overdue=!t.done&&t.due&&t.due<today;
     const istoday=!t.done&&t.due===today;
     const collapsed=!t.expanded;
+    // v18.37: 兜底模式下 note 字段尾部含 magic prefix + 图片 JSON, 拆出图片并用纯文本 note 渲染, 防止泄露
+    const _split=todoNoteSplit(t);
+    const _imgs=_split.imgs;
+    const _note=_split.note;
     return `<div class="todo-item ${t.done?'done':''}">
       <div class="todo-check" data-act="toggle" data-id="${t.id}">${t.done?'✓':''}</div>
       <div class="todo-main">
         <div class="todo-title todo-text ${collapsed?'collapsed':''}">${esc(t.title)}</div>
         <div class="todo-meta">
           ${t.due?`<span class="badge ${overdue?'b-red':(istoday?'b-orange':'b-gray')}">📅 ${esc(t.due)}</span>`:''}
-          ${t.note?`<span class="m">${esc(t.note)}</span>`:''}
+          ${_note?`<span class="m">${esc(_note)}</span>`:''}
           ${fmtTime(t.created_at)?`<span class="time">${fmtTime(t.created_at)}</span>`:''}
           ${(t.title||'').split('\n').length>3||(t.title||'').length>90?`<button class="badge b-gray" data-act="expand" data-id="${t.id}" style="cursor:pointer;border:none;background:#eef0f5">${collapsed?'展开 ↓':'收起 ↑'}</button>`:''}
         </div>
-        ${(t.images&&t.images.length)?`<div class="thumbs">${t.images.map((im,i)=>`<div class="thumb-wrap"><img src="${im.data}" data-tview="${t.id}" data-i="${i}" title="点击查看大图"/></div>`).join('')}</div>`:''}
+        ${(_imgs&&_imgs.length)?`<div class="thumbs">${_imgs.map((im,i)=>`<div class="thumb-wrap"><img src="${im.data}" data-tview="${t.id}" data-i="${i}" title="点击查看大图"/></div>`).join('')}</div>`:''}
       </div>
       <div class="row-actions">
         <button class="btn ghost sm" data-act="edit" data-id="${t.id}">编辑</button>
@@ -2799,12 +2830,27 @@ function renderList(){
   }).join('');
 }
 async function addTodo(){
+  await probeTodosHasImages();   // v18.37: 首次 addTodo 探测列, 决定走 images 还是 note 兜底
   const title=$('qTitle').value.trim(); if(!title && !pendingTodoImages.length){toast('先写点内容');return;}
   if(!sb){ toast('本地预览模式：未连接云端，无法保存'); return; }
   const qd=$('qDue').value;
+  const imgs=pendingTodoImages.slice();   // 拷贝一份避免后续清空串改
   const payload={title,due:qd||null};
-  if(pendingTodoImages.length) payload.images=pendingTodoImages;
-  await sb.from('todos').insert(payload);
+  if(imgs.length){
+    if(__todosHasImages){
+      payload.images=imgs;
+    } else {
+      // v18.37 fallback: todos 表没 images 列, 把图片 JSON 拼到 note 字段末尾 (magic prefix 拆得出来)
+      payload.note=TODO_IMG_PREFIX + todoImgsEncode(imgs);
+    }
+  }
+  const {data,error}=await sb.from('todos').insert(payload).select();
+  if(error){
+    // v18.37: 错误要看见, 不再静默丢弃 (上一次因 todos.images 列不存在, 整行 insert 失败但用户以为成功)
+    toast('添加失败：'+(error.message||JSON.stringify(error)));
+    if(typeof showModErr==='function') try{showModErr('viewTodo','待办保存失败：'+(error.message||''));}catch(e){}
+    return;
+  }
   $('qTitle').value=''; $('qDue').value=''; pendingTodoImages=[]; renderQuickThumbs('qTitleThumbs',pendingTodoImages); filter='open'; toast('已添加'); loadTodos();
   fitTitleBox();
 }
@@ -2831,9 +2877,9 @@ $('list').onclick=async e=>{
   else if(act==='del'){ if(confirm('确定删除这条待办吗？')){ await sb.from('todos').delete().eq('id',id); toast('已删除'); loadTodos(); } }
   else if(act==='edit'){ openEdit(t); }
   else if(act==='expand'){ t.expanded=!t.expanded; renderList(); }
-  // v18.36: 待办图片点击放大
+  // v18.36: 待办图片点击放大 (v18.37: 兼容 fallback 模式 — 从 note 拆出 imgs)
   const tv=e.target.closest('[data-tview]');
-  if(tv){ const tt=todos.find(x=>x.id===tv.dataset.tview); const im2=tt&&tt.images&&tt.images[+tv.dataset.i]; if(im2){ $('overlayImg').src=im2.data; $('overlay').hidden=false; } return; }
+  if(tv){ const tt=todos.find(x=>x.id===tv.dataset.tview); const _sp=tt?todoNoteSplit(tt):{imgs:[]}; const im2=_sp.imgs[+tv.dataset.i]; if(im2){ $('overlayImg').src=im2.data; $('overlay').hidden=false; } return; }
 };
 function openEdit(t){
   editId=t.id; $('eTitle').value=t.title||''; $('modal').hidden=false;
@@ -2964,17 +3010,30 @@ function renderQuickThumbs(boxId,list){
   const box=$(boxId); if(!box) return;
   if(!list.length){ box.hidden=true; box.innerHTML=''; return; }
   box.hidden=false;
-  box.innerHTML=list.map((im,i)=>`<div class="quick-thumb" data-i="${i}"><img src="${im.data}" title="点击查看大图" data-big="${im.data}"/><button class="x" data-rm="${i}" title="移除图片">×</button></div>`).join('');
+  // v18.37: 压缩中占位 = 虚线边框无图片, 加载完正常显示 (避免 paste 后立即看到空白 alt 框一闪)
+  box.innerHTML=list.map((im,i)=>`<div class="quick-thumb ${im.data?'':'loading'}" data-i="${i}"><img ${im.data?`src="${im.data}"`:`alt="压缩中…"`} title="点击查看大图" data-big="${im.data||''}"/><button class="x" data-rm="${i}" title="移除图片">×</button></div>`).join('');
 }
 async function attachQuickPaste(ta,list,boxId){
-  ta.addEventListener('paste',async e=>{
+  // v18.37: 用同步函数先 preventDefault + 提取 File, 防止 async 期间浏览器插入图片二进制到 textarea (Chrome/Edge 历史上偶发出现)
+  ta.addEventListener('paste',e=>{
     const item=[...(e.clipboardData||window.clipboardData).items].find(it=>it.type.indexOf('image')>-1);
     if(!item) return;
     e.preventDefault();
+    e.stopPropagation();
     const file=item.getAsFile(); if(!file) return;
-    const dataUrl=await compressImage(file,900,0.7);
-    list.push({name:file.name||('paste_'+Date.now()+'.jpg'),data:dataUrl});
+    // 缩略图同步占位 — 让用户立刻看见"已收到", 压缩完成后替换 src
+    const tmpId='paste_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    list.push({name:file.name||(tmpId+'.jpg'),data:''});   // 临时空 src, 压缩完成再覆盖
     renderQuickThumbs(boxId,list);
+    const idx=list.length-1;
+    compressImage(file,900,0.7).then(dataUrl=>{
+      if(list[idx]){ list[idx].data=dataUrl; renderQuickThumbs(boxId,list); }
+    }).catch(err=>{
+      // 压缩失败 → 移除占位
+      if(list[idx]) list.splice(idx,1);
+      toast('图片处理失败：'+(err&&err.message||err));
+      renderQuickThumbs(boxId,list);
+    });
   });
 }
 // 顶部缩略图点击：点图片本身 = 全屏预览 / 点 × = 删除该图
