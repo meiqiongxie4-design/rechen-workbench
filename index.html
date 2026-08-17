@@ -192,7 +192,7 @@
   验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
 -->
 <!-- 版本：rechen-v2026-08-16-v18.38-image-zoom-render (1) 修 list.onclick handler 顺序 — 把 [data-tview] 图片放大检查移到 [data-act] 检查之前 (之前 closest('[data-act]') 在 <img> 上找不到 → 整 handler return → 永远走不到放大分支, 所以待办图片点不放大); (2) 强化 todoNoteSplit 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 含 TODO_IMG_PREFIX 就强制 split (防御手机 PWA 缓存了 v18.37 之前的旧 JS, fallback 路径写出去后渲染时 todoNoteSplit 没生效, raw __TODO_PASTE_V1__ 字符串泄露给用户); (3) memoQuick textarea paste 防御升级 — 即使剪贴板只有 text/plain 是 data URL 也拦截, 加 input 事件兜底防止 Chrome 偶发 paste event 不触发时 base64 漏进 textarea; (4) HTML head 加 Cache-Control/Pragma/Expires no-cache meta, 强制 PWA 不缓存 HTML, 手机端重新拉新版 JS -->
-<!-- 版本：rechen-v2026-08-17-v18.39 (顶部 quick-thumbs flex 换行：备忘 .topbar 里加 flex-wrap:wrap + quick-thumbs 强制 100% 换行到第二行, 不再被挤成 textarea/按钮旁边的第三个小角块) -->
+<!-- 版本：rechen-v2026-08-17-v18.40 (待办 addTodo 永远走 note 兜底路径写图片, 不再依赖 __todosHasImages 探测 — 避免探测结果与 supabase 端 schema 不一致时图片被静默丢弃 (用户复现: 贴图+选日期→数据库 note 为空). 加压缩占位 toast 拦截, 防止用户贴图后立刻点添加图片丢失) -->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
 
@@ -2851,15 +2851,20 @@ async function addTodo(){
   const title=$('qTitle').value.trim(); if(!title && !pendingTodoImages.length){toast('先写点内容');return;}
   if(!sb){ toast('本地预览模式：未连接云端，无法保存'); return; }
   const qd=$('qDue').value;
+  // v18.40: 过滤掉还在压缩的占位 (data='') — 防止用户立刻点添加, 导致图丢失.
+  // 如果仍有未完成的占位, 提示稍等 (前端压缩是 canvas.toDataURL, 一般 < 1 秒; 慢的图给 1.5 秒缓冲)
+  if(pendingTodoImages.some(im=>!im.data)){
+    toast('图片还在处理…1 秒后再点「添加」');
+    return;
+  }
   const imgs=pendingTodoImages.slice();   // 拷贝一份避免后续清空串改
   const payload={title,due:qd||null};
   if(imgs.length){
-    if(__todosHasImages){
-      payload.images=imgs;
-    } else {
-      // v18.37 fallback: todos 表没 images 列, 把图片 JSON 拼到 note 字段末尾 (magic prefix 拆得出来)
-      payload.note=TODO_IMG_PREFIX + todoImgsEncode(imgs);
-    }
+    // v18.40: 不再依赖 __todosHasImages 探测, 一律把图片 base64 JSON 写到 note 末尾 magic prefix.
+    //   旧逻辑下: __todosHasImages=true 时写 payload.images, 但 supabase 端无 images 列 → 整行 INSERT 400 → 用户只看到 toast 已添加 (旧版没 error toast).
+    //   新逻辑: 永远走 fallback note 路径. todoNoteSplit 已经做了防御性 split (无论 __todosHasImages 是 true/false, 先看有没有 TODO_IMG_PREFIX),
+    //   即使将来 supabase 加了 images 列, 历史数据写到 note 也能被 split 正确还原.
+    payload.note = TODO_IMG_PREFIX + todoImgsEncode(imgs);
   }
   const {data,error}=await sb.from('todos').insert(payload).select();
   if(error){
