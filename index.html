@@ -192,7 +192,7 @@
   验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
 -->
 <!-- 版本：rechen-v2026-08-16-v18.38-image-zoom-render (1) 修 list.onclick handler 顺序 — 把 [data-tview] 图片放大检查移到 [data-act] 检查之前 (之前 closest('[data-act]') 在 <img> 上找不到 → 整 handler return → 永远走不到放大分支, 所以待办图片点不放大); (2) 强化 todoNoteSplit 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 含 TODO_IMG_PREFIX 就强制 split (防御手机 PWA 缓存了 v18.37 之前的旧 JS, fallback 路径写出去后渲染时 todoNoteSplit 没生效, raw __TODO_PASTE_V1__ 字符串泄露给用户); (3) memoQuick textarea paste 防御升级 — 即使剪贴板只有 text/plain 是 data URL 也拦截, 加 input 事件兜底防止 Chrome 偶发 paste event 不触发时 base64 漏进 textarea; (4) HTML head 加 Cache-Control/Pragma/Expires no-cache meta, 强制 PWA 不缓存 HTML, 手机端重新拉新版 JS -->
-<!-- 版本：rechen-v2026-08-13-v11-persistent-debug-bar （新增常驻错误条 debugBar，任何同步错误都持久化到 localStorage 并常驻显示，不再一闪而过，手机可随时截图）-->
+<!-- 版本：rechen-v2026-08-17-v18.39 (顶部 quick-thumbs flex 换行：备忘 .topbar 里加 flex-wrap:wrap + quick-thumbs 强制 100% 换行到第二行, 不再被挤成 textarea/按钮旁边的第三个小角块) -->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
 
@@ -332,6 +332,9 @@
   .quick-thumb .x{position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
   .quick-thumb .x:hover{background:var(--red);}
   .topbar .quick-thumbs,.add-row .quick-thumbs{width:100%;}
+  /* v18.39: topbar 是 flex 横向排列的, quick-thumbs 放进去会被挤成第三个小角块; 强制 100% 换行到第二行 */
+  .topbar{flex-wrap:wrap;}
+  .topbar>.quick-thumbs{flex:0 0 100%;min-width:0;max-width:100%;}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out;animation:fadeIn .2s;}
   .overlay img{max-width:95vw;max-height:95vh;object-fit:contain;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.4);}
   .time{font-size:11px;color:var(--muted);white-space:nowrap;}
