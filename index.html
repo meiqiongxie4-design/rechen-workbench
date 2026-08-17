@@ -2873,7 +2873,8 @@ async function addTodo(){
     if(typeof showModErr==='function') try{showModErr('viewTodo','待办保存失败：'+(error.message||''));}catch(e){}
     return;
   }
-  $('qTitle').value=''; $('qDue').value=''; pendingTodoImages=[]; renderQuickThumbs('qTitleThumbs',pendingTodoImages); filter='open'; toast('已添加'); loadTodos();
+  $('qTitle').value=''; $('qDue').value=''; pendingTodoImages.splice(0); renderQuickThumbs('qTitleThumbs',pendingTodoImages); filter='open'; toast('已添加'); loadTodos();
+  //   ^ v18.41 改 .splice(0) 替代 =[]: 同 memoAdd 一样的引用丢失陷阱, 否则再次贴图会推入旧数组残留
   fitTitleBox();
 }
 $('qAdd').onclick=addTodo;
@@ -3016,7 +3017,10 @@ async function addMemo(text,images){
   renderMemos();
   // 不自动 focus —— 新建的卡片默认收起，用户自己想编辑再点「展开」或点卡片内文
 }
-$('memoAdd').onclick=()=>{ const v=_memoQuick?_memoQuick.value:''; const imgs=pendingMemoImages.slice(); if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } pendingMemoImages=[]; renderQuickThumbs('memoQuickThumbs',pendingMemoImages); addMemo(v,imgs); };
+$('memoAdd').onclick=()=>{ const v=_memoQuick?_memoQuick.value:''; const imgs=pendingMemoImages.slice(); if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } pendingMemoImages.splice(0); renderQuickThumbs('memoQuickThumbs',pendingMemoImages); addMemo(v,imgs); };
+//   ^ v18.41 改 .splice(0) 替代 =[]: attachQuickPaste 和 bindQuickThumbs 在初始化时已经捕获了 pendingMemoImages 的数组引用 (记为 A),
+//     写 =[] 让全局变量指向新空数组 (C), 但 list/A 仍指着旧数组 → 下一次粘贴图推入 A 渲染显示, 全局变量已经不同步, 出现 "幽灵图"
+//     .splice(0) 保留引用, 多个引用同时看到一致状态
 // 顶部快速输入框：回车=换行（textarea 默认行为），需要添加时点击「＋ 新建」按钮
 const _memoQuick=$('memoQuick');
 // 输入框自适应：写多长显示多长，不出滚动条
