@@ -192,7 +192,7 @@
   验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
 -->
 <!-- 版本：rechen-v2026-08-16-v18.38-image-zoom-render (1) 修 list.onclick handler 顺序 — 把 [data-tview] 图片放大检查移到 [data-act] 检查之前 (之前 closest('[data-act]') 在 <img> 上找不到 → 整 handler return → 永远走不到放大分支, 所以待办图片点不放大); (2) 强化 todoNoteSplit 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 含 TODO_IMG_PREFIX 就强制 split (防御手机 PWA 缓存了 v18.37 之前的旧 JS, fallback 路径写出去后渲染时 todoNoteSplit 没生效, raw __TODO_PASTE_V1__ 字符串泄露给用户); (3) memoQuick textarea paste 防御升级 — 即使剪贴板只有 text/plain 是 data URL 也拦截, 加 input 事件兜底防止 Chrome 偶发 paste event 不触发时 base64 漏进 textarea; (4) HTML head 加 Cache-Control/Pragma/Expires no-cache meta, 强制 PWA 不缓存 HTML, 手机端重新拉新版 JS -->
-<!-- 版本：rechen-v2026-08-17-v18.40 (待办 addTodo 永远走 note 兜底路径写图片, 不再依赖 __todosHasImages 探测 — 避免探测结果与 supabase 端 schema 不一致时图片被静默丢弃 (用户复现: 贴图+选日期→数据库 note 为空). 加压缩占位 toast 拦截, 防止用户贴图后立刻点添加图片丢失) -->
+<!-- 版本：rechen-v2026-08-17-v18.42 (顶部输入框加「清空」按钮: 一键清掉待办/备忘的文字+日期+已贴图片, 不留草稿; 配合 v18.41 的 .splice(0) 引用修复) -->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
 
@@ -974,6 +974,7 @@
         <textarea class="title" id="qTitle" placeholder="写点什么…随手记一条待办（回车换行，点「添加」按钮提交，可粘贴图片）"></textarea>
         <div class="add-bar">
           <input type="date" id="qDue" title="提醒日期（可选）" />
+          <button class="btn ghost sm" id="qClear" title="清空顶部输入框和已贴的图片（不会保存）">清空</button>
           <button class="btn" id="qAdd">添加</button>
         </div>
         <div class="quick-thumbs" id="qTitleThumbs" hidden></div>
@@ -987,6 +988,7 @@
   <div id="viewMemo" hidden>
     <div class="topbar">
       <textarea id="memoQuick" placeholder="随时记一笔（回车换行，点「添加」按钮提交，卡片内可继续编辑、可粘贴图片）"></textarea>
+      <button class="btn ghost sm" id="memoClear" title="清空顶部输入框和已贴的图片（不会保存）">清空</button>
       <button class="btn" id="memoAdd" title="用左侧输入框内容新建一条备忘录">添加</button>
       <div class="quick-thumbs" id="memoQuickThumbs" hidden></div>
     </div>
@@ -2878,6 +2880,8 @@ async function addTodo(){
   fitTitleBox();
 }
 $('qAdd').onclick=addTodo;
+$('qClear').onclick=()=>{ $('qTitle').value=''; $('qDue').value=''; pendingTodoImages.splice(0); renderQuickThumbs('qTitleThumbs',pendingTodoImages); fitTitleBox(); toast('已清空草稿'); };  // v18.42: 顶部「清空」按钮 — 一键清掉文字 + 日期 + 已贴图片, 不留草稿
+
 // 回车=换行（textarea 默认行为），需要添加时点「添加」按钮
 // 待办输入框自适应高度：写多长显示多长，永不折叠、不出滚动条（手机端滑动/点按钮失焦也不会被压扁）
 function fitTitleBox(){
@@ -3018,6 +3022,8 @@ async function addMemo(text,images){
   // 不自动 focus —— 新建的卡片默认收起，用户自己想编辑再点「展开」或点卡片内文
 }
 $('memoAdd').onclick=()=>{ const v=_memoQuick?_memoQuick.value:''; const imgs=pendingMemoImages.slice(); if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } pendingMemoImages.splice(0); renderQuickThumbs('memoQuickThumbs',pendingMemoImages); addMemo(v,imgs); };
+$('memoClear').onclick=()=>{ if(_memoQuick){ _memoQuick.value=''; _fitMemoQuick(); } pendingMemoImages.splice(0); renderQuickThumbs('memoQuickThumbs',pendingMemoImages); toast('已清空草稿'); };  // v18.42: 顶部「清空」按钮 — 一键清掉文字 + 已贴图片, 不留草稿
+
 //   ^ v18.41 改 .splice(0) 替代 =[]: attachQuickPaste 和 bindQuickThumbs 在初始化时已经捕获了 pendingMemoImages 的数组引用 (记为 A),
 //     写 =[] 让全局变量指向新空数组 (C), 但 list/A 仍指着旧数组 → 下一次粘贴图推入 A 渲染显示, 全局变量已经不同步, 出现 "幽灵图"
 //     .splice(0) 保留引用, 多个引用同时看到一致状态
