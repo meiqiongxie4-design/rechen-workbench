@@ -5560,20 +5560,25 @@ document.addEventListener('reward:changed',()=>{
 });
 
 /* v18.48n: PWA / GitHub Pages HTTP 缓存导致"部署了但设备还在跑旧代码" — 加自动更新检测.
-   拉 version.json (cache:'no-store' 绕过 HTTP 缓存), 若服务端版本号 > 本机 APP_VERSION → 提示并自动刷新一次.
-   防重载死循环: 用 sessionStorage 标记本次会话已自动更新过, 只刷一次. */
+   直接拉 index.html 本身 (cache:'no-store' 绕过 HTTP 缓存), 从 <title> 解析版本号, 与服务端当前版本比对.
+   若服务端版本 > 本机 APP_VERSION → 提示并自动刷新一次 (sessionStorage 防死循环, 只刷一次).
+   不依赖单独的 version.json (避免 Jekyll/托管忽略该文件的坑). */
 (function autoUpdateCheck(){
   try{
     if(sessionStorage.getItem('wb_auto_updated')==='1') return;  // 本次会话已自动更新过, 不再刷
-    const url='version.json?_='+Date.now();
-    fetch(url,{cache:'no-store',headers:{'Cache-Control':'no-store'}}).then(r=>r.ok?r.json():null).then(j=>{
-      if(!j||!j.v) return;
-      if(j.v!==APP_VERSION){
-        sessionStorage.setItem('wb_auto_updated','1');
-        console.log('[auto-update] 服务端 '+j.v+' > 本机 '+APP_VERSION+' → 即将刷新');
-        setTimeout(()=>{ try{ toast('发现新版本 '+j.v+'，正在更新…'); }catch(e){} location.reload(true); }, 900);
-      }
-    }).catch(()=>{});
+    fetch('index.html?_='+Date.now(),{cache:'no-store',headers:{'Cache-Control':'no-store'}})
+      .then(r=>r.ok?r.text():null)
+      .then(html=>{
+        if(!html) return;
+        const m=html.match(/<title>\s*GrowTime\s*[·•\-]\s*(v[\w.]+)\s*<\/title>/i);
+        if(!m) return;
+        const serverV=m[1];
+        if(serverV!==APP_VERSION){
+          sessionStorage.setItem('wb_auto_updated','1');
+          console.log('[auto-update] 服务端 '+serverV+' > 本机 '+APP_VERSION+' → 即将刷新');
+          setTimeout(()=>{ try{ toast('发现新版本 '+serverV+'，正在更新…'); }catch(e){} location.reload(true); }, 900);
+        }
+      }).catch(()=>{});
   }catch(e){}
 })();
 </script>
