@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v17.89</title>
+<title>GrowTime · v18.48i</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -929,6 +929,9 @@
   .r-stat{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:22px 20px 20px;background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%);border:1px solid var(--accent-soft);border-radius:14px;box-shadow:var(--shadow);text-align:center;}
   .r-stat-left{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;}
   .r-stat-name{font-size:18px;color:#166534;font-weight:700;letter-spacing:.3px;}
+  #rPageTitle{cursor:pointer;border-bottom:1px dashed transparent;padding-bottom:2px;transition:border-color .15s;}
+  #rPageTitle:hover{border-color:#94a3b8;}
+  #rPageTitleEdit{font:inherit;font-size:18px;font-weight:700;color:#166534;letter-spacing:.3px;border:1.5px solid var(--accent);border-radius:6px;padding:2px 8px;background:#fff;outline:none;width:min(360px,80%);}
   .r-stat-pts{font-size:38px;font-weight:800;color:#15803d;line-height:1.1;margin-top:2px;}
   .r-stat-pts i{font-size:18px;font-weight:600;color:#166534;font-style:normal;margin-left:3px;}
   .r-stat-sub{font-size:12.5px;color:#166534;margin-top:4px;opacity:.85;}
@@ -4986,7 +4989,7 @@ const REWARD_DEFAULT_GIFTS = [
   {id:'g5', name:'去动物园/公园一日', points:150, note:'出游'},
   {id:'g6', name:'乐高/大玩具', points:300, note:'大目标'},
 ];
-const REWARD_DEFAULT_SETTINGS = {childName:'宝贝', settleDay:1, goalText:'', parentText:''};
+const REWARD_DEFAULT_SETTINGS = {childName:'宝贝', settleDay:1, goalText:'', parentText:'', pageTitle:'宝贝的奖励本'};
 
 let rewardTasks = REWARD_DEFAULT_TASKS.slice();
 let rewardGifts = REWARD_DEFAULT_GIFTS.slice();
@@ -5038,21 +5041,13 @@ async function loadReward(){
     if(Array.isArray(by.reward_gifts)&&by.reward_gifts.length) rewardGifts=by.reward_gifts;
     if(Array.isArray(by.reward_log)){
       const cloud=by.reward_log;
-      /* v18.48h 修复「删除不同步 / 删了又复活」:
-         旧逻辑 cloud.concat(localOnly) 把"本地残留的已删记录"又加回 → 手机删了电脑删不掉.
-         新逻辑: 云端是权威 (single source of truth).
-           - 云端为空数组 → 本地也直接清空 (用户全删了)
-           - 否则: 本地独有的记录, 只有当其 ts 比云端"最新记录"还新 (说明是云端删除之后本地才新增) 才保留,
-             否则丢弃 (= 已被其他端删除). ts 是 ISO 字符串, 字典序 = 时间序, 可直接比较 */
-      if(cloud.length===0){
-        rewardLog=[];
-      } else {
-        const ids=new Set(cloud.map(x=>x&&x.id).filter(Boolean));
-        let cloudMaxTs='';
-        for(const x of cloud){ const ts=(x&&x.ts)||''; if(ts>cloudMaxTs) cloudMaxTs=ts; }
-        const localOnly=rewardLog.filter(x=>x&&x.id&&!ids.has(x.id)&&(x.ts||'')>cloudMaxTs);
-        rewardLog=cloud.concat(localOnly);
-      }
+      /* v18.48i 修复「删除记录跨设备不同步 / 删最新一条被复活」:
+         奖励记录整段存一个 key (reward_log), 每次增/删/改都整段覆盖写云端 → 云端是唯一权威源.
+         直接以云端为准 (rewardLog = cloud 副本), 不再做 cloud.concat(localOnly) 也不比 ts:
+           - 任一端删除 → 云端少了该条 → 其他端拉到云端立即同步删除, 绝不复活 (含删最新一条)
+           - 赚分/兑换/结算 本就 await saveRewardLog 整段写回云端, 其他端拉到即同步
+         代价: 本端离线新增且写云端失败时, 下次 load 会被云端覆盖 (两设备均在线时不会发生) */
+      rewardLog = cloud.map(x=>(x&&typeof x==='object')?{...x}:x);
     }
     if(by.reward_settings&&typeof by.reward_settings==='object'){
       rewardSettings={...REWARD_DEFAULT_SETTINGS, ...by.reward_settings};
@@ -5192,6 +5187,47 @@ async function rewardSetChildName(name){ rewardSettings.childName=name||'宝贝'
 async function rewardSetText(field, val){ rewardSettings[field]=val||''; await saveRewardSettings(); if(typeof view!=='undefined'&&view==='reward') renderReward(); }
 async function rewardSetSettleDay(d){ rewardSettings.settleDay=Math.max(1,Math.min(28,Number(d)||1)); await saveRewardSettings(); if(typeof view!=='undefined'&&view==='reward') renderReward(); }
 
+/* v18.48g: 奖励页大标题原地可编辑 — 点标题 → input → 回车/blur 保存 → 云端同步. 默认「宝贝的奖励本」, 同时支持自定义前缀 emoji (例: '⭐ 小明的成长记') */
+function rewardEditTitle(){
+  const el=$('rPageTitle'); if(!el || $('rPageTitleEdit')) return;
+  const cur=(rewardSettings.pageTitle || '宝贝的奖励本');
+  const inp=document.createElement('input');
+  inp.id='rPageTitleEdit';
+  inp.type='text';
+  inp.maxLength=20;
+  inp.value=cur;
+  inp.placeholder='宝贝的奖励本';
+  el.replaceWith(inp);
+  inp.focus(); inp.select();
+  let done=false;
+  const finish=(commit)=>{
+    if(done) return; done=true;
+    const v = commit ? (inp.value||'').trim() || '宝贝的奖励本' : cur;
+    rewardSetTitle(v);
+  };
+  inp.addEventListener('blur', ()=>finish(true));
+  inp.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); inp.blur(); }
+    else if(e.key==='Escape'){ e.preventDefault(); finish(false); inp.blur(); }
+  });
+}
+async function rewardSetTitle(v){
+  rewardSettings.pageTitle = v || '宝贝的奖励本';
+  await saveRewardSettings();
+  /* 不跑 renderReward — 避免奖励页滚动位置跳回顶部 — 直接原地替换为可点的新 div */
+  const old=$('rPageTitleEdit');
+  if(old){
+    const el=document.createElement('div');
+    el.id='rPageTitle';
+    el.className='r-stat-name';
+    el.title='点我修改标题';
+    el.textContent='🌟 ' + rewardSettings.pageTitle;
+    old.replaceWith(el);
+    el.onclick=rewardEditTitle;
+  }
+  _rewardRenderHome();
+}
+
 /* v19-fix: 内联浮层 — 替代原生 prompt/confirm (PWA 独立窗口里浏览器禁用 prompt/confirm, 导致点"改/加/删"无反应)
    返回 Promise<values|null>: 点保存→values 对象, 点取消/遮罩→null */
 function rewardModal(opts){
@@ -5288,7 +5324,7 @@ async function rewardDelGift(id){
 function renderReward(){
   const root=$('rewardRoot'); if(!root) return;
   const t=rewardTotals();
-  const cn=rewardSettings.childName||'宝贝';
+  const cn=rewardSettings.childName||'宝贝';  // 首页联动卡用, 标题已改为 pageTitle
   const monthName = t.month.replace('-','年')+'月';
   const addTasks=(rewardTasks||[]).filter(x=>x.kind!=='deduct'&&x.enabled!==false);
   const deductTasks=(rewardTasks||[]).filter(x=>x.kind==='deduct'&&x.enabled!==false);
@@ -5359,7 +5395,7 @@ function renderReward(){
   root.innerHTML = `
     <div class="card r-stat">
       <div class="r-stat-left">
-        <div class="r-stat-name">🌟 ${esc(cn)}的奖励本</div>
+        <div class="r-stat-name" id="rPageTitle" title="点我修改标题">🌟 ${esc(rewardSettings.pageTitle || '宝贝的奖励本')}</div>
         <div class="r-stat-pts">${t.pointsBal} <i>分</i></div>
         <div class="r-stat-sub">累计挣到 ${t.pointsEarnedTotal} 分 · 本月待结算 ¥${t.cashThisMonth.toFixed(2)}</div>
       </div>
@@ -5426,6 +5462,7 @@ function renderReward(){
   const rSd=$('rSettleDay'); if(rSd){ rSd.onchange=()=>rewardSetSettleDay(rSd.value); }
   const rGoal=$('rGoal'); if(rGoal){ rGoal.onblur=()=>rewardSetText('goalText',rGoal.value); }
   const rPar=$('rParent'); if(rPar){ rPar.onblur=()=>rewardSetText('parentText',rPar.value); }
+  const rpt=$('rPageTitle'); if(rpt) rpt.onclick=rewardEditTitle;
 }
 
 // 跨模块联动: 任意奖励数据变化 → 刷首页卡 + 当前 reward 视图
