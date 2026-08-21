@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48j</title>
+<title>GrowTime · v18.48k</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -938,6 +938,13 @@
 
   .r-section-hd{font-size:14px;font-weight:700;color:#374151;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .r-hint{font-size:11.5px;color:var(--muted);font-weight:400;}
+
+  /* v18.48k: 小目标 / 家长寄语 — banner 显示卡 (在页面上方, 用户写完立刻能看到) */
+  .r-banner{padding:10px 12px;background:linear-gradient(135deg,#fff7ed 0%,#fef3c7 100%);border:1px solid #fcd34d;border-radius:12px;display:flex;flex-direction:column;gap:6px;}
+  .r-banner-row{display:flex;align-items:flex-start;gap:8px;font-size:14px;color:#92400e;line-height:1.55;}
+  .r-banner-ic{flex-shrink:0;font-size:15px;line-height:1.55;}
+  .r-banner-txt{word-break:break-word;white-space:pre-wrap;font-weight:500;}
+  .r-banner-empty{display:none;}
 
   .r-grp{margin-bottom:14px;}
   .r-grp:last-child{margin-bottom:0;}
@@ -5027,14 +5034,14 @@ function _rewardPersistLocal(){
   try{ localStorage.setItem('wbReward_settings', JSON.stringify(rewardSettings)); }catch(e){}
 }
 
-/* v18.48j: 编辑保护 — 奖励页正在编辑时 (标题输入框 / 任务礼物浮层 / 焦点在奖励页输入框内) 禁止 renderReward 重渲染,
-   否则后台 3s 同步轮询 / realtime / reward:changed 会把输入框整个销毁 → 键盘退出 + 内容被当已保存.
-   编辑期间只更新内存数据, 不碰 DOM; 编辑器关闭后下一次渲染自然跟上 */
+/* v18.48k 编辑保护: 调整为「仅防会销毁 DOM 的编辑容器」, 不再因"焦点在输入框/textarea"就跳过 renderReward.
+   - .r-modal-overlay (任务/礼物增改弹窗) 在 body 层 → renderReward 不会动它, 原本就不必拦, 保留保守拦一下
+   - #rPageTitleEdit (标题原地编辑, div 已替换成 input) → renderReward 重建 #rewardRoot 时会销毁, 必须拦
+   - 输入框/textarea 焦点 (#rGoal / #rParent / #rName / #rSettleDay) → renderReward 不再跳过, 而是在重渲染后**保留焦点 + 光标位置 + 未提交文字** (由 renderReward 内 _preserveFocus 逻辑承担).
+     修复了"另一台改了扣分项, 这台因焦点落在小目标文本框里就一直显示旧列表"的同步漏. */
 function rewardEditorOpen(){
-  if(document.querySelector('.r-modal-overlay')) return true;   // 任务/礼物增改浮层 (挂在 body, 但底层页面也不该被冲)
-  if(document.getElementById('rPageTitleEdit')) return true;    // 标题正在原地编辑 (div 已替换成 input)
-  const ae=document.activeElement;
-  if(ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA') && ae.closest && ae.closest('#rewardRoot')) return true; // 焦点在奖励页输入框 (名字/结算日/小目标/寄语)
+  if(document.querySelector('.r-modal-overlay')) return true;   // 任务/礼物增改浮层 (防御性)
+  if(document.getElementById('rPageTitleEdit')) return true;    // 标题原地编辑中
   return false;
 }
 
@@ -5334,6 +5341,19 @@ async function rewardDelGift(id){
 
 function renderReward(){
   const root=$('rewardRoot'); if(!root) return;
+  /* v18.48k 焦点/光标/未提交文字保留: 之前每次 renderReward 都会销毁 #rewardRoot 整个 innerHTML,
+     用户在小目标/寄语/名字/结算日 文本框里输了一半字(还没 blur 保存), 一旦后台 3s 同步或另一台设备改动引发重渲染,
+     焦点 + 光标 + 已输入未保存的文字全没了, 体验极差. 现在重渲染前先记下: 当前焦点元素 id, 已输入但未 blur 的值,
+     光标位置; 重渲染后把焦点还给同一个 id, 把未保存的值塞回去 (避免被云端旧值覆盖), 把光标放回原位. */
+  let prevFocusId=null, prevFocusValue=null, prevCursorStart=0;
+  try{
+    const pf=document.activeElement;
+    if(pf && pf.id && (pf.tagName==='INPUT'||pf.tagName==='TEXTAREA') && pf.closest && pf.closest('#rewardRoot')){
+      prevFocusId=pf.id;
+      if(typeof pf.value==='string') prevFocusValue=pf.value;
+      try{ prevCursorStart=pf.selectionStart||0; }catch(e){}
+    }
+  }catch(e){}
   const t=rewardTotals();
   const cn=rewardSettings.childName||'宝贝';  // 首页联动卡用, 标题已改为 pageTitle
   const monthName = t.month.replace('-','年')+'月';
@@ -5412,6 +5432,12 @@ function renderReward(){
       </div>
     </div>
 
+    ${(rewardSettings.goalText||rewardSettings.parentText) ? `
+    <div class="card r-banner" id="rGoalBanner">
+      ${rewardSettings.goalText ? `<div class="r-banner-row"><span class="r-banner-ic">🎯</span><span class="r-banner-txt">${esc(rewardSettings.goalText)}</span></div>` : ''}
+      ${rewardSettings.parentText ? `<div class="r-banner-row"><span class="r-banner-ic">💌</span><span class="r-banner-txt">${esc(rewardSettings.parentText)}</span></div>` : ''}
+    </div>` : ''}
+
     <div class="card">
       ${Object.entries(addGroups).map(([k,arr])=>groupBlock(k,arr)).join('')}
       ${Object.entries(dedGroup).map(([k,arr])=>groupBlock(k,arr)).join('')}
@@ -5474,6 +5500,21 @@ function renderReward(){
   const rGoal=$('rGoal'); if(rGoal){ rGoal.onblur=()=>rewardSetText('goalText',rGoal.value); }
   const rPar=$('rParent'); if(rPar){ rPar.onblur=()=>rewardSetText('parentText',rPar.value); }
   const rpt=$('rPageTitle'); if(rpt) rpt.onclick=rewardEditTitle;
+
+  /* v18.48k 焦点恢复 (见函数顶部说明): 用户正在输入 #rGoal/#rParent/#rName/#rSettleDay 时, renderReward 重建后应保留光标位置 + 未保存的文字, 不打断用户 */
+  if(prevFocusId){
+    const restored=document.getElementById(prevFocusId);
+    if(restored){
+      try{
+        if(prevFocusValue!=null && typeof restored.value==='string' && prevFocusValue!==restored.value){
+          restored.value=prevFocusValue;  /* 用户已输入但未 blur 的文字, 不要被云端旧值覆盖 */
+        }
+        restored.focus();
+        const end=(typeof restored.value==='string')?restored.value.length:0;
+        try{ restored.setSelectionRange(prevCursorStart, prevCursorStart); }catch(e){}
+      }catch(e){}
+    }
+  }
 }
 
 // 跨模块联动: 任意奖励数据变化 → 刷首页卡 + 当前 reward 视图
