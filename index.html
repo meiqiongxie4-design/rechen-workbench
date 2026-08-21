@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48l</title>
+<title>GrowTime · v18.48m</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -5081,8 +5081,10 @@ async function loadReward(){
 async function _saveRewardKey(key, val){
   _rewardPersistLocal();
   if(typeof sb!=='undefined'&&sb){
-    try{ await saveSettings(key, val); }catch(e){ console.warn('[reward] save '+key, e); }
+    try{ const ok=await saveSettings(key, val); return ok===true; }
+    catch(e){ console.warn('[reward] save '+key, e); return false; }
   }
+  return true;  // 本地模式永远当作成功
 }
 function saveRewardTasks(){ return _saveRewardKey('reward_tasks', rewardTasks); }
 function saveRewardGifts(){ return _saveRewardKey('reward_gifts', rewardGifts); }
@@ -5294,7 +5296,9 @@ async function rewardAddTask(){
   const cat=v.cat||'自定义';
   const kind=(cat==='扣分')?'deduct':'add';
   rewardTasks.push({id:_rewardNewId(),name:v.name,cat,kind,points:Math.abs(Number(v.points))||0,cash:Math.max(0,Number(v.cash)||0),icon:v.icon||'✅',enabled:true});
-  await saveRewardTasks(); if(typeof view!=='undefined'&&view==='reward') renderReward();
+  if(typeof view!=='undefined'&&view==='reward') renderReward();
+  const ok=await saveRewardTasks();
+  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已添加: '+v.name);
 }
 async function rewardEditTask(id){
   const t=(rewardTasks||[]).find(x=>x.id===id); if(!t) return;
@@ -5309,12 +5313,16 @@ async function rewardEditTask(id){
   const cat=v.cat||t.cat||'自定义';
   t.cat=cat; t.kind=(cat==='扣分')?'deduct':'add';
   t.name=v.name||t.name; t.points=Math.abs(Number(v.points))||0; t.cash=Math.max(0,Number(v.cash)||0); t.icon=v.icon||t.icon||'✅';
-  await saveRewardTasks(); if(typeof view!=='undefined'&&view==='reward') renderReward();
+  if(typeof view!=='undefined'&&view==='reward') renderReward();
+  const ok=await saveRewardTasks();
+  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+t.name);
 }
 async function rewardDelTask(id){
   if(!await rewardConfirm('删除这个任务? 已打卡记录会保留。')) return;
   rewardTasks=rewardTasks.filter(x=>x.id!==id);
-  await saveRewardTasks(); if(typeof view!=='undefined'&&view==='reward') renderReward();
+  if(typeof view!=='undefined'&&view==='reward') renderReward();
+  const ok=await saveRewardTasks();
+  if(ok===false) toast('云端删除失败, 请刷新或重试'); else toast('✓ 已删除');
 }
 async function rewardAddGift(){
   const v=await rewardModal({title:'➕ 加礼物', submitText:'添加', fields:[
@@ -5323,7 +5331,9 @@ async function rewardAddGift(){
   ]});
   if(!v||!v.name) return;
   rewardGifts.push({id:_rewardNewId(),name:v.name,points:Math.max(1,Number(v.points))||50,note:''});
-  await saveRewardGifts(); if(typeof view!=='undefined'&&view==='reward') renderReward();
+  if(typeof view!=='undefined'&&view==='reward') renderReward();
+  const ok=await saveRewardGifts();
+  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已添加: '+v.name);
 }
 async function rewardEditGift(id){
   const g=(rewardGifts||[]).find(x=>x.id===id); if(!g) return;
@@ -5333,12 +5343,16 @@ async function rewardEditGift(id){
   ]});
   if(!v) return;
   g.name=v.name||g.name; g.points=Math.max(1,Number(v.points))||50;
-  await saveRewardGifts(); if(typeof view!=='undefined'&&view==='reward') renderReward();
+  if(typeof view!=='undefined'&&view==='reward') renderReward();
+  const ok=await saveRewardGifts();
+  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+g.name);
 }
 async function rewardDelGift(id){
   if(!await rewardConfirm('删除这个礼物? 已兑换记录保留。')) return;
   rewardGifts=rewardGifts.filter(x=>x.id!==id);
-  await saveRewardGifts(); if(typeof view!=='undefined'&&view==='reward') renderReward();
+  if(typeof view!=='undefined'&&view==='reward') renderReward();
+  const ok=await saveRewardGifts();
+  if(ok===false) toast('云端删除失败, 请刷新或重试'); else toast('✓ 已删除');
 }
 
 function renderReward(){
