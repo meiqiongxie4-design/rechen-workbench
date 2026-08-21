@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48i</title>
+<title>GrowTime · v18.48j</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -5027,6 +5027,17 @@ function _rewardPersistLocal(){
   try{ localStorage.setItem('wbReward_settings', JSON.stringify(rewardSettings)); }catch(e){}
 }
 
+/* v18.48j: 编辑保护 — 奖励页正在编辑时 (标题输入框 / 任务礼物浮层 / 焦点在奖励页输入框内) 禁止 renderReward 重渲染,
+   否则后台 3s 同步轮询 / realtime / reward:changed 会把输入框整个销毁 → 键盘退出 + 内容被当已保存.
+   编辑期间只更新内存数据, 不碰 DOM; 编辑器关闭后下一次渲染自然跟上 */
+function rewardEditorOpen(){
+  if(document.querySelector('.r-modal-overlay')) return true;   // 任务/礼物增改浮层 (挂在 body, 但底层页面也不该被冲)
+  if(document.getElementById('rPageTitleEdit')) return true;    // 标题正在原地编辑 (div 已替换成 input)
+  const ae=document.activeElement;
+  if(ae && (ae.tagName==='INPUT'||ae.tagName==='TEXTAREA') && ae.closest && ae.closest('#rewardRoot')) return true; // 焦点在奖励页输入框 (名字/结算日/小目标/寄语)
+  return false;
+}
+
 async function loadReward(){
   if(typeof sb==='undefined'||!sb) return;
   const keys=['reward_tasks','reward_gifts','reward_log','reward_settings'];
@@ -5054,7 +5065,7 @@ async function loadReward(){
     }
     _rewardPersistLocal();
     rewardLoaded=true;
-    if(typeof view!=='undefined' && view==='reward'){ try{ renderReward(); }catch(e){} }
+    if(typeof view!=='undefined' && view==='reward' && !rewardEditorOpen()){ try{ renderReward(); }catch(e){} }
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}
   }catch(e){ console.warn('[reward] load err', e); }
 }
@@ -5105,7 +5116,7 @@ function rewardTotals(){
 
 function _rewardRenderHome(){
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
-  try{ if(typeof view!=='undefined'&&view==='reward') renderReward(); }catch(e){}
+  try{ if(typeof view!=='undefined'&&view==='reward' && !rewardEditorOpen()) renderReward(); }catch(e){}
 }
 
 async function rewardEarn(taskId){
@@ -5468,7 +5479,7 @@ function renderReward(){
 // 跨模块联动: 任意奖励数据变化 → 刷首页卡 + 当前 reward 视图
 document.addEventListener('reward:changed',()=>{
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
-  try{ if(typeof view!=='undefined'&&view==='reward') renderReward(); }catch(e){}
+  try{ if(typeof view!=='undefined'&&view==='reward' && !rewardEditorOpen()) renderReward(); }catch(e){}
 });
 </script>
 </body>
