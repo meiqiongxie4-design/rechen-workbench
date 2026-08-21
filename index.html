@@ -5038,10 +5038,21 @@ async function loadReward(){
     if(Array.isArray(by.reward_gifts)&&by.reward_gifts.length) rewardGifts=by.reward_gifts;
     if(Array.isArray(by.reward_log)){
       const cloud=by.reward_log;
-      // 并集去重 (按 id) — 本机刚加的 vs 云端, 合并防丢; 删了的随云端走
-      const ids=new Set(cloud.map(x=>x&&x.id).filter(Boolean));
-      const localOnly=rewardLog.filter(x=>x&&x.id&&!ids.has(x.id));
-      rewardLog=cloud.concat(localOnly);
+      /* v18.48h 修复「删除不同步 / 删了又复活」:
+         旧逻辑 cloud.concat(localOnly) 把"本地残留的已删记录"又加回 → 手机删了电脑删不掉.
+         新逻辑: 云端是权威 (single source of truth).
+           - 云端为空数组 → 本地也直接清空 (用户全删了)
+           - 否则: 本地独有的记录, 只有当其 ts 比云端"最新记录"还新 (说明是云端删除之后本地才新增) 才保留,
+             否则丢弃 (= 已被其他端删除). ts 是 ISO 字符串, 字典序 = 时间序, 可直接比较 */
+      if(cloud.length===0){
+        rewardLog=[];
+      } else {
+        const ids=new Set(cloud.map(x=>x&&x.id).filter(Boolean));
+        let cloudMaxTs='';
+        for(const x of cloud){ const ts=(x&&x.ts)||''; if(ts>cloudMaxTs) cloudMaxTs=ts; }
+        const localOnly=rewardLog.filter(x=>x&&x.id&&!ids.has(x.id)&&(x.ts||'')>cloudMaxTs);
+        rewardLog=cloud.concat(localOnly);
+      }
     }
     if(by.reward_settings&&typeof by.reward_settings==='object'){
       rewardSettings={...REWARD_DEFAULT_SETTINGS, ...by.reward_settings};
