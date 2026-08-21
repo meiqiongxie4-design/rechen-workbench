@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48m</title>
+<title>GrowTime · v18.48n</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -5047,7 +5047,17 @@ function rewardEditorOpen(){
   return false;
 }
 
+/* v18.48n: 写云端锁, 防止"本地改完还没写回云端的瞬间, 3 秒同步轮询拉旧值把全局数组覆盖, 导致保存的其实是云端旧值"那个致命竞态.
+   锁定窗口 = await saveSettings (网络 round-trip) + 写完后 1.5 秒缓冲 (等 CDN/Postgres 复制落地完成).
+   在此期间 loadReward 直接 return, 不去 fetch 云端、不替换 rewardTasks 数组、不重渲染.
+   锁释放后, 下一次 3 秒轮询会拉到我们刚写进去的新值 → 与本地一致 → 无视觉跳变.
+   Save 失败时: 用户已看到 toast 警告, 锁正常释放 (1.5 秒后), 下次轮询拉到云端旧值覆盖本地, 提醒用户主动重试. */
+let __rewardWriteLock = false;
+
 async function loadReward(){
+  /* v18.48n 写锁: 正在写云端的瞬间 (含写完后 1.5 秒缓冲), 禁止 loadReward 去拉云端覆盖本地,
+     否则会出现"用户改完, 3 秒轮询拉到旧值把本地踢回旧版, 再写云端就把旧值确定下来"的竞态 (漏保存). */
+  if(__rewardWriteLock) return;
   if(typeof sb==='undefined'||!sb) return;
   const keys=['reward_tasks','reward_gifts','reward_log','reward_settings'];
   try{
@@ -5080,11 +5090,20 @@ async function loadReward(){
 }
 async function _saveRewardKey(key, val){
   _rewardPersistLocal();
-  if(typeof sb!=='undefined'&&sb){
-    try{ const ok=await saveSettings(key, val); return ok===true; }
-    catch(e){ console.warn('[reward] save '+key, e); return false; }
+  /* v18.48n 写锁: 锁住本次写, 抑制 loadReward 在写入窗口 + 缓冲期覆盖本地. */
+  __rewardWriteLock = true;
+  const _releaseLock = ()=>{ __rewardWriteLock = false; };
+  try{
+    if(typeof sb!=='undefined'&&sb){
+      try{ const ok=await saveSettings(key, val); setTimeout(_releaseLock, 1500); return ok===true; }
+      catch(e){ console.warn('[reward] save '+key, e); setTimeout(_releaseLock, 1500); return false; }
+    }
+    setTimeout(_releaseLock, 1500);
+    return true;  // 本地模式永远当作成功
+  }catch(e){
+    setTimeout(_releaseLock, 1500);
+    throw e;
   }
-  return true;  // 本地模式永远当作成功
 }
 function saveRewardTasks(){ return _saveRewardKey('reward_tasks', rewardTasks); }
 function saveRewardGifts(){ return _saveRewardKey('reward_gifts', rewardGifts); }
