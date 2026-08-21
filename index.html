@@ -192,6 +192,7 @@
   验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
 -->
 <!-- 版本：rechen-v2026-08-16-v18.38-image-zoom-render (1) 修 list.onclick handler 顺序 — 把 [data-tview] 图片放大检查移到 [data-act] 检查之前 (之前 closest('[data-act]') 在 <img> 上找不到 → 整 handler return → 永远走不到放大分支, 所以待办图片点不放大); (2) 强化 todoNoteSplit 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 含 TODO_IMG_PREFIX 就强制 split (防御手机 PWA 缓存了 v18.37 之前的旧 JS, fallback 路径写出去后渲染时 todoNoteSplit 没生效, raw __TODO_PASTE_V1__ 字符串泄露给用户); (3) memoQuick textarea paste 防御升级 — 即使剪贴板只有 text/plain 是 data URL 也拦截, 加 input 事件兜底防止 Chrome 偶发 paste event 不触发时 base64 漏进 textarea; (4) HTML head 加 Cache-Control/Pragma/Expires no-cache meta, 强制 PWA 不缓存 HTML, 手机端重新拉新版 JS -->
+<!-- 版本：rechen-v2026-08-21-v18.47 (1) saveDropClicks 加防反向写回 — 云端今天键不存在 → 合并时也把本地今天的 click 删掉, 防止清空后客户端再点一下又把 localStorage 兜底的脏 click (12:18 测试数据) 写回云端复活; (2) visibilitychange 修复大漏洞 — 之前只在 view=='counter'/'period' 才拉, 现改成无 view 条件始终 reload loadDrops + loadDropClicks + loadPeriod. 跨设备「删除/清空」切回前台能秒同步; (3) 用户复发场景: 手机端 PWA 后台 → 我清空云端 → 手机端不刷新永远不清 (visibilitychange 不调 loadDropClicks 是根因); 修复后切回前台即同步成 0/0; 之后再点 N 下也不会复活旧数据 -->
 <!-- 版本：rechen-v2026-08-21-v18.45 (护眼清理测试数据 + 防止 localStorage 顶回: (1) 撤销 v18.45 设想的"×清空"UI 按钮 (用户说不需要); (2) loadDropClicks 加"今天以云端为准"逻辑 — 若云端无今天记录(被远程清过/测试数据已删), 本地也不保留, 避免浏览器 localStorage 缓存把已清测试数据顶回来. 不影响历史天(云端有), 也不影响今天真点(真点时云端也有). 部署前已用 Supabase REST API 清掉 drop_clicks 里 2026-08-21 的 3 条测试 click) -->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
@@ -3867,6 +3868,13 @@ async function saveDropClicks(){
 
     // 4. ⚠️ 用 _snap (入队前 snapshot), 不是全局 dropClicks — 否则 realtime loadDropClicks 覆盖全局会丢 click
     const merged = _mergeDropClicks(_snap, cloud);
+    /* v18.47: 防反向写回 — 如果云端今天键不存在 (云端今天被显式清过 / 从未记过), 不把本地 snapshot 里的今天 click 合并进 merged,
+       否则 localStorage 兜底的脏 click (如清空前残留的 12:18 测试数据) 会随 save 写回云端复活.
+       解决: 用户抱怨「清空云端, 手机端又点一下, 老的测试数据怎么又回来了」 */
+    const _saveTodayKey = todayStr();
+    if(!(_saveTodayKey in cloud) && (_saveTodayKey in merged)){
+      delete merged[_saveTodayKey];
+    }
     // 同步回全局: 只在 merged 比全局"多"或相等时覆盖, 避免覆盖并发 addDrop 的更新
     if(_dropClicksTotalSize(merged) >= _dropClicksTotalSize(dropClicks)){
       dropClicks = merged;
@@ -3974,8 +3982,10 @@ document.addEventListener('visibilitychange',()=>{
     loadTodos(), loadMemos(), loadFarm(),
     loadSettings(), loadSavings(), loadWaterSettings(), loadWaterCups()
   ]).catch(()=>{});
-  if(view==='counter') loadDrops().catch(e=>recordError('visibility[counter]', (e&&e.message)||String(e), true));
-  if(view==='period') loadPeriod().catch(e=>recordError('visibility[period]', (e&&e.message)||String(e), true));
+  // v18.47: 不管当前 view 都跑 loadDrops + loadDropClicks + loadPeriod — 跨设备"删除/清空"操作能秒同步到手机, 不依赖用户手动刷新页面
+  loadDrops().catch(e=>recordError('visibility[counter]', (e&&e.message)||String(e), true));
+  loadDropClicks().catch(e=>recordError('visibility[eye-clicks]', (e&&e.message)||String(e), true));
+  loadPeriod().catch(e=>recordError('visibility[period]', (e&&e.message)||String(e), true));
 });
 // v17.85: 轮询兜底 — realtime WebSocket 在某些网络/区域下连不上, 跨设备同步会完全失效
 //         页面可见时每 3s 拉一次云端 (water_log / settings / savings / water_settings),
