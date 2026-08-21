@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48n</title>
+<title>GrowTime · v17.89</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -191,26 +191,7 @@
        待办 .stat .num 仍保持 32px
   验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
 -->
-<!-- 版本：rechen-v2026-08-21-v19 (正式上线 v19 孩子奖励模块 + 整页 UI 收尾)
-   v19 模块新功能 (从 v18.45 (护眼修复定稿) 基础叠加, 不动护眼/喝水/备忘/今日待办/农场任何数据/逻辑):
-     1. 侧栏新增「🌟 奖励」入口 (与「💰 存钱」同款色同款图标风格, 浅绿圆角块)
-     2. 奖励页六大区块: ① 奖励本统计 (积分/现金大数字 + 累计挣到/本月待结算), ② 打卡赚分 (按分类: 学习/考试/家务/好习惯/扣分/自定义, 任务可点, 一次一分一次记一次),
-        ③ 兑换礼物 (积分兑换卡, 弹 modal 确认), ④ 现金结算 (按月统计, 一键结算生成「已发放」记录),
-        ⑤ 我的小目标 + 家长寄语 (textarea 自动保存), ⑥ 记录 (最近 30 条流水, 单条可删), ⑦ 自定义 (宝贝名字/结算日/任务清单/礼物清单, 全部可改可加可删)
-     3. 首页联动卡 (#hcReward, 在喝水/护眼下面) cosplay 喝水/护眼卡 — 同款 2 行 (.num + .sub), 22px #22c55e 绿粗数字 + 12px 灰小副标, 右侧 64px 🌟 emoji, 整卡可点进奖励模块
-     4. 奖励数据存云端 app_settings 4 个独立 key: reward_tasks / reward_gifts / reward_log / reward_settings — 跟 drop_clicks/drops/water/todos/memos 完全隔离, 改奖励不会污染其他模块
-     5. 跨设备秒同步: 复用全局 settings-rt 实时通道 + 3s 轮询, 跟其他模块一样的同步逻辑
-   v19 UI 收尾 (本机体验后用户反馈, 全部应用):
-     6. 奖励模块的增删改/兑换/结算 — 之前用浏览器原生 prompt()/confirm(), PWA 独立窗口里被浏览器屏蔽 → 改用页面内浮层 modal (rewardModal/rewardConfirm), 一次改到位, PWA 也能用
-     7. 「+ 加 / 改」按钮加 touch-action:manipulation 解决 PWA 首次点击 300ms 延迟; 后续发现全局 .btn 也需要, 同样补上
-     8. 删除"打卡赚分 · 点一下记一次"标题行 (用户嫌多字, 任务按钮卡片保留)
-     9. 删除"点击查看全部 →"提示 (今日待办右上角), 整卡点击仍 switchView('todo')
-     10. 今日待办首页限 3 条 (.slice(0,3) + 还有 N-3 条), 与左栏 hc 卡视觉对齐
-   没动 / 不动:
-     - 护眼 v18.48 修复 (撤回 v18.45/v18.47 防反向写回清空逻辑) 保持定稿
-     - 喝水、备忘、待办、存钱、流光、设置六大老模块任何数据/逻辑/CSS 一行没碰
-     - 农场 v18.28 已隐藏入口, 仍保留, 不动
--->
+<!-- 版本：rechen-v2026-08-16-v18.38-image-zoom-render (1) 修 list.onclick handler 顺序 — 把 [data-tview] 图片放大检查移到 [data-act] 检查之前 (之前 closest('[data-act]') 在 <img> 上找不到 → 整 handler return → 永远走不到放大分支, 所以待办图片点不放大); (2) 强化 todoNoteSplit 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 含 TODO_IMG_PREFIX 就强制 split (防御手机 PWA 缓存了 v18.37 之前的旧 JS, fallback 路径写出去后渲染时 todoNoteSplit 没生效, raw __TODO_PASTE_V1__ 字符串泄露给用户); (3) memoQuick textarea paste 防御升级 — 即使剪贴板只有 text/plain 是 data URL 也拦截, 加 input 事件兜底防止 Chrome 偶发 paste event 不触发时 base64 漏进 textarea; (4) HTML head 加 Cache-Control/Pragma/Expires no-cache meta, 强制 PWA 不缓存 HTML, 手机端重新拉新版 JS -->
 <!-- 版本：rechen-v2026-08-21-v18.44 (护眼点击时间丢 click bug 真因: v18.43 修复用了 window.dropClicks, 但 dropClicks 是 let 声明不会挂到 window 上 (经典 script 里 let 是词法绑定, 不是 window 属性), 永远是 undefined → "合并源加内存" 保护完全失效. 并发场景: 用户点水池 → appendDropClick 把 click 推进内存 → await drops.update 期间, realtime echo 触发 loadDropClicks → 读旧 localStorage/旧 cloud → 试图合并内存失败 (window.dropClicks undefined) → dropClicks 被覆盖为空 → 后续 saveDropClicks 拿空 snapshot 写云端, click 永久丢. 修: 改直接引用 dropClicks, 让 v18.43 保护真生效) --><!-- 在 v18.43 修护眼次数 vs 点击时间 基础上叠加 -->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
@@ -303,7 +284,7 @@
   .add-row .title:focus{border-color:var(--accent);background:#fff;}
   .add-bar{display:flex;gap:10px;align-items:center;justify-content:flex-end;}
   .add-row input[type=date]{padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;background:var(--surface-2);font-family:inherit;outline:none;}
-  .btn{padding:11px 18px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:.15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}   /* v18.48f: touch-action:manipulation 解决 PWA 独立窗口 300ms 首次点击延迟 (用户反馈: 结算按钮第一次点没反应). 视觉零变化, 仅消除延迟. */
+  .btn{padding:11px 18px;border:none;border-radius:10px;background:var(--accent);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:.15s;}
   .btn:hover{filter:brightness(1.05);}
   .btn.ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--line);}
   .btn.danger{background:var(--red-soft);color:var(--red);border:1px solid transparent;}
@@ -925,26 +906,15 @@
 
   /* ============ v19 孩子奖励模块 ============
      色系沿用全局 --accent(#22c55e) / --accent-soft / --surface / --line / --text / --muted / --red */
-  /* v19 孩子奖励模块 ============ */
-  .r-stat{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:22px 20px 20px;background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%);border:1px solid var(--accent-soft);border-radius:14px;box-shadow:var(--shadow);text-align:center;}
-  .r-stat-left{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:6px;}
-  .r-stat-name{font-size:18px;color:#166534;font-weight:700;letter-spacing:.3px;}
-  #rPageTitle{cursor:pointer;border-bottom:1px dashed transparent;padding-bottom:2px;transition:border-color .15s;}
-  #rPageTitle:hover{border-color:#94a3b8;}
-  #rPageTitleEdit{font:inherit;font-size:18px;font-weight:700;color:#166534;letter-spacing:.3px;border:1.5px solid var(--accent);border-radius:6px;padding:2px 8px;background:#fff;outline:none;width:min(360px,80%);}
-  .r-stat-pts{font-size:38px;font-weight:800;color:#15803d;line-height:1.1;margin-top:2px;}
-  .r-stat-pts i{font-size:18px;font-weight:600;color:#166534;font-style:normal;margin-left:3px;}
-  .r-stat-sub{font-size:12.5px;color:#166534;margin-top:4px;opacity:.85;}
+  .r-stat{display:flex;align-items:center;gap:16px;padding:18px 20px;background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%);border:1px solid var(--accent-soft);border-radius:14px;box-shadow:var(--shadow);}
+  .r-stat-left{flex:1;min-width:0;}
+  .r-stat-name{font-size:13px;color:#166534;font-weight:600;letter-spacing:.3px;}
+  .r-stat-pts{font-size:36px;font-weight:800;color:#15803d;line-height:1.1;margin-top:4px;}
+  .r-stat-pts i{font-size:16px;font-weight:600;color:#166534;font-style:normal;margin-left:2px;}
+  .r-stat-sub{font-size:12px;color:#166534;margin-top:4px;opacity:.85;}
 
   .r-section-hd{font-size:14px;font-weight:700;color:#374151;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .r-hint{font-size:11.5px;color:var(--muted);font-weight:400;}
-
-  /* v18.48k: 小目标 / 家长寄语 — banner 显示卡 (在页面上方, 用户写完立刻能看到) */
-  .r-banner{padding:10px 12px;background:linear-gradient(135deg,#fff7ed 0%,#fef3c7 100%);border:1px solid #fcd34d;border-radius:12px;display:flex;flex-direction:column;gap:6px;}
-  .r-banner-row{display:flex;align-items:flex-start;gap:8px;font-size:14px;color:#92400e;line-height:1.55;}
-  .r-banner-ic{flex-shrink:0;font-size:15px;line-height:1.55;}
-  .r-banner-txt{word-break:break-word;white-space:pre-wrap;font-weight:500;}
-  .r-banner-empty{display:none;}
 
   .r-grp{margin-bottom:14px;}
   .r-grp:last-child{margin-bottom:0;}
@@ -996,10 +966,10 @@
 
   .r-mgr{display:flex;flex-direction:column;gap:6px;}
   .r-mgr-row{display:grid;grid-template-columns:60px 1fr auto auto;gap:8px;align-items:center;padding:8px 10px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;font-size:13px;}
-  .r-mgr-btn{padding:4px 10px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+  .r-mgr-btn{padding:4px 10px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;}
   .r-mgr-btn:hover{border-color:var(--accent);color:var(--accent);}
   .r-mgr-btn.danger:hover{border-color:#dc2626;color:#dc2626;}
-  .r-mgr-add{padding:4px 12px;border:1px solid var(--accent);background:var(--accent-soft);color:#15803d;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+  .r-mgr-add{padding:4px 12px;border:1px solid var(--accent);background:var(--accent-soft);color:#15803d;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}
   .r-mgr-add:hover{background:var(--accent);color:#fff;}
 
   .r-set-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
@@ -1009,7 +979,15 @@
   .r-set-hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.6;}
 
   /* 首页 v19 奖励联动卡 — 紧凑, 不影响原 3+1 布局 */
-  /* v18.48c: 奖励联动卡跟喝水/护眼用同一套 .hc 样式 (白底, 22px #22c55e 数字, 64px 表情在右), 不要单独的绿渐变样式 */
+  .hc-reward{background:linear-gradient(135deg,#dcfce7 0%,#bbf7d0 100%);border:1.5px solid var(--accent-soft);border-radius:14px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:var(--shadow);transition:transform .15s;min-height:58px;}
+  .hc-reward:hover{transform:translateY(-1px);}
+  .hc-reward:active{transform:scale(.99);}
+  .hc-reward-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+  .hc-reward-name{font-size:12.5px;color:#166534;font-weight:600;}
+  .hc-reward-num{font-size:17px;font-weight:800;color:#15803d;line-height:1.2;}
+  .hc-reward-num i{font-size:12px;font-style:normal;font-weight:600;color:#166534;}
+  .hc-reward-sub{font-size:11.5px;color:#166534;opacity:.75;}
+  .hc-reward-r{font-size:20px;color:#15803d;flex-shrink:0;}
 
   @media (max-width:640px){
     .r-stat-pts{font-size:30px;}
@@ -1021,27 +999,9 @@
     .r-mgr-row>span:nth-child(2){flex:1 1 calc(100% - 58px);font-weight:600;}
     .r-mgr-row>span:nth-child(3){flex:0 0 100%;color:var(--muted);font-size:11.5px;}
     .r-mgr-row>span:nth-child(4){flex:0 0 auto;margin-left:auto;}
-    /* v18.48c: 手机端奖励卡不需要单独样式, 直接继承 .hc mobile rule */
-  }   /* v18.48l fix: 上面这个 @media (max-width:640px) 必须用 } 收尾, 否则下面 .r-modal* 全部被吞进媒体查询, 电脑端 (>640px) 弹窗完全没样式 → 全屏宽、无圆角、无阴影, "保存"按钮挤到左下角 → 用户根本看不清/点不准, 体验极差 */
-
-  /* v19-fix: 内联浮层 modal — 替代原生 prompt/confirm (PWA 独立窗口里浏览器禁用 prompt/confirm, 导致点"改/加/删"无反应) */
-  .r-modal-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px;}
-  .r-modal{background:#fff;border-radius:16px;width:100%;max-width:360px;max-height:86vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.25);animation:rModalIn .18s ease-out;}
-  @keyframes rModalIn{from{opacity:0;transform:translateY(10px) scale(.98);}to{opacity:1;transform:none;}}
-  .r-modal-hd{font-size:15px;font-weight:800;color:#166534;padding:16px 18px 4px;}
-  .r-modal-body{padding:8px 18px 4px;}
-  .r-modal-f{margin:12px 0;}
-  .r-modal-f label{display:block;font-size:12px;color:#475569;font-weight:600;margin-bottom:5px;}
-  .r-modal-input{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:14px;color:#1f2937;font-family:inherit;background:#fff;outline:none;}
-  .r-modal-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
-  .r-modal-actions{display:flex;gap:10px;padding:14px 18px 18px;}
-  .r-modal-btn{flex:1;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
-  .r-modal-btn.cancel{background:#f1f5f9;color:#475569;}
-  .r-modal-btn.cancel:active{background:#e2e8f0;}
-  .r-modal-btn.ok{background:var(--accent);color:#fff;}
-  .r-modal-btn.ok:active{background:#16a34a;}
-  .r-modal-btn.ok.danger{background:var(--red);}
-  .r-modal-btn.ok.danger:active{background:#b91c1c;}
+    .hc-reward-num{font-size:15px;}
+    .hc-reward-sub{font-size:10.5px;}
+  }
   </style>
 </head>
 <body>
@@ -1429,7 +1389,6 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48n';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -1870,9 +1829,8 @@ function renderHomeCards(){
   const dropWarn=dropN>=10;
   // 今日待办（todos 未完成前 6 条）
   const open=(todos||[]).filter(t=>!t.done);
-  // v18.48d: 首页今日待办限 3 条 — 跟左栏 hc 卡视觉对齐 (3 卡大致相同高度), 多余的用 "+" 提示
-  const todoRows=open.slice(0,3).map(t=>`<div class="todo-summary-row"><span class="ck" data-tid="${esc(t.id)}" onclick="event.stopPropagation();homeToggleTodo('${esc(t.id)}')" title="点此标记完成"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
-  const todoMore=open.length>3 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-3} 条未完成</div>` : '';
+  const todoRows=open.slice(0,6).map(t=>`<div class="todo-summary-row"><span class="ck" data-tid="${esc(t.id)}" onclick="event.stopPropagation();homeToggleTodo('${esc(t.id)}')" title="点此标记完成"></span><span class="tx">${esc(t.title||'(无标题)')}</span></div>`).join('') || `<div class="water-empty">今日待办都完成啦 🎉</div>`;
+  const todoMore=open.length>6 ? `<div style="font-size:11.5px;color:#9ca3af;margin-top:6px;text-align:center;">还有 ${open.length-6} 条未完成</div>` : '';
   // 侧栏 label 备用（v17.20 首页卡不再渲染，保留读设置不报错）
   const L=getLabels();
   const wSplit=splitEmojiLabel(L.water);
@@ -1910,31 +1868,28 @@ function renderHomeCards(){
         </div>
         <div class="hc-right"><span class="hc-face" id="hcFace">${dropFace}</span></div>
       </div>
-
-      <!-- ④ 宝贝的积分卡 — v18.48d: 跟喝水/护眼卡完全同款 2 行排版.
-           "0 分 · ¥0.0"=.num (22px #22c55e 800, 与"今日已滴 X 滴"同字号同色, 核心数字),
-           "宝贝的积分"=.sub (12px 灰, 与"眼睛舒服 · 上限 10 滴"同款, 描述/标签),
-           右侧 🌟 跟护眼大表情位置一致 (64px, .hc-face),
-           删掉"点这去打卡 / 兑换 →"和右侧独立箭头; 整卡可点进【奖励】模块 -->
-      <div class="hc" id="hcReward">
-        <div class="hc-left">
-          <div class="num"><span id="hcRewardPts">0</span> 分 · ¥<span id="hcRewardCash">0.0</span></div>
-          <div class="sub">宝贝的积分</div>
-        </div>
-        <div class="hc-right"><span class="hc-face">🌟</span></div>
-      </div>
     </div>
 
-    <!-- 右栏：今日待办卡（高度 = 左栏 4 卡总和） -->
+    <!-- 右栏：今日待办卡（高度 = 左栏 3 卡总和） -->
     <div class="home-right">
       <div class="todo-summary">
         <div class="todo-summary-hd">
           <div class="lb">📝 今日待办</div>   <!-- v17.99c: 删掉「· 还剩 N 条」 -->
-          <div class="ct">${open.length===0?'都完成啦 🎉':''}</div>
+          <div class="ct">${open.length===0?'都完成啦 🎉':'点击查看全部 →'}</div>
         </div>
         ${todoRows}
         ${todoMore}
       </div>
+    </div>
+
+    <!-- v19: 孩子奖励联动卡 (实时显示积分+本月待结算现金, 点击进奖励页) -->
+    <div class="hc-reward" id="hcReward">
+      <div class="hc-reward-l">
+        <div class="hc-reward-name">🌟 <span id="hcRewardName">宝贝</span>的积分</div>
+        <div class="hc-reward-num"><span id="hcRewardPts">0</span> <i>分</i> · ¥<span id="hcRewardCash">0</span></div>
+        <div class="hc-reward-sub">点这去打卡 / 兑换 →</div>
+      </div>
+      <div class="hc-reward-r">→</div>
     </div>
   `;
 
@@ -1955,7 +1910,8 @@ function renderHomeCards(){
   // v19: 奖励联动卡 — 实时显示积分+本月现金, 点击进奖励页
   try{
     const rt = (typeof rewardTotals==='function') ? rewardTotals() : {pointsBal:0,cashThisMonth:0};
-    /* v18.48c: 孩子名硬编码显示在 lb 里(📵),不再通过 span 注入;保留 pts/cash 更新即可 */
+    const cn = (typeof rewardSettings!=='undefined' && rewardSettings && rewardSettings.childName) || '宝贝';
+    const pn=$('hcRewardName'); if(pn) pn.textContent=cn;
     const pp=$('hcRewardPts'); if(pp) pp.textContent=rt.pointsBal;
     const pc=$('hcRewardCash'); if(pc) pc.textContent=rt.cashThisMonth.toFixed(1);
     const rc=$('hcReward'); if(rc) rc.onclick=()=>switchView('reward');
@@ -3449,8 +3405,9 @@ function renderDropDetail(date){
   const label=date===today?'今天':date;
   /* v17.96: 改回横向胶囊 (用户反馈希望跟之前 v17.92 同款); 没点击的日期整块不渲染 */
   const clickList = getDropClicks(date);
+  /* v18.46: 每个点击时间胶囊都可点删除 (误点撤回) — 点胶囊 confirm 确认 → dropClicks.splice + drops.count-1 + saveDropClicks 上传云端 */
   const clickHtml = clickList.length > 0
-    ? `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);"><div style="font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;">点击时间（${clickList.length} 次）</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;">${clickList.map(c => `<div style="padding:5px 8px;background:#fff;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:12px;color:#475569;font-weight:600;">${esc(c.time)}</div>`).join('')}</div></div>`
+    ? `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);"><div style="font-size:13px;color:#16a34a;font-weight:700;margin-bottom:8px;">点击时间（${clickList.length} 次）<span style="font-size:11px;color:#94a3b8;font-weight:400;margin-left:6px;">点时间可删单次</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:6px;">${clickList.map(c => `<div data-del-one="${esc(c.t)}" title="点这条删除" style="position:relative;padding:5px 8px;background:#fff;border:1px solid var(--line);border-radius:8px;text-align:center;font-size:12px;color:#475569;font-weight:600;cursor:pointer;transition:all .15s;" onmouseover="this.style.background='#fef2f2';this.style.borderColor='#fca5a5';this.style.color='#dc2626';" onmouseout="this.style.background='#fff';this.style.borderColor='var(--line)';this.style.color='#475569';" onclick="delOneDropClick('${date}','${esc(c.t)}')">${esc(c.time)}</div>`).join('')}</div></div>`
     : '';
   $('detailDate').textContent=`${label} · 滴了 ${d.count} 次`;
   $('detailBody').innerHTML=`<span class="status ${s.cls}" style="display:inline-flex;margin-bottom:8px;">${s.face} ${s.text}</span><br>${s.tip}${d.count<=2?'<br><strong>真棒！今天用眼很健康。</strong>':''}${clickHtml}`;
@@ -3466,6 +3423,7 @@ document.addEventListener('click',(e)=>{
   if(e.target.closest('.history-item')) return; // history-item 自己处理 toggle
   if(e.target.closest('.history-detail')) return; // 点详情内部不关
   if(e.target.closest('.pool')) return; // 点水池不关
+  if(e.target.closest('[data-del-one]')) return; // v18.46: 点"删除单条 click"胶囊不关详情
   d.hidden=true;
 });
 async function addDrop(){
@@ -4999,7 +4957,7 @@ const REWARD_DEFAULT_GIFTS = [
   {id:'g5', name:'去动物园/公园一日', points:150, note:'出游'},
   {id:'g6', name:'乐高/大玩具', points:300, note:'大目标'},
 ];
-const REWARD_DEFAULT_SETTINGS = {childName:'宝贝', settleDay:1, goalText:'', parentText:'', pageTitle:'宝贝的奖励本'};
+const REWARD_DEFAULT_SETTINGS = {childName:'宝贝', settleDay:1, goalText:'', parentText:''};
 
 let rewardTasks = REWARD_DEFAULT_TASKS.slice();
 let rewardGifts = REWARD_DEFAULT_GIFTS.slice();
@@ -5037,28 +4995,7 @@ function _rewardPersistLocal(){
   try{ localStorage.setItem('wbReward_settings', JSON.stringify(rewardSettings)); }catch(e){}
 }
 
-/* v18.48k 编辑保护: 调整为「仅防会销毁 DOM 的编辑容器」, 不再因"焦点在输入框/textarea"就跳过 renderReward.
-   - .r-modal-overlay (任务/礼物增改弹窗) 在 body 层 → renderReward 不会动它, 原本就不必拦, 保留保守拦一下
-   - #rPageTitleEdit (标题原地编辑, div 已替换成 input) → renderReward 重建 #rewardRoot 时会销毁, 必须拦
-   - 输入框/textarea 焦点 (#rGoal / #rParent / #rName / #rSettleDay) → renderReward 不再跳过, 而是在重渲染后**保留焦点 + 光标位置 + 未提交文字** (由 renderReward 内 _preserveFocus 逻辑承担).
-     修复了"另一台改了扣分项, 这台因焦点落在小目标文本框里就一直显示旧列表"的同步漏. */
-function rewardEditorOpen(){
-  if(document.querySelector('.r-modal-overlay')) return true;   // 任务/礼物增改浮层 (防御性)
-  if(document.getElementById('rPageTitleEdit')) return true;    // 标题原地编辑中
-  return false;
-}
-
-/* v18.48n: 写云端锁, 防止"本地改完还没写回云端的瞬间, 3 秒同步轮询拉旧值把全局数组覆盖, 导致保存的其实是云端旧值"那个致命竞态.
-   锁定窗口 = await saveSettings (网络 round-trip) + 写完后 1.5 秒缓冲 (等 CDN/Postgres 复制落地完成).
-   在此期间 loadReward 直接 return, 不去 fetch 云端、不替换 rewardTasks 数组、不重渲染.
-   锁释放后, 下一次 3 秒轮询会拉到我们刚写进去的新值 → 与本地一致 → 无视觉跳变.
-   Save 失败时: 用户已看到 toast 警告, 锁正常释放 (1.5 秒后), 下次轮询拉到云端旧值覆盖本地, 提醒用户主动重试. */
-let __rewardWriteLock = false;
-
 async function loadReward(){
-  /* v18.48n 写锁: 正在写云端的瞬间 (含写完后 1.5 秒缓冲), 禁止 loadReward 去拉云端覆盖本地,
-     否则会出现"用户改完, 3 秒轮询拉到旧值把本地踢回旧版, 再写云端就把旧值确定下来"的竞态 (漏保存). */
-  if(__rewardWriteLock) return;
   if(typeof sb==='undefined'||!sb) return;
   const keys=['reward_tasks','reward_gifts','reward_log','reward_settings'];
   try{
@@ -5072,38 +5009,24 @@ async function loadReward(){
     if(Array.isArray(by.reward_gifts)&&by.reward_gifts.length) rewardGifts=by.reward_gifts;
     if(Array.isArray(by.reward_log)){
       const cloud=by.reward_log;
-      /* v18.48i 修复「删除记录跨设备不同步 / 删最新一条被复活」:
-         奖励记录整段存一个 key (reward_log), 每次增/删/改都整段覆盖写云端 → 云端是唯一权威源.
-         直接以云端为准 (rewardLog = cloud 副本), 不再做 cloud.concat(localOnly) 也不比 ts:
-           - 任一端删除 → 云端少了该条 → 其他端拉到云端立即同步删除, 绝不复活 (含删最新一条)
-           - 赚分/兑换/结算 本就 await saveRewardLog 整段写回云端, 其他端拉到即同步
-         代价: 本端离线新增且写云端失败时, 下次 load 会被云端覆盖 (两设备均在线时不会发生) */
-      rewardLog = cloud.map(x=>(x&&typeof x==='object')?{...x}:x);
+      // 并集去重 (按 id) — 本机刚加的 vs 云端, 合并防丢; 删了的随云端走
+      const ids=new Set(cloud.map(x=>x&&x.id).filter(Boolean));
+      const localOnly=rewardLog.filter(x=>x&&x.id&&!ids.has(x.id));
+      rewardLog=cloud.concat(localOnly);
     }
     if(by.reward_settings&&typeof by.reward_settings==='object'){
       rewardSettings={...REWARD_DEFAULT_SETTINGS, ...by.reward_settings};
     }
     _rewardPersistLocal();
     rewardLoaded=true;
-    if(typeof view!=='undefined' && view==='reward' && !rewardEditorOpen()){ try{ renderReward(); }catch(e){} }
+    if(typeof view!=='undefined' && view==='reward'){ try{ renderReward(); }catch(e){} }
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}
   }catch(e){ console.warn('[reward] load err', e); }
 }
 async function _saveRewardKey(key, val){
   _rewardPersistLocal();
-  /* v18.48n 写锁: 锁住本次写, 抑制 loadReward 在写入窗口 + 缓冲期覆盖本地. */
-  __rewardWriteLock = true;
-  const _releaseLock = ()=>{ __rewardWriteLock = false; };
-  try{
-    if(typeof sb!=='undefined'&&sb){
-      try{ const ok=await saveSettings(key, val); setTimeout(_releaseLock, 1500); return ok===true; }
-      catch(e){ console.warn('[reward] save '+key, e); setTimeout(_releaseLock, 1500); return false; }
-    }
-    setTimeout(_releaseLock, 1500);
-    return true;  // 本地模式永远当作成功
-  }catch(e){
-    setTimeout(_releaseLock, 1500);
-    throw e;
+  if(typeof sb!=='undefined'&&sb){
+    try{ await saveSettings(key, val); }catch(e){ console.warn('[reward] save '+key, e); }
   }
 }
 function saveRewardTasks(){ return _saveRewardKey('reward_tasks', rewardTasks); }
@@ -5147,7 +5070,7 @@ function rewardTotals(){
 
 function _rewardRenderHome(){
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
-  try{ if(typeof view!=='undefined'&&view==='reward' && !rewardEditorOpen()) renderReward(); }catch(e){}
+  try{ if(typeof view!=='undefined'&&view==='reward') renderReward(); }catch(e){}
 }
 
 async function rewardEarn(taskId){
@@ -5180,7 +5103,7 @@ async function rewardRedeem(giftId){
   const t=rewardTotals();
   const cost=Number(g.points)||0;
   if(t.pointsBal<cost){ toast(`积分还差 ${cost - t.pointsBal} 分`); return; }
-  if(!await rewardConfirm(`确认用 ${cost} 分兑换「${g.name}」?`)) return;
+  if(!confirm(`确认用 ${cost} 分兑换「${g.name}」?`)) return;
   rewardLog.push({
     id: _rewardNewId(),
     type:'redeem',
@@ -5200,7 +5123,7 @@ async function rewardSettleMonth(){
   const t=rewardTotals();
   if(t.cashThisMonth<=0.005){ toast('本月没有待结算的现金'); return; }
   const monthName = t.month.replace('-','年')+'月';
-  if(!await rewardConfirm(`确认结算${monthName}现金 ¥${t.cashThisMonth.toFixed(2)}? 结算后将记录为已发放, 计入历史。`)) return;
+  if(!confirm(`确认结算${monthName}现金 ¥${t.cashThisMonth.toFixed(2)}?\n结算后将记录为已发放, 计入历史。`)) return;
   rewardLog.push({
     id: _rewardNewId(),
     type:'settle',
@@ -5216,7 +5139,7 @@ async function rewardSettleMonth(){
 }
 
 async function rewardDelLogEntry(id){
-  if(!await rewardConfirm('删除这条记录? 积分/现金会相应回滚。')) return;
+  if(!confirm('删除这条记录? 积分/现金会相应回滚。')) return;
   const before=rewardLog.length;
   rewardLog = rewardLog.filter(e=>e&&e.id!==id);
   if(rewardLog.length===before){ toast('记录没找到'); return; }
@@ -5229,169 +5152,52 @@ async function rewardSetChildName(name){ rewardSettings.childName=name||'宝贝'
 async function rewardSetText(field, val){ rewardSettings[field]=val||''; await saveRewardSettings(); if(typeof view!=='undefined'&&view==='reward') renderReward(); }
 async function rewardSetSettleDay(d){ rewardSettings.settleDay=Math.max(1,Math.min(28,Number(d)||1)); await saveRewardSettings(); if(typeof view!=='undefined'&&view==='reward') renderReward(); }
 
-/* v18.48g: 奖励页大标题原地可编辑 — 点标题 → input → 回车/blur 保存 → 云端同步. 默认「宝贝的奖励本」, 同时支持自定义前缀 emoji (例: '⭐ 小明的成长记') */
-function rewardEditTitle(){
-  const el=$('rPageTitle'); if(!el || $('rPageTitleEdit')) return;
-  const cur=(rewardSettings.pageTitle || '宝贝的奖励本');
-  const inp=document.createElement('input');
-  inp.id='rPageTitleEdit';
-  inp.type='text';
-  inp.maxLength=20;
-  inp.value=cur;
-  inp.placeholder='宝贝的奖励本';
-  el.replaceWith(inp);
-  inp.focus(); inp.select();
-  let done=false;
-  const finish=(commit)=>{
-    if(done) return; done=true;
-    const v = commit ? (inp.value||'').trim() || '宝贝的奖励本' : cur;
-    rewardSetTitle(v);
-  };
-  inp.addEventListener('blur', ()=>finish(true));
-  inp.addEventListener('keydown', (e)=>{
-    if(e.key==='Enter'){ e.preventDefault(); inp.blur(); }
-    else if(e.key==='Escape'){ e.preventDefault(); finish(false); inp.blur(); }
-  });
-}
-async function rewardSetTitle(v){
-  rewardSettings.pageTitle = v || '宝贝的奖励本';
-  await saveRewardSettings();
-  /* 不跑 renderReward — 避免奖励页滚动位置跳回顶部 — 直接原地替换为可点的新 div */
-  const old=$('rPageTitleEdit');
-  if(old){
-    const el=document.createElement('div');
-    el.id='rPageTitle';
-    el.className='r-stat-name';
-    el.title='点我修改标题';
-    el.textContent='🌟 ' + rewardSettings.pageTitle;
-    old.replaceWith(el);
-    el.onclick=rewardEditTitle;
-  }
-  _rewardRenderHome();
-}
-
-/* v19-fix: 内联浮层 — 替代原生 prompt/confirm (PWA 独立窗口里浏览器禁用 prompt/confirm, 导致点"改/加/删"无反应)
-   返回 Promise<values|null>: 点保存→values 对象, 点取消/遮罩→null */
-function rewardModal(opts){
-  return new Promise((resolve)=>{
-    const ov=document.createElement('div'); ov.className='r-modal-overlay';
-    const fieldsHtml=(opts.fields||[]).map(f=>{
-      const common='data-k="'+esc(f.key)+'"';
-      if(f.type==='textarea'){
-        return '<div class="r-modal-f"><label>'+esc(f.label)+'</label><textarea class="r-modal-input" '+common+' rows="3" placeholder="'+esc(f.placeholder||'')+'">'+esc(f.value||'')+'</textarea></div>';
-      }
-      return '<div class="r-modal-f"><label>'+esc(f.label)+'</label><input class="r-modal-input" '+common+' type="'+(f.type||'text')+'" value="'+esc(f.value!=null?f.value:'')+'" placeholder="'+esc(f.placeholder||'')+'"'+(f.min!=null?' min="'+f.min+'"':'')+(f.max!=null?' max="'+f.max+'"':'')+' /></div>';
-    }).join('');
-    ov.innerHTML='<div class="r-modal"><div class="r-modal-hd">'+esc(opts.title||'')+'</div><div class="r-modal-body">'+fieldsHtml+'</div><div class="r-modal-actions"><button class="r-modal-btn cancel" data-act="cancel">取消</button><button class="r-modal-btn ok'+(opts.danger?' danger':'')+'" data-act="ok">'+esc(opts.submitText||'保存')+'</button></div></div>';
-    document.body.appendChild(ov);
-    const close=(r)=>{ if(ov.parentNode) ov.remove(); resolve(r); };
-    ov.onclick=(e)=>{ if(e.target===ov) close(null); };
-    ov.querySelector('[data-act="cancel"]').onclick=()=>close(null);
-    ov.querySelector('[data-act="ok"]').onclick=()=>{
-      const vals={}; ov.querySelectorAll('.r-modal-input').forEach(inp=>{ vals[inp.dataset.k]=inp.value; }); close(vals);
-    };
-    setTimeout(()=>{ const f=ov.querySelector('.r-modal-input'); if(f) f.focus(); },60);
-  });
-}
-function rewardConfirm(msg){
-  return new Promise((resolve)=>{
-    const ov=document.createElement('div'); ov.className='r-modal-overlay';
-    ov.innerHTML='<div class="r-modal"><div class="r-modal-body" style="padding:18px 16px;font-size:14px;color:#334155;">'+esc(msg)+'</div><div class="r-modal-actions"><button class="r-modal-btn cancel" data-act="no">取消</button><button class="r-modal-btn ok danger" data-act="yes">删除</button></div></div>';
-    document.body.appendChild(ov);
-    const close=(r)=>{ if(ov.parentNode) ov.remove(); resolve(r); };
-    ov.onclick=(e)=>{ if(e.target===ov) close(false); };
-    ov.querySelector('[data-act="no"]').onclick=()=>close(false);
-    ov.querySelector('[data-act="yes"]').onclick=()=>close(true);
-  });
-}
 async function rewardAddTask(){
-  const v=await rewardModal({title:'➕ 加任务', submitText:'添加', fields:[
-    {key:'name',label:'任务名',placeholder:'例: 洗碗'},
-    {key:'cat',label:'分类 (学习/考试/家务/好习惯/扣分/自定义)',value:'自定义'},
-    {key:'points',label:'分值 (数字, 扣分项填正数)',value:'5'},
-    {key:'cash',label:'现金元 (0 或留空 = 无现金)',value:'0'},
-    {key:'icon',label:'图标 emoji (留空默认 ✅)',value:'✅'},
-  ]});
-  if(!v||!v.name) return;
-  const cat=v.cat||'自定义';
-  const kind=(cat==='扣分')?'deduct':'add';
-  rewardTasks.push({id:_rewardNewId(),name:v.name,cat,kind,points:Math.abs(Number(v.points))||0,cash:Math.max(0,Number(v.cash)||0),icon:v.icon||'✅',enabled:true});
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardTasks();
-  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已添加: '+v.name);
+  const name=prompt('任务名 (例: 洗碗)'); if(!name) return;
+  const cat=prompt('分类 (学习/考试/家务/好习惯/扣分/自定义)','自定义')||'自定义';
+  const kind = (cat==='扣分') ? 'deduct' : 'add';
+  const ptsStr=prompt('分值 (数字, 扣分项填正数即可)','5'); if(ptsStr===null) return;
+  const cashStr=prompt('现金元 (0 或留空=无现金)','0');
+  const ic=prompt('图标 (emoji, 留空默认 ✅)','✅')||'✅';
+  rewardTasks.push({id:_rewardNewId(),name,cat,kind,points:Math.abs(Number(ptsStr))||0,cash:Math.max(0,Number(cashStr)||0),icon:ic,enabled:true});
+  await saveRewardTasks(); if(typeof view!=='undefined'&&view==='reward') renderReward();
 }
 async function rewardEditTask(id){
   const t=(rewardTasks||[]).find(x=>x.id===id); if(!t) return;
-  const v=await rewardModal({title:'✏️ 改任务', submitText:'保存', fields:[
-    {key:'name',label:'任务名',value:t.name},
-    {key:'cat',label:'分类 (学习/考试/家务/好习惯/扣分/自定义)',value:t.cat||'自定义'},
-    {key:'points',label:'分值 (数字)',value:String(t.points)},
-    {key:'cash',label:'现金元 (0 = 无现金)',value:String(t.cash||0)},
-    {key:'icon',label:'图标 emoji',value:t.icon||'✅'},
-  ]});
-  if(!v) return;
-  const cat=v.cat||t.cat||'自定义';
-  t.cat=cat; t.kind=(cat==='扣分')?'deduct':'add';
-  t.name=v.name||t.name; t.points=Math.abs(Number(v.points))||0; t.cash=Math.max(0,Number(v.cash)||0); t.icon=v.icon||t.icon||'✅';
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardTasks();
-  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+t.name);
+  const name=prompt('任务名',t.name); if(name===null) return;
+  const ptsStr=prompt('分值',String(t.points)); if(ptsStr===null) return;
+  const cashStr=prompt('现金元 (0=无)',String(t.cash||0)); if(cashStr===null) return;
+  t.name=name||t.name; t.points=Math.abs(Number(ptsStr))||0; t.cash=Math.max(0,Number(cashStr)||0);
+  await saveRewardTasks(); if(typeof view!=='undefined'&&view==='reward') renderReward();
 }
 async function rewardDelTask(id){
-  if(!await rewardConfirm('删除这个任务? 已打卡记录会保留。')) return;
+  if(!confirm('删除这个任务? 已有记录会保留。')) return;
   rewardTasks=rewardTasks.filter(x=>x.id!==id);
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardTasks();
-  if(ok===false) toast('云端删除失败, 请刷新或重试'); else toast('✓ 已删除');
+  await saveRewardTasks(); if(typeof view!=='undefined'&&view==='reward') renderReward();
 }
 async function rewardAddGift(){
-  const v=await rewardModal({title:'➕ 加礼物', submitText:'添加', fields:[
-    {key:'name',label:'礼物名 (例: 多看 20 分钟动画片)',placeholder:'礼物名'},
-    {key:'points',label:'需要多少分',value:'50'},
-  ]});
-  if(!v||!v.name) return;
-  rewardGifts.push({id:_rewardNewId(),name:v.name,points:Math.max(1,Number(v.points))||50,note:''});
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardGifts();
-  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已添加: '+v.name);
+  const name=prompt('礼物名 (例: 多看 20 分钟动画片)'); if(!name) return;
+  const ptsStr=prompt('需要多少分','50'); if(ptsStr===null) return;
+  rewardGifts.push({id:_rewardNewId(),name,points:Math.max(1,Number(ptsStr))||50,note:''});
+  await saveRewardGifts(); if(typeof view!=='undefined'&&view==='reward') renderReward();
 }
 async function rewardEditGift(id){
   const g=(rewardGifts||[]).find(x=>x.id===id); if(!g) return;
-  const v=await rewardModal({title:'✏️ 改礼物', submitText:'保存', fields:[
-    {key:'name',label:'礼物名',value:g.name},
-    {key:'points',label:'需要多少分',value:String(g.points)},
-  ]});
-  if(!v) return;
-  g.name=v.name||g.name; g.points=Math.max(1,Number(v.points))||50;
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardGifts();
-  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+g.name);
+  const name=prompt('礼物名',g.name); if(name===null) return;
+  const ptsStr=prompt('需要多少分',String(g.points)); if(ptsStr===null) return;
+  g.name=name||g.name; g.points=Math.max(1,Number(ptsStr))||50;
+  await saveRewardGifts(); if(typeof view!=='undefined'&&view==='reward') renderReward();
 }
 async function rewardDelGift(id){
-  if(!await rewardConfirm('删除这个礼物? 已兑换记录保留。')) return;
+  if(!confirm('删除这个礼物? 已兑换记录保留。')) return;
   rewardGifts=rewardGifts.filter(x=>x.id!==id);
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardGifts();
-  if(ok===false) toast('云端删除失败, 请刷新或重试'); else toast('✓ 已删除');
+  await saveRewardGifts(); if(typeof view!=='undefined'&&view==='reward') renderReward();
 }
 
 function renderReward(){
   const root=$('rewardRoot'); if(!root) return;
-  /* v18.48k 焦点/光标/未提交文字保留: 之前每次 renderReward 都会销毁 #rewardRoot 整个 innerHTML,
-     用户在小目标/寄语/名字/结算日 文本框里输了一半字(还没 blur 保存), 一旦后台 3s 同步或另一台设备改动引发重渲染,
-     焦点 + 光标 + 已输入未保存的文字全没了, 体验极差. 现在重渲染前先记下: 当前焦点元素 id, 已输入但未 blur 的值,
-     光标位置; 重渲染后把焦点还给同一个 id, 把未保存的值塞回去 (避免被云端旧值覆盖), 把光标放回原位. */
-  let prevFocusId=null, prevFocusValue=null, prevCursorStart=0;
-  try{
-    const pf=document.activeElement;
-    if(pf && pf.id && (pf.tagName==='INPUT'||pf.tagName==='TEXTAREA') && pf.closest && pf.closest('#rewardRoot')){
-      prevFocusId=pf.id;
-      if(typeof pf.value==='string') prevFocusValue=pf.value;
-      try{ prevCursorStart=pf.selectionStart||0; }catch(e){}
-    }
-  }catch(e){}
   const t=rewardTotals();
-  const cn=rewardSettings.childName||'宝贝';  // 首页联动卡用, 标题已改为 pageTitle
+  const cn=rewardSettings.childName||'宝贝';
   const monthName = t.month.replace('-','年')+'月';
   const addTasks=(rewardTasks||[]).filter(x=>x.kind!=='deduct'&&x.enabled!==false);
   const deductTasks=(rewardTasks||[]).filter(x=>x.kind==='deduct'&&x.enabled!==false);
@@ -5462,19 +5268,14 @@ function renderReward(){
   root.innerHTML = `
     <div class="card r-stat">
       <div class="r-stat-left">
-        <div class="r-stat-name" id="rPageTitle" title="点我修改标题">🌟 ${esc(rewardSettings.pageTitle || '宝贝的奖励本')}</div>
+        <div class="r-stat-name">🌟 ${esc(cn)}的奖励本</div>
         <div class="r-stat-pts">${t.pointsBal} <i>分</i></div>
         <div class="r-stat-sub">累计挣到 ${t.pointsEarnedTotal} 分 · 本月待结算 ¥${t.cashThisMonth.toFixed(2)}</div>
       </div>
     </div>
 
-    ${(rewardSettings.goalText||rewardSettings.parentText) ? `
-    <div class="card r-banner" id="rGoalBanner">
-      ${rewardSettings.goalText ? `<div class="r-banner-row"><span class="r-banner-ic">🎯</span><span class="r-banner-txt">${esc(rewardSettings.goalText)}</span></div>` : ''}
-      ${rewardSettings.parentText ? `<div class="r-banner-row"><span class="r-banner-ic">💌</span><span class="r-banner-txt">${esc(rewardSettings.parentText)}</span></div>` : ''}
-    </div>` : ''}
-
     <div class="card">
+      <div class="r-section-hd">⭐ 打卡赚分 <span class="r-hint">点一下记一次</span></div>
       ${Object.entries(addGroups).map(([k,arr])=>groupBlock(k,arr)).join('')}
       ${Object.entries(dedGroup).map(([k,arr])=>groupBlock(k,arr)).join('')}
     </div>
@@ -5535,47 +5336,13 @@ function renderReward(){
   const rSd=$('rSettleDay'); if(rSd){ rSd.onchange=()=>rewardSetSettleDay(rSd.value); }
   const rGoal=$('rGoal'); if(rGoal){ rGoal.onblur=()=>rewardSetText('goalText',rGoal.value); }
   const rPar=$('rParent'); if(rPar){ rPar.onblur=()=>rewardSetText('parentText',rPar.value); }
-  const rpt=$('rPageTitle'); if(rpt) rpt.onclick=rewardEditTitle;
-
-  /* v18.48k 焦点恢复 (见函数顶部说明): 用户正在输入 #rGoal/#rParent/#rName/#rSettleDay 时, renderReward 重建后应保留光标位置 + 未保存的文字, 不打断用户 */
-  if(prevFocusId){
-    const restored=document.getElementById(prevFocusId);
-    if(restored){
-      try{
-        if(prevFocusValue!=null && typeof restored.value==='string' && prevFocusValue!==restored.value){
-          restored.value=prevFocusValue;  /* 用户已输入但未 blur 的文字, 不要被云端旧值覆盖 */
-        }
-        restored.focus();
-        const end=(typeof restored.value==='string')?restored.value.length:0;
-        try{ restored.setSelectionRange(prevCursorStart, prevCursorStart); }catch(e){}
-      }catch(e){}
-    }
-  }
 }
 
 // 跨模块联动: 任意奖励数据变化 → 刷首页卡 + 当前 reward 视图
 document.addEventListener('reward:changed',()=>{
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
-  try{ if(typeof view!=='undefined'&&view==='reward' && !rewardEditorOpen()) renderReward(); }catch(e){}
+  try{ if(typeof view!=='undefined'&&view==='reward') renderReward(); }catch(e){}
 });
-
-/* v18.48n: PWA / GitHub Pages HTTP 缓存导致"部署了但设备还在跑旧代码" — 加自动更新检测.
-   拉 version.json (cache:'no-store' 绕过 HTTP 缓存), 若服务端版本号 > 本机 APP_VERSION → 提示并自动刷新一次.
-   防重载死循环: 用 sessionStorage 标记本次会话已自动更新过, 只刷一次. */
-(function autoUpdateCheck(){
-  try{
-    if(sessionStorage.getItem('wb_auto_updated')==='1') return;  // 本次会话已自动更新过, 不再刷
-    const url='version.json?_='+Date.now();
-    fetch(url,{cache:'no-store',headers:{'Cache-Control':'no-store'}}).then(r=>r.ok?r.json():null).then(j=>{
-      if(!j||!j.v) return;
-      if(j.v!==APP_VERSION){
-        sessionStorage.setItem('wb_auto_updated','1');
-        console.log('[auto-update] 服务端 '+j.v+' > 本机 '+APP_VERSION+' → 即将刷新');
-        setTimeout(()=>{ try{ toast('发现新版本 '+j.v+'，正在更新…'); }catch(e){} location.reload(true); }, 900);
-      }
-    }).catch(()=>{});
-  }catch(e){}
-})();
 </script>
 </body>
 </html>
