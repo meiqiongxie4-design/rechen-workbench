@@ -192,7 +192,7 @@
   验证: 隐身开 → 点待办立即看到待办; F5 刷新停在待办不闪首页; 首页字号比待办小
 -->
 <!-- 版本：rechen-v2026-08-16-v18.38-image-zoom-render (1) 修 list.onclick handler 顺序 — 把 [data-tview] 图片放大检查移到 [data-act] 检查之前 (之前 closest('[data-act]') 在 <img> 上找不到 → 整 handler return → 永远走不到放大分支, 所以待办图片点不放大); (2) 强化 todoNoteSplit 防御性 — 无论 __todosHasImages 是 true/false, 只要 note 含 TODO_IMG_PREFIX 就强制 split (防御手机 PWA 缓存了 v18.37 之前的旧 JS, fallback 路径写出去后渲染时 todoNoteSplit 没生效, raw __TODO_PASTE_V1__ 字符串泄露给用户); (3) memoQuick textarea paste 防御升级 — 即使剪贴板只有 text/plain 是 data URL 也拦截, 加 input 事件兜底防止 Chrome 偶发 paste event 不触发时 base64 漏进 textarea; (4) HTML head 加 Cache-Control/Pragma/Expires no-cache meta, 强制 PWA 不缓存 HTML, 手机端重新拉新版 JS -->
-<!-- 版本：rechen-v2026-08-21-v18.44 (护眼点击时间丢 click bug 真因: v18.43 修复用了 window.dropClicks 试图把内存里的 click 也作为 loadDropClicks 合并源, 但 dropClicks 是 let 声明 (经典 script 里 let 是词法绑定, 不会挂到 window), 所以 window.dropClicks 永远是 undefined → "合并源加内存" 保护完全死代码. 实际竞态: 用户点水池 → appendDropClick 进内存 → await drops.update 期间 realtime echo 触发 loadDropClicks → 旧 localStorage + 旧 cloud 合并 → 试图合并内存失败 → dropClicks 被覆盖为空 → 后续 saveDropClicks 拿空 snapshot 写云端, click 永久丢. 修: 改直接引用 dropClicks, 让 v18.43 保护真生效) -->
+<!-- 版本：rechen-v2026-08-21-v18.45 (护眼清理测试数据 + 防止 localStorage 顶回: (1) 撤销 v18.45 设想的"×清空"UI 按钮 (用户说不需要); (2) loadDropClicks 加"今天以云端为准"逻辑 — 若云端无今天记录(被远程清过/测试数据已删), 本地也不保留, 避免浏览器 localStorage 缓存把已清测试数据顶回来. 不影响历史天(云端有), 也不影响今天真点(真点时云端也有). 部署前已用 Supabase REST API 清掉 drop_clicks 里 2026-08-21 的 3 条测试 click) -->
 <!-- 版本：rechen-v2026-08-15-v17.97 (1) 时间卡三行行距增加: 桌面 .home-left>.hc:first-child .hc-left gap 8→14 (只影响时间卡, 不动喝水/护眼); (2) 时间字号大两个号: 桌面 .hc-time 52→56, 手机 40→44 -->
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
 
@@ -3801,7 +3801,15 @@ async function loadDropClicks(){
   if(dropClicks && Object.keys(dropClicks).length){
     local = _mergeDropClicks(local, dropClicks);
   }
-  dropClicks = _mergeDropClicks(local, cloud);
+  let merged = _mergeDropClicks(local, cloud);
+  // v18.45: 今天的数据以云端为准 — 若云端没有今天的记录(说明被远程清过/测试数据已删),
+  //         本地也不再保留, 避免浏览器 localStorage 缓存把已清的测试数据顶回来.
+  //         不影响历史天(云端有), 也不影响"今天真点"(真点时云端也会有记录).
+  const _todayKey = todayStr();
+  if(!( _todayKey in cloud) && ( _todayKey in merged)){
+    delete merged[_todayKey];
+  }
+  dropClicks = merged;
 
   // 4. 持久化 localStorage
   try{ localStorage.setItem('wbDropClicks', JSON.stringify(dropClicks)); }catch(_){}
