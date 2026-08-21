@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48n</title>
+<title>GrowTime · v18.48o</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1429,7 +1429,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48n';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48o';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -4991,13 +4991,13 @@ const REWARD_DEFAULT_TASKS = [
   {id:'t_d5', name:'长时间看电子产品 (>1h)', cat:'扣分', kind:'deduct', points:3, cash:0, icon:'📱', enabled:true},
   {id:'t_d6', name:'挑食/偏食', cat:'扣分', kind:'deduct', points:2, cash:0, icon:'🥦', enabled:true},
 ];
-const REWARD_DEFAULT_GIFTS = [
-  {id:'g1', name:'多看 20 分钟动画片', points:20, note:'时间特权'},
-  {id:'g2', name:'选一次晚餐', points:30, note:'小决定权'},
-  {id:'g3', name:'周末电影夜+零食', points:50, note:'家庭活动'},
-  {id:'g4', name:'小玩具/绘本', points:80, note:'物质奖励'},
-  {id:'g5', name:'去动物园/公园一日', points:150, note:'出游'},
-  {id:'g6', name:'乐高/大玩具', points:300, note:'大目标'},
+const REWARD_DEFAULT_GIFTS = [  // v18.48o: 加 cash 字段 — 礼物现金等价 (¥, 0=纯积分礼物)
+  {id:'g1', name:'多看 20 分钟动画片', points:20, cash:0, note:'时间特权'},
+  {id:'g2', name:'选一次晚餐', points:30, cash:5, note:'小决定权'},
+  {id:'g3', name:'周末电影夜+零食', points:50, cash:10, note:'家庭活动'},
+  {id:'g4', name:'小玩具/绘本', points:80, cash:20, note:'物质奖励'},
+  {id:'g5', name:'去动物园/公园一日', points:150, cash:50, note:'出游'},
+  {id:'g6', name:'乐高/大玩具', points:300, cash:100, note:'大目标'},
 ];
 const REWARD_DEFAULT_SETTINGS = {childName:'宝贝', settleDay:1, goalText:'', parentText:'', pageTitle:'宝贝的奖励本'};
 
@@ -5052,13 +5052,36 @@ function rewardEditorOpen(){
    锁定窗口 = await saveSettings (网络 round-trip) + 写完后 1.5 秒缓冲 (等 CDN/Postgres 复制落地完成).
    在此期间 loadReward 直接 return, 不去 fetch 云端、不替换 rewardTasks 数组、不重渲染.
    锁释放后, 下一次 3 秒轮询会拉到我们刚写进去的新值 → 与本地一致 → 无视觉跳变.
-   Save 失败时: 用户已看到 toast 警告, 锁正常释放 (1.5 秒后), 下次轮询拉到云端旧值覆盖本地, 提醒用户主动重试. */
-let __rewardWriteLock = false;
+   Save 失败时: 用户已看到 toast 警告, 锁正常释放 (1.5 秒后), 下次轮询拉到云端旧值覆盖本地, 提醒用户主动重试.
+
+   v18.48o ↑↑ 升级为引用计数 (改成数字 0/1/2/...): modal 编辑会话也会持有锁,
+   防止用户在 modal 里填表 (5~30s) 期间 3s 轮询 fire loadReward 把 rewardTasks 整个数组替换,
+   导致调用方拿着的对象引用脱链, 改它无效, save 把旧值写回云端(用户看到的现象: "✓ 已保存 但内容没变; 再改保存了刷新也没有出来").
+   注意: 现在 loadReward 检测的是「计数 > 0」(函数 rewardLockActive), 不是单纯 true/false.
+   acquire 时 +1, release 时 -1 (不能减到负), 默认持有 1.5s 后自动释放 (与之前语义一致). */
+let __rewardWriteLock = 0;
+function rewardLockActive(){ return __rewardWriteLock > 0; }
+function rewardLockInc(){ __rewardWriteLock++; }
+function rewardLockDec(){ if(__rewardWriteLock>0) __rewardWriteLock--; }
+function rewardLockReleaseAfter(ms){ setTimeout(rewardLockDec, ms); }
+/* 用法示例 (in 增/改/删函数):
+     rewardLockInc();  // 跨 modal + save 持有锁
+     try {
+       const v = await rewardModal(...);
+       if(!v) { rewardLockReleaseAfter(500); return; }
+       const t = (rewardTasks||[]).find(x=>x.id===id);  // 重新 find, 防御 loadReward 仍偶然执行过
+       ...
+       renderReward();
+       await saveRewardTasks();   // _saveRewardKey 内部会再 Inc 一次 + 1.5s 后 Dec
+       rewardLockReleaseAfter(1500);  // 我们这份也按 1.5s 兜底释放
+     } catch(e) { rewardLockReleaseAfter(500); throw e; }
+*/
 
 async function loadReward(){
   /* v18.48n 写锁: 正在写云端的瞬间 (含写完后 1.5 秒缓冲), 禁止 loadReward 去拉云端覆盖本地,
-     否则会出现"用户改完, 3 秒轮询拉到旧值把本地踢回旧版, 再写云端就把旧值确定下来"的竞态 (漏保存). */
-  if(__rewardWriteLock) return;
+     否则会出现"用户改完, 3 秒轮询拉到旧值把本地踢回旧版, 再写云端就把旧值确定下来"的竞态 (漏保存).
+     v18.48o: 改为检测引用计数 (modal 编辑会话也会 Inc), 不再是单一 bool. */
+  if(rewardLockActive()) return;
   if(typeof sb==='undefined'||!sb) return;
   const keys=['reward_tasks','reward_gifts','reward_log','reward_settings'];
   try{
@@ -5091,18 +5114,19 @@ async function loadReward(){
 }
 async function _saveRewardKey(key, val){
   _rewardPersistLocal();
-  /* v18.48n 写锁: 锁住本次写, 抑制 loadReward 在写入窗口 + 缓冲期覆盖本地. */
-  __rewardWriteLock = true;
-  const _releaseLock = ()=>{ __rewardWriteLock = false; };
+  /* v18.48n 写锁: 锁住本次写, 抑制 loadReward 在写入窗口 + 缓冲期覆盖本地.
+     v18.48o: 引用计数版本 (modal 编辑会话 + save 期间 各持一份锁互不打架). */
+  rewardLockInc();
+  const _releaseLock = rewardLockDec;
   try{
     if(typeof sb!=='undefined'&&sb){
-      try{ const ok=await saveSettings(key, val); setTimeout(_releaseLock, 1500); return ok===true; }
-      catch(e){ console.warn('[reward] save '+key, e); setTimeout(_releaseLock, 1500); return false; }
+      try{ const ok=await saveSettings(key, val); rewardLockReleaseAfter(1500); return ok===true; }
+      catch(e){ console.warn('[reward] save '+key, e); rewardLockReleaseAfter(1500); return false; }
     }
-    setTimeout(_releaseLock, 1500);
+    rewardLockReleaseAfter(1500);
     return true;  // 本地模式永远当作成功
   }catch(e){
-    setTimeout(_releaseLock, 1500);
+    rewardLockReleaseAfter(1500);
     throw e;
   }
 }
@@ -5263,7 +5287,7 @@ async function rewardSetTitle(v){
     el.id='rPageTitle';
     el.className='r-stat-name';
     el.title='点我修改标题';
-    el.textContent='🌟 ' + rewardSettings.pageTitle;
+    el.textContent=rewardSettings.pageTitle;  // v18.48o: 不再加 '🌟 ' 前缀, 标题干一个字就是页标题
     old.replaceWith(el);
     el.onclick=rewardEditTitle;
   }
@@ -5321,21 +5345,33 @@ async function rewardAddTask(){
   if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已添加: '+v.name);
 }
 async function rewardEditTask(id){
-  const t=(rewardTasks||[]).find(x=>x.id===id); if(!t) return;
-  const v=await rewardModal({title:'✏️ 改任务', submitText:'保存', fields:[
-    {key:'name',label:'任务名',value:t.name},
-    {key:'cat',label:'分类 (学习/考试/家务/好习惯/扣分/自定义)',value:t.cat||'自定义'},
-    {key:'points',label:'分值 (数字)',value:String(t.points)},
-    {key:'cash',label:'现金元 (0 = 无现金)',value:String(t.cash||0)},
-    {key:'icon',label:'图标 emoji',value:t.icon||'✅'},
-  ]});
-  if(!v) return;
-  const cat=v.cat||t.cat||'自定义';
-  t.cat=cat; t.kind=(cat==='扣分')?'deduct':'add';
-  t.name=v.name||t.name; t.points=Math.abs(Number(v.points))||0; t.cash=Math.max(0,Number(v.cash)||0); t.icon=v.icon||t.icon||'✅';
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardTasks();
-  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+t.name);
+  /* v18.48o: 跨 modal 会话 + save 持有锁, 防止 3s 轮询在用户填表期间把 rewardTasks 整体替换,
+     导致 t 引用脱链, 看似保存成功实则保存的是云端旧值 ("✓ 已保存 但内容没变"). */
+  rewardLockInc();
+  try{
+    const t0=(rewardTasks||[]).find(x=>x.id===id); if(!t0) return;
+    const v=await rewardModal({title:'✏️ 改任务', submitText:'保存', fields:[
+      {key:'name',label:'任务名',value:t0.name},
+      {key:'cat',label:'分类 (学习/考试/家务/好习惯/扣分/自定义)',value:t0.cat||'自定义'},
+      {key:'points',label:'分值 (数字)',value:String(t0.points)},
+      {key:'cash',label:'现金元 (0 = 无现金)',value:String(t0.cash||0)},
+      {key:'icon',label:'图标 emoji',value:t0.icon||'✅'},
+    ]});
+    if(!v){ rewardLockReleaseAfter(500); return; }
+    /* 防御性: 重新 find by id — 锁正常情况下应当挡住 loadReward, 这里做双保险 */
+    const t=(rewardTasks||[]).find(x=>x.id===id);
+    if(!t){ toast('任务不存在 (已被另一台删除?)'); rewardLockReleaseAfter(500); return; }
+    const cat=v.cat||t.cat||'自定义';
+    t.cat=cat; t.kind=(cat==='扣分')?'deduct':'add';
+    t.name=v.name||t.name; t.points=Math.abs(Number(v.points))||0; t.cash=Math.max(0,Number(v.cash)||0); t.icon=v.icon||t.icon||'✅';
+    if(typeof view!=='undefined'&&view==='reward') renderReward();
+    const ok=await saveRewardTasks();
+    if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+t.name);
+    rewardLockReleaseAfter(1500);
+  }catch(e){
+    rewardLockReleaseAfter(500);
+    throw e;
+  }
 }
 async function rewardDelTask(id){
   if(!await rewardConfirm('删除这个任务? 已打卡记录会保留。')) return;
@@ -5348,24 +5384,36 @@ async function rewardAddGift(){
   const v=await rewardModal({title:'➕ 加礼物', submitText:'添加', fields:[
     {key:'name',label:'礼物名 (例: 多看 20 分钟动画片)',placeholder:'礼物名'},
     {key:'points',label:'需要多少分',value:'50'},
+    {key:'cash',label:'现金价值 ¥ (0 或留空=纯积分礼物)',value:'0'},  // v18.48o: 新增 cash 字段
   ]});
   if(!v||!v.name) return;
-  rewardGifts.push({id:_rewardNewId(),name:v.name,points:Math.max(1,Number(v.points))||50,note:''});
+  rewardGifts.push({id:_rewardNewId(),name:v.name,points:Math.max(1,Number(v.points))||50,cash:Math.max(0,Number(v.cash))||0,note:''});
   if(typeof view!=='undefined'&&view==='reward') renderReward();
   const ok=await saveRewardGifts();
   if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已添加: '+v.name);
 }
 async function rewardEditGift(id){
-  const g=(rewardGifts||[]).find(x=>x.id===id); if(!g) return;
-  const v=await rewardModal({title:'✏️ 改礼物', submitText:'保存', fields:[
-    {key:'name',label:'礼物名',value:g.name},
-    {key:'points',label:'需要多少分',value:String(g.points)},
-  ]});
-  if(!v) return;
-  g.name=v.name||g.name; g.points=Math.max(1,Number(v.points))||50;
-  if(typeof view!=='undefined'&&view==='reward') renderReward();
-  const ok=await saveRewardGifts();
-  if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+g.name);
+  /* v18.48o: 同 rewardEditTask — 跨 modal 持有锁, 防孤儿引用. */
+  rewardLockInc();
+  try{
+    const g0=(rewardGifts||[]).find(x=>x.id===id); if(!g0) return;
+    const v=await rewardModal({title:'✏️ 改礼物', submitText:'保存', fields:[
+      {key:'name',label:'礼物名',value:g0.name},
+      {key:'points',label:'需要多少分',value:String(g0.points)},
+      {key:'cash',label:'现金价值 ¥ (0=纯积分礼物)',value:String(g0.cash||0)},  // v18.48o: 新增 cash 字段
+    ]});
+    if(!v){ rewardLockReleaseAfter(500); return; }
+    const g=(rewardGifts||[]).find(x=>x.id===id);
+    if(!g){ toast('礼物不存在 (已被另一台删除?)'); rewardLockReleaseAfter(500); return; }
+    g.name=v.name||g.name; g.points=Math.max(1,Number(v.points))||50; g.cash=Math.max(0,Number(v.cash))||0;  // v18.48o
+    if(typeof view!=='undefined'&&view==='reward') renderReward();
+    const ok=await saveRewardGifts();
+    if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+g.name);
+    rewardLockReleaseAfter(1500);
+  }catch(e){
+    rewardLockReleaseAfter(500);
+    throw e;
+  }
 }
 async function rewardDelGift(id){
   if(!await rewardConfirm('删除这个礼物? 已兑换记录保留。')) return;
@@ -5415,10 +5463,11 @@ function renderReward(){
 
   const giftsHtml=(rewardGifts||[]).map(g=>{
     const enough=t.pointsBal>=g.points;
+    const cashTxt = (g.cash>0) ? ` <i>·¥${Number(g.cash).toFixed(0)}</i>` : '';  // v18.48o: 礼物旁加现金价值 (¥)
     return `<div class="r-gift">
       <div class="r-gift-info">
         <div class="r-gift-name">🎁 ${esc(g.name)}</div>
-        <div class="r-gift-pts">${g.points} 分${g.note?' · '+esc(g.note):''}</div>
+        <div class="r-gift-pts">${g.points} 分${cashTxt}${g.note?' · '+esc(g.note):''}</div>
       </div>
       <button class="r-gift-btn" data-rredeem="${esc(g.id)}" ${enough?'':'disabled'}>
         ${enough?'兑换':'还差 '+(g.points-t.pointsBal)+' 分'}
@@ -5457,14 +5506,14 @@ function renderReward(){
   }).join('') || '<div class="water-empty">还没有记录, 去打卡吧 ✨</div>';
 
   const taskMgr = (rewardTasks||[]).map(tk=>`<div class="r-mgr-row"><span>${esc(tk.cat)}</span><span>${esc(tk.name)}</span><span>${tk.kind==='deduct'?'-':'+'}${tk.points}分${tk.cash?` ¥${tk.cash}`:''}</span><span><button class="r-mgr-btn" data-rtedit="${esc(tk.id)}">改</button><button class="r-mgr-btn danger" data-rtdel="${esc(tk.id)}">删</button></span></div>`).join('');
-  const giftMgr = (rewardGifts||[]).map(g=>`<div class="r-mgr-row"><span>🎁</span><span>${esc(g.name)}</span><span>${g.points}分</span><span><button class="r-mgr-btn" data-rgedit="${esc(g.id)}">改</button><button class="r-mgr-btn danger" data-rgdel="${esc(g.id)}">删</button></span></div>`).join('');
+  const giftMgr = (rewardGifts||[]).map(g=>`<div class="r-mgr-row"><span>🎁</span><span>${esc(g.name)}</span><span>${g.points}分${(g.cash>0)?` ¥${g.cash}`:''}</span><span><button class="r-mgr-btn" data-rgedit="${esc(g.id)}">改</button><button class="r-mgr-btn danger" data-rgdel="${esc(g.id)}">删</button></span></div>`).join('');  // v18.48o: 显示现金价值
 
   root.innerHTML = `
     <div class="card r-stat">
       <div class="r-stat-left">
-        <div class="r-stat-name" id="rPageTitle" title="点我修改标题">🌟 ${esc(rewardSettings.pageTitle || '宝贝的奖励本')}</div>
+        <div class="r-stat-name" id="rPageTitle" title="点我修改标题">${esc(rewardSettings.pageTitle || '宝贝的奖励本')}</div>
         <div class="r-stat-pts">${t.pointsBal} <i>分</i></div>
-        <div class="r-stat-sub">累计挣到 ${t.pointsEarnedTotal} 分 · 本月待结算 ¥${t.cashThisMonth.toFixed(2)}</div>
+        <div class="r-stat-sub">累计挣到 ${t.pointsEarnedTotal} 分 · 累计金额 ¥${t.cashAllTime.toFixed(2)}</div>  <!-- v18.48o: 本月待结算 → 累计金额 (历史未结总额 cashAllTime = 累计挣 - 累计发放) -->
       </div>
     </div>
 
