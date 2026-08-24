@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48q</title>
+<title>GrowTime · v18.48r</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1440,7 +1440,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48q';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48r';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -1989,12 +1989,25 @@ async function homeToggleTodo(id){
   const t=(todos||[]).find(x=>x.id===id);
   if(!t){ return; }
   try{
-    const {error}=await sb.from('todos').update({done:true, done_at:new Date().toISOString()}).eq('id',id);
-    if(error){ showFatal('标记完成失败: '+(error.message||'')); return; }
-    t.done=true; t.done_at=new Date().toISOString();
+    const _doneAt=new Date().toISOString();
+    const {error}=await sb.from('todos').update({done:true, done_at:_doneAt}).eq('id',id);
+    if(error){
+      // v18.48r: 断网兜底 — 乐观标记 + 进队列, 不弹红屏
+      t.done=true; t.done_at=_doneAt; renderHomeCards();
+      gwQueueOp('todo','toggle',{id, done:true, done_at:_doneAt});
+      toast('🟡 已记到本地, 网络恢复自动同步');
+      return;
+    }
+    t.done=true; t.done_at=_doneAt;
     renderHomeCards();
     toast('✅ 已完成 · 已移到「已完成」');
-  }catch(e){ showFatal('homeToggleTodo: '+(e.message||e)); }
+  }catch(e){
+    // v18.48r: 网络异常同兜底 (不再 showFatal 红屏)
+    const _doneAt=new Date().toISOString();
+    t.done=true; t.done_at=_doneAt; renderHomeCards();
+    gwQueueOp('todo','toggle',{id, done:true, done_at:_doneAt});
+    toast('🟡 已记到本地, 网络恢复自动同步');
+  }
 }
 
 /* ============ v17: 鼓励语轮换 ============ */
@@ -3052,9 +3065,13 @@ async function addTodo(){
   }
   const {data,error}=await sb.from('todos').insert(payload).select();
   if(error){
-    // v18.37: 错误要看见, 不再静默丢弃 (上一次因 todos.images 列不存在, 整行 insert 失败但用户以为成功)
-    toast('添加失败：'+(error.message||JSON.stringify(error)));
-    if(typeof showModErr==='function') try{showModErr('viewTodo','待办保存失败：'+(error.message||''));}catch(e){}
+    // v18.48r: 断网兜底 — 乐观加入内存显示 + 进离线队列, 网好自动补传 (不再丢)
+    const local={id:'local-'+Date.now(), title:payload.title, due:payload.due, done:false, created_at:new Date().toISOString(), note:payload.note||null, images:payload.images||null};
+    todos.unshift(local);
+    filter='open'; renderList(); renderStats();
+    gwQueueOp('todo','add',payload);
+    toast('🟡 已记到本地, 网络恢复自动同步');
+    $('qTitle').value=''; $('qDue').value=''; pendingTodoImages.splice(0); renderQuickThumbs('qTitleThumbs',pendingTodoImages); fitTitleBox();
     return;
   }
   $('qTitle').value=''; $('qDue').value=''; pendingTodoImages.splice(0); renderQuickThumbs('qTitleThumbs',pendingTodoImages); filter='open'; toast('已添加'); loadTodos();
@@ -3086,8 +3103,25 @@ $('list').onclick=async e=>{
   // 优先级 2 — 操作按钮 (toggle/del/edit/expand)
   const b=e.target.closest('[data-act]'); if(!b) return;
   const id=b.dataset.id, act=b.dataset.act, t=todos.find(x=>x.id===id); if(!t) return;
-  if(act==='toggle'){ await sb.from('todos').update({done:!t.done,done_at:t.done?null:new Date().toISOString()}).eq('id',id); if(!t.done) filter='done'; loadTodos(); }
-  else if(act==='del'){ if(confirm('确定删除这条待办吗？')){ await sb.from('todos').delete().eq('id',id); toast('已删除'); loadTodos(); } }
+  if(act==='toggle'){
+    const nd=!t.done, na=nd?new Date().toISOString():null;
+    t.done=nd; t.done_at=na; renderList(); renderStats();
+    try{
+      const {error}=await sb.from('todos').update({done:nd, done_at:na}).eq('id',id);
+      if(error){ gwQueueOp('todo','toggle',{id, done:nd, done_at:na}); toast('🟡 已改到本地, 网络恢复自动同步'); }
+    }catch(e){ gwQueueOp('todo','toggle',{id, done:nd, done_at:na}); toast('🟡 已改到本地, 网络恢复自动同步'); }
+    if(!nd) filter='done';
+  }
+  else if(act==='del'){
+    if(confirm('确定删除这条待办吗？')){
+      const idx=todos.findIndex(x=>x.id===id); if(idx>=0) todos.splice(idx,1);
+      renderList(); renderStats();
+      try{
+        const {error}=await sb.from('todos').delete().eq('id',id);
+        if(error){ gwQueueOp('todo','del',{id}); toast('🟡 已删到本地, 网络恢复自动同步'); }
+      }catch(e){ gwQueueOp('todo','del',{id}); toast('🟡 已删到本地, 网络恢复自动同步'); }
+    }
+  }
   else if(act==='edit'){ openEdit(t); }
   else if(act==='expand'){ t.expanded=!t.expanded; renderList(); }
 };
@@ -3195,10 +3229,24 @@ function refreshAllMemoHeightsSoon(){
   setTimeout(refreshAllMemoHeights,900);
 }
 async function addMemo(text,images){
-  if(!sb){ toast('本地预览模式：未连接云端，无法保存'); return; }
   const payload={text:text||''};
   if(images && images.length) payload.images=images;
-  const {data}=await sb.from('memos').insert(payload).select();
+  if(!sb){
+    // v18.48r: 断网兜底 — 乐观加入内存 + 队列 (原逻辑会崩溃: 不连云端直接 return, 且没检查 error)
+    const local={id:'local-'+Date.now(), text:payload.text, images:payload.images||null, created_at:new Date().toISOString()};
+    memos=[local].concat(memos); renderMemos();
+    gwQueueOp('memo','add',payload);
+    toast('🟡 已记到本地, 网络恢复自动同步');
+    return;
+  }
+  const {data,error}=await sb.from('memos').insert(payload).select();
+  if(error){
+    const local={id:'local-'+Date.now(), text:payload.text, images:payload.images||null, created_at:new Date().toISOString()};
+    memos=[local].concat(memos); renderMemos();
+    gwQueueOp('memo','add',payload);
+    toast('🟡 已记到本地, 网络恢复自动同步');
+    return;
+  }
   if(data && data.length) memos=data.concat(memos);
   renderMemos();
   // 不自动 focus —— 新建的卡片默认收起，用户自己想编辑再点「展开」或点卡片内文
@@ -3517,6 +3565,55 @@ async function flushOfflineQueue(){
   }
   return false;
 }
+/* ===== v18.48r: 通用离线操作队列 (待办/备忘/奖励 断网不丢; 与护眼队列 gw_offline_q 并列独立) ===== */
+function gwOfflineOps(){ try{ return JSON.parse(localStorage.getItem('gw_offline_ops')||'[]'); }catch(_){ return []; } }
+function gwSetOfflineOps(q){ try{ localStorage.setItem('gw_offline_ops', JSON.stringify(q)); }catch(_){} }
+function gwQueueOp(module, op, payload){ const q=gwOfflineOps(); q.push({module,op,payload,t:Date.now()}); gwSetOfflineOps(q); }
+/* 奖励整段覆盖写: 断网 saveSettings 失败 → 只排一条 resync 标记, flush 时按当前内存重传四个 key (去重避免重复入队) */
+function gwQueueRewardResync(){
+  const q=gwOfflineOps();
+  if(q.some(it=>it.module==='reward')) return;
+  q.push({module:'reward', op:'resync', payload:{}, t:Date.now()});
+  gwSetOfflineOps(q);
+}
+async function rewardResyncAll(){
+  const map={reward_tasks:rewardTasks, reward_gifts:rewardGifts, reward_log:rewardLog, reward_settings:rewardSettings};
+  let allOk=true;
+  for(const k of Object.keys(map)){
+    try{ const r=await saveSettings(k, map[k]); if(r!==true) allOk=false; }catch(e){ allOk=false; }
+  }
+  return allOk;
+}
+/* flush: 逐条补传队列操作到云端; 成功移除, 失败保留下次再试; 针对本地占位(local-)的无效 todo 操作直接清理 */
+async function gwFlushOps(){
+  const q=gwOfflineOps();
+  if(!q.length || !sb) return false;
+  const remaining=[]; let okAny=false;
+  for(const it of q){
+    try{
+      let ok=false;
+      if(it.module==='todo'){
+        const p=it.payload;
+        if(it.op==='add'){ const {error}=await sb.from('todos').insert(p).select(); ok=!error; }
+        else if(it.op==='toggle'){ const {error}=await sb.from('todos').update({done:p.done, done_at:p.done_at}).eq('id',p.id); ok=!error; }
+        else if(it.op==='del'){ const {error}=await sb.from('todos').delete().eq('id',p.id); ok=!error; }
+      } else if(it.module==='memo'){
+        if(it.op==='add'){ const {error}=await sb.from('memos').insert(it.payload).select(); ok=!error; }
+      } else if(it.module==='reward'){
+        ok = await rewardResyncAll();
+      }
+      if(ok) okAny=true; else remaining.push(it);
+    }catch(e){ remaining.push(it); }
+  }
+  const cleaned = remaining.filter(it => !(it.module==='todo' && String((it.payload&&it.payload.id)||'').startsWith('local-')));
+  gwSetOfflineOps(cleaned);
+  if(okAny){
+    toast('🟢 离线期间的操作已同步到云端');
+    try{ await loadTodos(); }catch(_){}   // 用云端真实数据替换本地 local- 占位
+    try{ await loadMemos(); }catch(_){}
+  }
+  return cleaned.length===0;
+}
 function evalNet(){
   const el=$('netLight'); if(!el) return;
   const now=Date.now();
@@ -3539,6 +3636,7 @@ async function probeNet(){
     evalNet();
     const flushed=await flushOfflineQueue();
     if(flushed) toast('🟢 离线期间的操作已同步到云端');
+    try{ await gwFlushOps(); }catch(_){}   // v18.48r: 冲刷待办/备忘/奖励离线队列
   }catch(e){
     gwNet.lastFail=Date.now();
     evalNet();
@@ -5206,7 +5304,7 @@ async function _saveRewardKey(key, val){
   try{
     if(typeof sb!=='undefined'&&sb){
       try{ const ok=await saveSettings(key, val); rewardLockReleaseAfter(1500); return ok===true; }
-      catch(e){ console.warn('[reward] save '+key, e); rewardLockReleaseAfter(1500); return false; }
+      catch(e){ console.warn('[reward] save '+key, e); rewardLockReleaseAfter(1500); gwQueueRewardResync(); return false; }
     }
     rewardLockReleaseAfter(1500);
     return true;  // 本地模式永远当作成功
