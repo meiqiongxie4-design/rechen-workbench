@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48o</title>
+<title>GrowTime · v18.48p</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -932,8 +932,10 @@
   #rPageTitle{cursor:pointer;border-bottom:1px dashed transparent;padding-bottom:2px;transition:border-color .15s;}
   #rPageTitle:hover{border-color:#94a3b8;}
   #rPageTitleEdit{font:inherit;font-size:18px;font-weight:700;color:#166534;letter-spacing:.3px;border:1.5px solid var(--accent);border-radius:6px;padding:2px 8px;background:#fff;outline:none;width:min(360px,80%);}
-  .r-stat-pts{font-size:38px;font-weight:800;color:#15803d;line-height:1.1;margin-top:2px;}
-  .r-stat-pts i{font-size:18px;font-weight:600;color:#166534;font-style:normal;margin-left:3px;}
+  .r-stat-pts{display:flex;align-items:baseline;justify-content:center;gap:18px;line-height:1.1;margin-top:2px;}
+  .r-stat-pts-num{font-size:38px;font-weight:800;color:#15803d;}  /* v18.48p: 单独抽出 .r-stat-pts-num 让 .r-stat-pts 改成 flex 横排后保留数字样式 */
+  .r-stat-pts-num i{font-size:18px;font-weight:600;color:#166534;font-style:normal;margin-left:3px;}
+  .r-stat-pts-cash{font-size:30px;font-weight:700;color:#b45309;}  /* v18.48p: 累计金额显示, 跟 .r-stat-pts-num 并排, 略小一档 */
   .r-stat-sub{font-size:12.5px;color:#166534;margin-top:4px;opacity:.85;}
 
   .r-section-hd{font-size:14px;font-weight:700;color:#374151;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
@@ -1429,7 +1431,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48o';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48p';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -5184,7 +5186,7 @@ async function rewardEarn(taskId){
     taskId: t.id,
     name: t.name,
     points: (Number(t.points)||0)*sign,
-    cash: t.kind==='deduct' ? -(Number(t.cash)||0) : (Number(t.cash)||0),
+    cash: Number(t.cash)||0,  // v18.48p: cash 直接用用户输入正负号 (扣分任务也允许正/负值, 用户自行决定入账方向)
     cat: t.cat,
     ts: new Date().toISOString(),
     month: _rewardThisMonth(),
@@ -5333,13 +5335,13 @@ async function rewardAddTask(){
     {key:'name',label:'任务名',placeholder:'例: 洗碗'},
     {key:'cat',label:'分类 (学习/考试/家务/好习惯/扣分/自定义)',value:'自定义'},
     {key:'points',label:'分值 (数字, 扣分项填正数)',value:'5'},
-    {key:'cash',label:'现金元 (0 或留空 = 无现金)',value:'0'},
+    {key:'cash',label:'现金元 (可负, 负数=扣钱, 例: -2)',value:'0'},  <!-- v18.48p: 允许负数现金 (说慌扣10分, 减2元) -->
     {key:'icon',label:'图标 emoji (留空默认 ✅)',value:'✅'},
   ]});
   if(!v||!v.name) return;
   const cat=v.cat||'自定义';
   const kind=(cat==='扣分')?'deduct':'add';
-  rewardTasks.push({id:_rewardNewId(),name:v.name,cat,kind,points:Math.abs(Number(v.points))||0,cash:Math.max(0,Number(v.cash)||0),icon:v.icon||'✅',enabled:true});
+  rewardTasks.push({id:_rewardNewId(),name:v.name,cat,kind,points:Math.abs(Number(v.points))||0,cash:Number(v.cash)||0,icon:v.icon||'✅',enabled:true});  // v18.48p: cash 允许负数
   if(typeof view!=='undefined'&&view==='reward') renderReward();
   const ok=await saveRewardTasks();
   if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已添加: '+v.name);
@@ -5354,7 +5356,7 @@ async function rewardEditTask(id){
       {key:'name',label:'任务名',value:t0.name},
       {key:'cat',label:'分类 (学习/考试/家务/好习惯/扣分/自定义)',value:t0.cat||'自定义'},
       {key:'points',label:'分值 (数字)',value:String(t0.points)},
-      {key:'cash',label:'现金元 (0 = 无现金)',value:String(t0.cash||0)},
+      {key:'cash',label:'现金元 (可负, 负数=扣钱, 例: -2)',value:String(t0.cash==null||isNaN(t0.cash)?0:t0.cash)},  <!-- v18.48p: 允许负数现金, 老数据(t0.cash 默认 0) 兼容 -->
       {key:'icon',label:'图标 emoji',value:t0.icon||'✅'},
     ]});
     if(!v){ rewardLockReleaseAfter(500); return; }
@@ -5363,7 +5365,7 @@ async function rewardEditTask(id){
     if(!t){ toast('任务不存在 (已被另一台删除?)'); rewardLockReleaseAfter(500); return; }
     const cat=v.cat||t.cat||'自定义';
     t.cat=cat; t.kind=(cat==='扣分')?'deduct':'add';
-    t.name=v.name||t.name; t.points=Math.abs(Number(v.points))||0; t.cash=Math.max(0,Number(v.cash)||0); t.icon=v.icon||t.icon||'✅';
+    t.name=v.name||t.name; t.points=Math.abs(Number(v.points))||0; t.cash=Number(v.cash)||0; t.icon=v.icon||t.icon||'✅';  // v18.48p: cash 允许负数
     if(typeof view!=='undefined'&&view==='reward') renderReward();
     const ok=await saveRewardTasks();
     if(ok===false) toast('云端保存失败, 请刷新或重试'); else toast('✓ 已保存: '+t.name);
@@ -5512,16 +5514,15 @@ function renderReward(){
     <div class="card r-stat">
       <div class="r-stat-left">
         <div class="r-stat-name" id="rPageTitle" title="点我修改标题">${esc(rewardSettings.pageTitle || '宝贝的奖励本')}</div>
-        <div class="r-stat-pts">${t.pointsBal} <i>分</i></div>
+        <div class="r-stat-pts"><span class="r-stat-pts-num">${t.pointsBal} <i>分</i></span><span class="r-stat-pts-cash">¥${t.cashAllTime.toFixed(2)}</span></div>  <!-- v18.48p: 分数旁追加累计金额显示 -->
         <div class="r-stat-sub">累计挣到 ${t.pointsEarnedTotal} 分 · 累计金额 ¥${t.cashAllTime.toFixed(2)}</div>  <!-- v18.48o: 本月待结算 → 累计金额 (历史未结总额 cashAllTime = 累计挣 - 累计发放) -->
       </div>
     </div>
 
-    ${(rewardSettings.goalText||rewardSettings.parentText) ? `
+    ${(rewardSettings.goalText) ? `
     <div class="card r-banner" id="rGoalBanner">
       ${rewardSettings.goalText ? `<div class="r-banner-row"><span class="r-banner-ic">🎯</span><span class="r-banner-txt">${esc(rewardSettings.goalText)}</span></div>` : ''}
-      ${rewardSettings.parentText ? `<div class="r-banner-row"><span class="r-banner-ic">💌</span><span class="r-banner-txt">${esc(rewardSettings.parentText)}</span></div>` : ''}
-    </div>` : ''}
+    </div>` : ''}  <!-- v18.48p: 删除 parentText banner row (用户已下线家长寄语功能, 仅保留小目标 banner) -->
 
     <div class="card">
       ${Object.entries(addGroups).map(([k,arr])=>groupBlock(k,arr)).join('')}
@@ -5538,9 +5539,8 @@ function renderReward(){
     <div class="card">
       <div class="r-section-hd">🎯 我的小目标</div>
       <textarea id="rGoal" class="r-textarea" rows="2" placeholder="例: 攒到 100 分, 周末去动物园">${esc(rewardSettings.goalText||'')}</textarea>
-      <div class="r-section-hd" style="margin-top:14px;">💌 家长寄语</div>
-      <textarea id="rParent" class="r-textarea" rows="2" placeholder="例: 你今天帮妈妈洗碗, 妈妈很开心 ✨">${esc(rewardSettings.parentText||'')}</textarea>
       <div class="r-text-hint">点输入框外自动保存</div>
+      <!-- v18.48p: 删除家长寄语输入框 (💌 家长寄语 + #rParent textarea) — 用户下线该功能 -->
     </div>
 
     <div class="card">
@@ -5583,7 +5583,7 @@ function renderReward(){
   const rName=$('rName'); if(rName){ rName.onchange=()=>rewardSetChildName(rName.value); }
   const rSd=$('rSettleDay'); if(rSd){ rSd.onchange=()=>rewardSetSettleDay(rSd.value); }
   const rGoal=$('rGoal'); if(rGoal){ rGoal.onblur=()=>rewardSetText('goalText',rGoal.value); }
-  const rPar=$('rParent'); if(rPar){ rPar.onblur=()=>rewardSetText('parentText',rPar.value); }
+  /* v18.48p: 删除 rParent onblur 绑定 (UI 已下线, 避免绑定空对象) */
   const rpt=$('rPageTitle'); if(rpt) rpt.onclick=rewardEditTitle;
 
   /* v18.48k 焦点恢复 (见函数顶部说明): 用户正在输入 #rGoal/#rParent/#rName/#rSettleDay 时, renderReward 重建后应保留光标位置 + 未保存的文字, 不打断用户 */
