@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48r</title>
+<title>GrowTime · v18.48s</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1440,7 +1440,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48r';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48s';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3601,6 +3601,43 @@ async function gwFlushOps(){
         if(it.op==='add'){ const {error}=await sb.from('memos').insert(it.payload).select(); ok=!error; }
       } else if(it.module==='reward'){
         ok = await rewardResyncAll();
+      } else if(it.module==='period'){
+        // v18.48s: 流光补传 — 用当前内存 periodRecs 全量重写 period_log 单行
+        // 优先用队列里记的 rowId, 没有就 query 取最新一条, 还找不到就 insert 新行拿 id
+        let rowId = it.payload && it.payload.rowId;
+        if(!rowId){
+          const {data}=await sb.from('period_log').select('id').order('updated_at',{ascending:false}).limit(1);
+          if(data&&data[0]) rowId=data[0].id;
+        }
+        const payload={records:periodRecs,updated_at:new Date().toISOString()};
+        if(rowId){
+          const {error}=await sb.from('period_log').update(payload).eq('id',rowId);
+          ok=!error;
+          if(ok) periodRowId=rowId;
+        }else{
+          const {data,error}=await sb.from('period_log').insert(payload).select();
+          ok=!error;
+          if(ok && data&&data[0]) periodRowId=data[0].id;
+        }
+      } else if(it.module==='settings'){
+        // v18.48s: 设置补传 — 按 key 去重 (最后一次 value 赢, 用户最终期望值)
+        const k=it.payload&&it.payload.key;
+        const v=it.payload&&it.payload.value;
+        if(typeof k==='string'){
+          // 复用 saveSettings 同样的 select-then-update-or-insert 套路 (避免 supabase-js upsert 在 app_settings 上的 409)
+          const {data:rows,error:se}=await sb.from('app_settings').select('key').eq('key',k).limit(1);
+          if(se){ ok=false; }
+          else{
+            const p={key:k,value:v,updated_at:new Date().toISOString()};
+            if(rows&&rows.length){
+              const {error:ue}=await sb.from('app_settings').update(p).eq('key',k);
+              ok=!ue;
+            }else{
+              const {error:ie}=await sb.from('app_settings').insert(p);
+              ok=!ie;
+            }
+          }
+        }
       }
       if(ok) okAny=true; else remaining.push(it);
     }catch(e){ remaining.push(it); }
@@ -3611,6 +3648,8 @@ async function gwFlushOps(){
     toast('🟢 离线期间的操作已同步到云端');
     try{ await loadTodos(); }catch(_){}   // 用云端真实数据替换本地 local- 占位
     try{ await loadMemos(); }catch(_){}
+    try{ if(typeof loadPeriod==='function') await loadPeriod(); }catch(_){}   // v18.48s: 流光从云端刷一次
+    try{ await loadSettings(); }catch(_){}   // v18.48s: 设置 (标签/周期/水杯 等) 从云端刷一次
   }
   return cleaned.length===0;
 }
@@ -3768,10 +3807,19 @@ async function savePeriod(){
   const payload={records:periodRecs,updated_at:new Date().toISOString()};
   if(periodRowId){
     const {error}=await sb.from('period_log').update(payload).eq('id',periodRowId);
-    if(error){ showModErr('viewPeriod','暖记云端保存失败（'+error.message+'）'); return false; }
+    if(error){
+      // v18.48s: 断网不丢 — 失败入队列, 网好 probe 自动重传 (用当前内存最新 periodRecs 全量重写)
+      gwQueueOp('period','save',{rowId:periodRowId});
+      if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步');
+      return false;
+    }
   }else{
     const {data,error}=await sb.from('period_log').insert(payload).select();
-    if(error){ showModErr('viewPeriod','暖记云端保存失败（'+error.message+'）'); return false; }
+    if(error){
+      gwQueueOp('period','save',{rowId:null});
+      if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步');
+      return false;
+    }
     if(data&&data[0]) periodRowId=data[0].id;
   }
   return true;
@@ -4058,7 +4106,9 @@ async function saveSettings(key, value){
     if(/relation .* does not exist|app_settings/i.test(se.message||'')){
       if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
     }else{
-      toast('云端同步失败：'+(se.message||se));
+      // v18.48s: 短暂网络抖 (非 schema 缺失) → 入队列, 网好 probe 时重传
+      gwQueueOp('settings','upsert',{key,value});
+      if(!setupError) toast('🟡 已存本地, 网络恢复自动同步');
     }
     return false;
   }
@@ -4076,7 +4126,9 @@ async function saveSettings(key, value){
     if(/relation .* does not exist|app_settings/i.test(error.message||'')){
       if(!setupError){setupError=true;showBanner(APP_SETTINGS_GUIDE);}
     }else{
-      toast('云端同步失败：'+(error.message||error));
+      // v18.48s: 写入瞬时失败 → 入队列, 网好 probe 时重传 (按 key 去重, 多次失败取最后一次值)
+      gwQueueOp('settings','upsert',{key,value});
+      if(!setupError) toast('🟡 已存本地, 网络恢复自动同步');
     }
     return false;
   }
