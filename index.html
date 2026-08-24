@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48p</title>
+<title>GrowTime · v18.48q</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1077,6 +1077,15 @@
 <div class="wrap">
   <div id="banner" class="banner" hidden></div>
   <div id="debugBar" class="debug-bar" hidden></div>
+  <style id="netLightStyle">
+    .net-light{position:fixed;top:10px;right:12px;z-index:99998;display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.94);box-shadow:0 2px 10px rgba(0,0,0,.12);font-size:12px;font-weight:600;color:#475569;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);cursor:default;user-select:none;pointer-events:none;max-width:46vw;}
+    .net-light .net-dot{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 0 3px rgba(0,0,0,.05);flex:0 0 auto;}
+    .net-light .net-txt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .net-light.ok .net-dot{background:#22c55e;} .net-light.ok .net-txt{color:#15803d;}
+    .net-light.warn .net-dot{background:#f59e0b;} .net-light.warn .net-txt{color:#b45309;}
+    .net-light.off .net-dot{background:#ef4444;} .net-light.off .net-txt{color:#b91c1c;}
+  </style>
+  <div id="netLight" class="net-light warn"><span class="net-dot"></span><span class="net-txt">同步中…</span></div>
 
   <div class="app">
     <aside class="sidebar" id="sidebar">
@@ -1431,7 +1440,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48p';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48q';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3470,6 +3479,72 @@ document.addEventListener('click',(e)=>{
   if(e.target.closest('.pool')) return; // 点水池不关
   d.hidden=true;
 });
+/* v18.48q: 网络状态灯 + 离线操作队列
+   - gwNet: 记录最近一次 supabase 探针成功/失败时间
+   - gwOfflineQ: localStorage 持久化的护眼增量队列 (断网时 addDrop 失败不回滚, 进队列, 网好自动补传)
+   - flushOfflineQueue: 把队列里的护眼增量叠加回云端 (多端离线也不丢 — 云端旧值 + 本地增量)
+   - probeNet: 每 5s 轻量探测 supabase, 更新灯 + 冲刷队列
+   - evalNet: 评估灯色 (绿=实时同步 / 黄=降速轮询兜底 / 红=离线·本地已存) */
+const gwNet = { lastOk:0, lastFail:0 };
+function gwOfflineQueue(){ try{ return JSON.parse(localStorage.getItem('gw_offline_q')||'[]'); }catch(_){ return []; } }
+function gwSetOfflineQueue(q){ try{ localStorage.setItem('gw_offline_q', JSON.stringify(q)); }catch(_){} }
+function addOfflineDrop(date){ const q=gwOfflineQueue(); q.push({date, by:1, t:Date.now()}); gwSetOfflineQueue(q); }
+async function flushOfflineQueue(){
+  const q=gwOfflineQueue();
+  if(!q.length || !sb) return false;
+  const byDate={}; q.forEach(it=>{ byDate[it.date]=(byDate[it.date]||0)+(it.by||0); });
+  let allOk=true;
+  for(const date of Object.keys(byDate)){
+    try{
+      const inc=byDate[date];
+      const {data}=await sb.from('drops').select('*').eq('date',date).limit(1);
+      const cloudCount=(data&&data[0])?data[0].count:0;
+      const newCount=cloudCount+inc;
+      if(data&&data[0]){
+        const {error}=await sb.from('drops').update({count:newCount, max_count:10}).eq('id',data[0].id);
+        if(error) allOk=false;
+      }else{
+        const {error}=await sb.from('drops').insert({date,count:newCount,max_count:10});
+        if(error) allOk=false;
+      }
+    }catch(e){ allOk=false; }
+  }
+  if(allOk){
+    gwSetOfflineQueue([]);
+    loadDrops().catch(()=>{});        // 拉一次最新, 让内存与云端一致 (不会丢本地已点的)
+    saveDropClicks().catch(()=>{});   // 点击时间也补传云端 (localStorage 已有兜底)
+    return true;
+  }
+  return false;
+}
+function evalNet(){
+  const el=$('netLight'); if(!el) return;
+  const now=Date.now();
+  const rtOk = (now - (_RT_STATES.connectedAt||0)) < 35000;
+  const okRecent = (now - gwNet.lastOk) < 30000;
+  const failRecent = (now - gwNet.lastFail) < 12000 && gwNet.lastFail > gwNet.lastOk;
+  let cls,txt;
+  if(failRecent){ cls='off'; txt='离线 · 本地已存'; }
+  else if(okRecent && rtOk){ cls='ok'; txt='已同步'; }
+  else if(okRecent){ cls='warn'; txt='同步中(降速)'; }
+  else { cls='warn'; txt='同步中…'; }
+  el.className='net-light '+cls;
+  el.querySelector('.net-txt').textContent=txt;
+}
+async function probeNet(){
+  if(!sb){ gwNet.lastFail=Date.now(); evalNet(); return; }
+  try{
+    await sb.from('app_settings').select('key').limit(1);
+    gwNet.lastOk=Date.now();
+    evalNet();
+    const flushed=await flushOfflineQueue();
+    if(flushed) toast('🟢 离线期间的操作已同步到云端');
+  }catch(e){
+    gwNet.lastFail=Date.now();
+    evalNet();
+  }
+}
+
 async function addDrop(){
   playDropSound();   // v18.12: 滴一滴眼药水 → 清脆"滴"音效 (WebAudio 合成)
   dropSplash();      // v18.12: 滴一滴眼药水 → 蓝药水落入水池小动画
@@ -3486,14 +3561,16 @@ async function addDrop(){
     // v17.26: 同步首页护眼数（不依赖 realtime 回环，立即反映）
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}
     const {error}=await sb.from('drops').update({count:rec.count, max_count:10}).eq('id',rec.id);   /* v17.49: max_count 固定 10, 不跟 count 涨 */
-    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');rec.count--;renderDrops();try{if($('homeCards'))renderHomeCards();}catch(_){}return;}
+    // v18.48q: 云端失败不再回滚 (数据不丢) — 本地已 +1 显示, 进离线队列, 网好自动补传
+    if(error){ addOfflineDrop(today); if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步'); return; }
   }else{
     rec={date:today,count:1,max_count:10};
     drops.unshift(rec);
     renderDrops(); // 立即刷新
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}  // v17.26: 同步首页
     const {data,error}=await sb.from('drops').insert({date:today,count:1,max_count:10}).select();
-    if(error){showModErr('viewCounter','护眼记云端保存失败（'+error.message+'）');drops.shift();renderDrops();try{if($('homeCards'))renderHomeCards();}catch(_){}return;}
+    // v18.48q: 云端失败不回滚, 进队列 (数据不丢)
+    if(error){ addOfflineDrop(today); if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步'); return; }
     if(data&&data[0]) rec.id=data[0].id;
   }
   /* v17.92: 异步把点击时间戳持久化到 app_settings (fire-and-forget, 不阻塞 UI) */
@@ -4182,6 +4259,12 @@ if(sb){
     }
   }, 30000);
 }
+// v18.48q: 网络探针 — 每 5s 探测 supabase 健康 + 冲刷离线队列 + 更新网络灯 (断网不丢, 网好自动补传)
+(function startNetProbe(){
+  try{ evalNet(); }catch(_){}      // 初始显示
+  try{ probeNet(); }catch(_){}     // 立即探一次
+  setInterval(()=>{ try{ probeNet(); }catch(_){} }, 5000);
+})();
 
 // v17.75: 喝水设置 (每杯 ml + 目标 ml) — 跨设备同步, app_settings 表 key='water_settings'
 // v17.78: 拉到云端值后, 把值显示回 input (用户明确要求「设置了就保留显示在那里」)
