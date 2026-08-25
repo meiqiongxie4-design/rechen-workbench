@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48s</title>
+<title>GrowTime · v18.48t</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1084,8 +1084,15 @@
     .net-light.ok .net-dot{background:#22c55e;} .net-light.ok .net-txt{color:#15803d;}
     .net-light.warn .net-dot{background:#f59e0b;} .net-light.warn .net-txt{color:#b45309;}
     .net-light.off .net-dot{background:#ef4444;} .net-light.off .net-txt{color:#b91c1c;}
+    /* v18.48t: 网络灯右侧"立即同步"按钮 — 探针只能 select 1 检测不到 update 失败, 用户黄/红灯时可手动触发完整 sync */
+    .net-light .net-sync{pointer-events:auto;cursor:pointer;border:1px solid rgba(0,0,0,.08);background:rgba(255,255,255,.7);color:#475569;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;line-height:1.4;display:none;font-family:inherit;transition:background .15s;}
+    .net-light .net-sync:hover{background:rgba(255,255,255,1);}
+    .net-light .net-sync:active{transform:scale(.95);}
+    .net-light .net-sync:disabled{opacity:.5;cursor:wait;}
+    .net-light.warn .net-sync,.net-light.off .net-sync{display:inline-block;}
+    .net-light.ok .net-sync{display:none;}
   </style>
-  <div id="netLight" class="net-light warn"><span class="net-dot"></span><span class="net-txt">同步中…</span></div>
+  <div id="netLight" class="net-light warn"><span class="net-dot"></span><span class="net-txt">同步中…</span><button class="net-sync" type="button" onclick="forceSyncNow()" title="立刻重试同步 (探针只测连通, 检测不到 update 失败)">🔄 同步</button></div>
 
   <div class="app">
     <aside class="sidebar" id="sidebar">
@@ -1440,7 +1447,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48s';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48t';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3681,6 +3688,47 @@ async function probeNet(){
     evalNet();
   }
 }
+/* v18.48t: 用户手动"立即同步" — 探针只能 select 1 检测不到 update/insert 失败
+   黄/红灯时点一下, 全量重拉 + 冲刷离线队列 + 强制 saveDropClicks 补传 localStorage 里的 click */
+let _forceSyncing=false;
+async function forceSyncNow(){
+  if(_forceSyncing) return;
+  _forceSyncing=true;
+  const btn=document.querySelector('#netLight .net-sync');
+  if(btn){ btn.disabled=true; btn.textContent='同步中…'; }
+  try{
+    // 1. 探针确认能连
+    let probeOk=false;
+    try{ await sb.from('app_settings').select('key').limit(1); probeOk=true; }catch(_){}
+    if(!probeOk){
+      gwNet.lastFail=Date.now();
+      evalNet();
+      toast('🔴 仍连不上, 稍后再试');
+      return;
+    }
+    // 2. 冲刷护眼离线增量队列 (count 兜底)
+    try{ await flushOfflineQueue(); }catch(_){}
+    // 3. 冲刷通用队列 (todo/memo/reward/period/settings)
+    try{ await gwFlushOps(); }catch(_){}
+    // 4. 全量重拉 (覆盖内存, 让所有模块与云端一致)
+    await Promise.allSettled([
+      loadDrops(), loadDropClicks(), loadPeriod(), loadSettings(),
+      loadTodos(), loadMemos(), loadWaterCups(), loadWaterSettings(),
+      loadSavings(), loadReward()
+    ]);
+    // 5. 强制把 localStorage 里的 click 时间补传云端 (修复 v18.48t 之前的"早 return 漏 saveDropClicks"历史 click)
+    try{ await saveDropClicks(); }catch(_){}
+    // 6. 重评灯
+    gwNet.lastOk=Date.now();
+    evalNet();
+    toast('🟢 已强制同步');
+  }catch(e){
+    toast('🟡 部分同步失败: ' + ((e&&e.message)||e));
+  }finally{
+    _forceSyncing=false;
+    if(btn){ btn.disabled=false; btn.textContent='🔄 同步'; }
+  }
+}
 
 async function addDrop(){
   playDropSound();   // v18.12: 滴一滴眼药水 → 清脆"滴"音效 (WebAudio 合成)
@@ -3691,6 +3739,13 @@ async function addDrop(){
   const _now = new Date();
   const _click = {time:`${String(_now.getHours()).padStart(2,'0')}:${String(_now.getMinutes()).padStart(2,'0')}:${String(_now.getSeconds()).padStart(2,'0')}`, t:_now.toISOString()};
   appendDropClick(today, _click);
+  /* v18.48t 关键修复: 入口先落 localStorage 兜底, 不依赖 saveDropClicks 是否被调用
+     之前根因: 黄灯(半连通)时 drops.update 失败 → 走 if(error){ addOfflineDrop; return; } 早 return
+               → saveDropClicks() 永远不执行 → click 时间没存 localStorage + 也没上云端
+               → 用户刷新页面后 loadDropClicks 拉云端空 → 早上那次 click 永久丢失
+     现在: appendDropClick 之后立即同步写 localStorage, 即使云端写失败 + 刷新页面也不丢
+           loadDropClicks 合并 localStorage+云端 → 自动回写云端 */
+  try{ localStorage.setItem('wbDropClicks', JSON.stringify(dropClicks||{})); }catch(_){}
   if(rec){
     // v17.3: ≥10 滴医生建议警告显示在水池右侧（不再 banner 弹窗）
     rec.count++;
