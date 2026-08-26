@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48v</title>
+<title>GrowTime · v18.48w</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -263,7 +263,24 @@
   .nav button{flex:1;padding:11px;border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;}
   .nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:var(--shadow);}
   .topbar{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
-  .topbar #memoQuick{flex:1;min-width:0;min-height:88px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;font-size:15px;line-height:1.55;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;overflow-y:hidden;transition:border-color .15s,background .15s;}
+  /* v18.48w: 备忘模块 topbar sticky 顶端 — 「添加/清空」按钮永远可达, 滚到任何一条备忘都能继续点. wrap 顶部 padding 22 让 topbar 距顶部 22px, 这里补偿在父容器 #viewMemo 上加 padding-top 把 sticky 元素整体往下推 */
+  #viewMemo{padding-top:8px;}   /* 配合 sticky top:8 留出 8px 视觉间隔 */
+  #viewMemo>.topbar{
+    position:sticky;
+    top:0;
+    z-index:50;
+    background:var(--bg);
+    padding:8px 0 10px;
+    margin-left:-24px;
+    margin-right:-24px;
+    padding-left:24px;
+    padding-right:24px;
+    margin-bottom:12px;
+  }   /* margin -24 / padding +24 是为了 sticky 时背景延伸到 wrap 边线之外覆盖下方滚动内容 */
+  @media (max-width:640px){
+    #viewMemo>.topbar{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px;padding-top:8px;padding-bottom:10px;}
+  }
+  .topbar #memoQuick{flex:1;min-width:0;min-height:88px;max-height:30dvh;padding:14px 16px;border:1px solid var(--line);border-radius:12px;font-size:15px;line-height:1.55;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;overflow-y:auto;transition:border-color .15s,background .15s;}   /* v18.48w: max-height:30dvh 限制顶部输入框不超高, sticky 后保证添加/清空按钮同屏可达 */
   .topbar #memoQuick:focus{border-color:var(--accent);background:#fff;}
   .topbar #memoQuick::placeholder{color:var(--muted);opacity:.7;}
   .topbar button{padding:9px 16px;border:1px solid var(--line);background:var(--surface);border-radius:10px;font-size:13px;color:var(--muted);cursor:pointer;align-self:flex-start;}
@@ -326,7 +343,7 @@
   .row-actions{display:flex;gap:6px;flex-shrink:0;align-items:flex-start;}
   .memo-card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;box-shadow:var(--shadow);}
   .memo-card.collapsed .memo{overflow:hidden;}
-  .memo-card .memo{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;line-height:1.5;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;}
+  .memo-card .memo{width:100%;max-height:70dvh;overflow-y:auto;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;line-height:1.5;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;}   /* v18.48w: 单条备忘 textarea 最多 70dvh, 超出部分在 textarea 内部滚动, 防止单条 memo 撑爆整页导致顶部按钮不可达 */
   .memo-card .memo:focus{border-color:var(--accent);background:#fff;}
   .memo-del{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   .memo-del:hover{background:var(--red-soft);color:var(--red);border-color:transparent;}
@@ -1447,7 +1464,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48v';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48w';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
