@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48z</title>
+<title>GrowTime · v18.48aa</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -263,23 +263,6 @@
   .nav button{flex:1;padding:11px;border:1px solid var(--line);background:var(--surface);border-radius:12px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;}
   .nav button.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:var(--shadow);}
   .topbar{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
-  /* v18.48w: 备忘模块 topbar sticky 顶端 — 「添加/清空」按钮永远可达, 滚到任何一条备忘都能继续点. wrap 顶部 padding 22 让 topbar 距顶部 22px, 这里补偿在父容器 #viewMemo 上加 padding-top 把 sticky 元素整体往下推 */
-  #viewMemo{padding-top:8px;}   /* 配合 sticky top:8 留出 8px 视觉间隔 */
-  #viewMemo>.topbar{
-    position:sticky;
-    top:0;
-    z-index:50;
-    background:var(--bg);
-    padding:8px 0 10px;
-    margin-left:-24px;
-    margin-right:-24px;
-    padding-left:24px;
-    padding-right:24px;
-    margin-bottom:12px;
-  }   /* margin -24 / padding +24 是为了 sticky 时背景延伸到 wrap 边线之外覆盖下方滚动内容 */
-  @media (max-width:640px){
-    #viewMemo>.topbar{margin-left:-12px;margin-right:-12px;padding-left:12px;padding-right:12px;padding-top:8px;padding-bottom:10px;}
-  }
   .topbar #memoQuick{flex:1;min-width:0;min-height:88px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;font-size:15px;line-height:1.55;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;overflow-y:hidden;transition:border-color .15s,background .15s;}
   .topbar #memoQuick:focus{border-color:var(--accent);background:#fff;}
   .topbar #memoQuick::placeholder{color:var(--muted);opacity:.7;}
@@ -627,8 +610,10 @@
   .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;flex-shrink:0;}
   .modal-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
   .field{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .modal-body .field:last-of-type{flex:1;min-height:0;}   /* v18.48aa: todo 编辑最后一个 field (内容 textarea) 占满 body 剩余空间 */
   .field label{font-size:12.5px;color:var(--muted);font-weight:600;}
   .field textarea,.field input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--surface-2);font-family:inherit;outline:none;resize:none;}   /* v18.48y: 改 resize:vertical → none, 防止用户拖大扯碎布局 */
+  .modal-body .field:last-of-type textarea{flex:1;min-height:280px;overflow-y:auto;}   /* v18.48aa: 内容 textarea 占满 field, 默认 280px 起步, 长内容在 textarea 内可滚 */
   .field textarea:focus,.field input:focus{border-color:var(--accent);background:#fff;}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-shrink:0;padding-top:8px;border-top:1px solid var(--line);background:var(--surface);}   /* v18.48y: actions 区 sticky bottom 视觉, 加分隔线 + 背景色, 始终在 body 下方 */
   /* 齿轮按钮 */
@@ -1468,7 +1453,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48z';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48aa';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -2993,8 +2978,9 @@ function getDropStatus(n){
   return comfortState(n);
 }
 
-/* 自动增高 */
-function autoResize(ta){ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight, 220)+'px'; }   /* v18.48y: 限 220px 上限, 超出由 modal-body 滚动; 之前写 scrollHeight 不限, content 100+ 行时 textarea 直接撑到几千 px 把 modal 顶出去, 「取消/保存」按钮看不到 */
+/* 自动增高 — modal 内的 textarea 由 CSS flex:1 + min-height:280px 控制(占满 body 剩余),
+   顶部 memoQuick 输入框由 CSS min-height:88px + 内容自适应控制. JS 不设 height, 避免覆盖 CSS */
+function autoResize(ta){ /* noop — CSS handles all */ }
 function fmtTime(iso){
   if(!iso) return '';
   const d=new Date(iso);
@@ -3167,32 +3153,15 @@ $('eSave').onclick=async()=>{
 $('modal').addEventListener('input',e=>{ const ta=e.target.closest('textarea'); if(ta) autoResize(ta); });
 
 /* ---------- 备忘录 ---------- */
-const MEMO_COLLAPSED_PX=60; // ~3 行
+// textarea 完全跟随内容撑高, 不限高度、不在内部嵌滚动条. 整页外层滚(用户偏好)
 function refreshMemoHeight(ta){
   const card=ta.closest('.memo-card');
   if(!card) return;
-  const focused=document.activeElement===ta;
-  // 默认收起；只有用户主动点了「展开 ↓」或正在编辑时才展开。session 内有效。
-  const userExpanded=card.dataset.userExpanded==='1';
   ta.style.height='auto';
   const sh=ta.scrollHeight;
-  /* v18.48z: 内容多长就撑多长, 整页外层滚, 不在 textarea 内部嵌滚动条
-     之前 v18.48w/v18.48x 都限制了 textarea 高度 + 内部滚动, 用户反馈 '不要在这里显个滚动条'
-     改成不限制, 顶部 sticky topbar (v18.48w 已加) 保证添加/清空按钮始终可达 */
-  if(!userExpanded && !focused){
-    ta.style.height=MEMO_COLLAPSED_PX+'px';
-    ta.style.overflow='hidden';
-    card.classList.add('collapsed');
-  }else{
-    ta.style.height=sh+'px';
-    ta.style.overflow='';
-    card.classList.remove('collapsed');
-  }
-  const btn=card.querySelector('.memo-toggle');
-  if(btn){
-    btn.style.display=sh>MEMO_COLLAPSED_PX?'':'none';
-    btn.textContent=(!userExpanded && !focused)?'展开 ↓':'收起 ↑';
-  }
+  ta.style.height=sh+'px';
+  ta.style.overflow='';
+  card.classList.remove('collapsed');
 }
 async function loadMemos(){
   if(!sb){ memos=[]; safeHideBanner(); renderMemos(); return; }
@@ -3210,7 +3179,7 @@ function renderMemos(){
   if(!memos.length){box.innerHTML='<div class="empty"><div class="big">📝</div>还没有备忘录，点「新建备忘录」记一条吧</div>';return;}
   box.innerHTML=memos.map(m=>{
     const imgs=Array.isArray(m.images)?m.images:[];
-    // 默认收起；不再用 m.expanded（旧字段没存过），状态记在 dataset.userExpanded
+    // textarea 始终展开, 不再需要收起/展开按钮
     return `<div class="memo-card" data-card="${m.id}">
       <button class="memo-del" data-del="${m.id}" title="删除">×</button>
       <textarea class="memo" data-id="${m.id}" placeholder="随手记下客户信息、账号、临时想法…（可粘贴图片）">${esc(m.text)}</textarea>
