@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48w</title>
+<title>GrowTime · v18.48x</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1464,7 +1464,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48w';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48x';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3172,13 +3172,18 @@ function refreshMemoHeight(ta){
   const userExpanded=card.dataset.userExpanded==='1';
   ta.style.height='auto';
   const sh=ta.scrollHeight;
+  /* v18.48x: 展开时按视口 70% 限高度 — JS 写 inline style.height 优先级高于 CSS max-height
+     之前 v18.48w 只在 CSS 里写了 max-height:70dvh, 但 JS 这行 `ta.style.height=sh+'px'` 把高度直接写到 sh (几百~几千 px),
+     CSS 限 max-height 完全没生效 → textarea 把整页撑爆, 用户看不到下方按钮 / 顶部 topbar 也被遮
+     这里改成 Math.min(sh, 视口70%) 让 JS 自己也尊重上限 */
+  const _maxMemoH = Math.round(window.innerHeight * 0.7);
   if(!userExpanded && !focused){
     ta.style.height=MEMO_COLLAPSED_PX+'px';
     ta.style.overflow='hidden';
     card.classList.add('collapsed');
   }else{
-    ta.style.height=sh+'px';
-    ta.style.overflow='';
+    ta.style.height=Math.min(sh, _maxMemoH)+'px';
+    ta.style.overflow=(sh > _maxMemoH)?'auto':'';
     card.classList.remove('collapsed');
   }
   const btn=card.querySelector('.memo-toggle');
@@ -3288,7 +3293,12 @@ const _fitMemoQuick=()=>{
   if(!_memoQuick)return;
   _memoQuick.style.height='auto';
   const sh=_memoQuick.scrollHeight;
-  _memoQuick.style.height=Math.max(88,sh)+'px';
+  /* v18.48x: 顶部 memoQuick 输入框限高 — 同样 inline style.height 优先级高于 CSS max-height:30dvh,
+     JS 自己兜底按视口 30% 限高度, 超出部分 overflowY: auto 在 textarea 内部滚动,
+     保证 sticky topbar 下的「添加/清空」按钮始终可达 (手机端尤为关键) */
+  const _maxQH = Math.round(window.innerHeight * 0.3);
+  _memoQuick.style.height=Math.max(88, Math.min(sh, _maxQH))+'px';
+  _memoQuick.style.overflowY=(sh > _maxQH)?'auto':'hidden';
 };
 _memoQuick&&_memoQuick.addEventListener('input',_fitMemoQuick);
 _fitMemoQuick();
