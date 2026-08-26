@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48u</title>
+<title>GrowTime · v18.48v</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1447,7 +1447,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48u';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48v';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3666,15 +3666,21 @@ function evalNet(){
   const rtOk = (now - (_RT_STATES.connectedAt||0)) < 35000;
   const okRecent = (now - gwNet.lastOk) < 30000;
   const failRecent = (now - gwNet.lastFail) < 12000 && gwNet.lastFail > gwNet.lastOk;
-  /* v18.48u: 用户点过"立即同步"按钮后, 冻结绿色 30s, 让用户有"点了 = 已同步"体感
-     30s 后自然回归真实状态 (rtOk=false 又会变黄, 但这就是用户网络的真实状态) */
-  const manualOk = (now - (gwNet.lastManualSync||0)) < 30000;
+  /* v18.48v: 移除 30s 假绿冻结. 灯只反映真实同步状态:
+     - 绿 = 探针 30s 内成功 (网络通, 同步机制在工作) — 不要求 rtOk(实时直连), 因为轮询兜底已够用
+     - 黄 = 探针能连但实时未直连 (靠轮询 ≤1.5s 兜底) 或 探针窗口空 (等待中)
+     - 红 = 探针 12s 内失败 (离线, 数据存本地队列)
+     附加"上次同步 Xs 前"让用户看到同步真在发生, 不是假象 */
   let cls,txt;
-  if(manualOk){ cls='ok'; txt='已同步'; }
-  else if(failRecent){ cls='off'; txt='离线 · 本地已存'; }
-  else if(okRecent && rtOk){ cls='ok'; txt='已同步'; }
-  else if(okRecent){ cls='warn'; txt='同步中(降速)'; }
+  if(failRecent){ cls='off'; txt='离线 · 本地已存'; }
+  else if(okRecent && rtOk){ cls='ok'; txt='实时同步'; }
+  else if(okRecent){ cls='warn'; txt='轮询同步中'; }
   else { cls='warn'; txt='同步中…'; }
+  // v18.48v: 显示上次成功同步时间, 让用户看到同步机制真的在工作
+  const since = _lastSyncOk ? Math.round((now - _lastSyncOk)/1000) : null;
+  if(since!==null && !failRecent){
+    txt += ' · ' + (since<=1 ? '刚刚' : since+'s前');
+  }
   el.className='net-light '+cls;
   el.querySelector('.net-txt').textContent=txt;
 }
@@ -3724,7 +3730,6 @@ async function forceSyncNow(){
     try{ await saveDropClicks(); }catch(_){}
     // 6. 重评灯
     gwNet.lastOk=Date.now();
-    gwNet.lastManualSync=Date.now();   // v18.48u: 冻结绿色 30s, 用户体感"点了 = 已同步"
     evalNet();
     toast('🟢 已强制同步');
   }catch(e){
@@ -3735,6 +3740,8 @@ async function forceSyncNow(){
   }
 }
 
+/* v18.48v: 护眼写锁 — addDrop 写云端期间置 true, 轮询的 loadDrops 跳过, 避免拉云端旧值覆盖乐观 count */
+let _dropWriting=false;
 async function addDrop(){
   playDropSound();   // v18.12: 滴一滴眼药水 → 清脆"滴"音效 (WebAudio 合成)
   dropSplash();      // v18.12: 滴一滴眼药水 → 蓝药水落入水池小动画
@@ -3757,7 +3764,9 @@ async function addDrop(){
     renderDrops(); // 立即刷新（水池+今天格子+详情都跟着变）
     // v17.26: 同步首页护眼数（不依赖 realtime 回环，立即反映）
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}
+    _dropWriting=true;
     const {error}=await sb.from('drops').update({count:rec.count, max_count:10}).eq('id',rec.id);   /* v17.49: max_count 固定 10, 不跟 count 涨 */
+    _dropWriting=false;
     // v18.48q: 云端失败不再回滚 (数据不丢) — 本地已 +1 显示, 进离线队列, 网好自动补传
     if(error){ addOfflineDrop(today); if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步'); return; }
   }else{
@@ -3765,7 +3774,9 @@ async function addDrop(){
     drops.unshift(rec);
     renderDrops(); // 立即刷新
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}  // v17.26: 同步首页
+    _dropWriting=true;
     const {data,error}=await sb.from('drops').insert({date:today,count:1,max_count:10}).select();
+    _dropWriting=false;
     // v18.48q: 云端失败不回滚, 进队列 (数据不丢)
     if(error){ addOfflineDrop(today); if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步'); return; }
     if(data&&data[0]) rec.id=data[0].id;
@@ -4440,32 +4451,34 @@ document.addEventListener('visibilitychange',()=>{
   if(view==='counter') loadDrops().catch(e=>recordError('visibility[counter]', (e&&e.message)||String(e), true));
   if(view==='period') loadPeriod().catch(e=>recordError('visibility[period]', (e&&e.message)||String(e), true));
 });
-// v17.85: 轮询兜底 — realtime WebSocket 在某些网络/区域下连不上, 跨设备同步会完全失效
-//         页面可见时每 3s 拉一次云端 (water_log / settings / savings / water_settings),
-//         保证另一台设备删除/写入后最多 3s 内本端自动同步到 — 不依赖用户跑 SQL 加 publication
-//         也不依赖刷新页面. loadSavings 现已云端权威(删除不被复活), 3s 轮询即可达到近秒级体验
+// v18.48v: 轮询兜底扩展到全模块 — 之前只有 water/settings/savings/reward 在轮询,
+//          todos/memos/drops(护眼)/period/farm 完全不轮询 → realtime 因 publication 缺表收不到推送时,
+//          这 5 个模块零同步机制 (手机改待办电脑不变). 现在所有模块都轮询(1.5s),
+//          不依赖 realtime publication, 真·跨端秒同步 (延迟 ≤1.5s).
+//          编辑中(.modal-mask 可见)暂停本轮, 避免拉云端覆盖正在编辑的 modal 数据.
+//          护眼写期间(_dropWriting)跳过 loadDrops, 避免覆盖乐观 count.
 let _syncPollTimer=null;
+let _lastSyncOk=0;   // v18.48v: 最近一次成功同步时间, 用于灯显示"上次同步 Xs 前"
+function _syncBlocked(){ return !!document.querySelector('.modal-mask:not([hidden])'); }
 (function startSyncPolling(){
   if(_syncPollTimer) return;
   _syncPollTimer=setInterval(()=>{
     if(document.hidden) return;
     if(!sb) return;
-    // 喝水是最高频同步需求, 单独轮询
-    loadWaterCups().catch(()=>{});
-    // settings (每杯/目标) 也轮询, 保证设置跨设备同步
-    loadWaterSettings().catch(()=>{});
-    // v17.85: 存钱跨端自动同步 — realtime 兜底: 每 3s 拉云端 (loadSavings 已云端权威, 删除不被复活)
-    loadSavings().catch(()=>{});
-    // v19: 奖励跨端同步兜底 (settings-rt 失败/未连时, 3s 轮询仍能秒级同步)
-    loadReward().catch(()=>{});
-  }, 3000);
+    if(_syncBlocked()) return;   // 编辑 modal 打开时暂停, 防覆盖
+    Promise.allSettled([
+      loadTodos(), loadMemos(), loadFarm(),
+      (_dropWriting ? Promise.resolve() : loadDrops()), loadDropClicks(), loadPeriod(),
+      loadWaterCups(), loadWaterSettings(), loadSavings(), loadReward(), loadSettings()
+    ]).then(()=>{ _lastSyncOk=Date.now(); }).catch(()=>{});
+  }, 1500);
 })();
 loadReward().catch(()=>{});   // v19: 启动立即拉一次云端, 首页卡和奖励页更快显示最新数据
-// v17.79: realtime 连接诊断 — 如果 30s 内没收到 SUBSCRIBED, 在 debugBar 提示用户 (不阻塞, 轮询继续兜底)
+// v18.48v: realtime 连接诊断 — 如果 30s 内没收到 SUBSCRIBED, 在 debugBar 提示用户 (不阻塞, 轮询继续兜底)
 if(sb){
   setTimeout(()=>{
     if(!_RT_STATES.connectedAt){
-      recordError('realtime', 'WebSocket 实时通道 30s 内未连接成功 (可能网络/区域限制)。已自动切换为每 3s 定时同步兜底, 跨设备同步仍然有效 (延迟 ≤3s)。');
+      recordError('realtime', 'WebSocket 实时通道 30s 内未连接成功 (通常是因为 supabase 的 realtime publication 没加这些表, 或网络区域限制)。已自动切换为每 1.5s 定时轮询同步兜底, 跨设备同步仍然有效 (延迟 ≤1.5s), 数据不丢。无需手动改任何配置。');
     }
   }, 30000);
 }
