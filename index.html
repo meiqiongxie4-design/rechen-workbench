@@ -601,21 +601,18 @@
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
   @media (max-width:640px){ .drops-grid{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
   /* 编辑待办弹窗 */
-  .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;}
-  /* v18.48y: modal 自身限高度, body 区可滚, actions 区不被截 — 之前 modal 没 max-height, 内容超长 (todo 内容 100+ 行) 时
-     .modal 直接撑到内容高度, 居中后超出视口, 底部的「取消/保存」按钮看不到, 用户必须 ctrl+- 缩放才能点
-     现在: .modal{max-height:calc(100dvh - 32px)} + display:flex column, .modal-body{flex:1,min-height:0,overflow-y:auto}
-     — modal 最多等于视口高-32px, body 区占满剩余, 超长内容在 body 内可滚, 标题+actions 区始终可见 */
-  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;max-width:420px;width:calc(100vw - 32px);max-height:calc(100dvh - 32px);box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;}
-  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;flex-shrink:0;}
-  .modal-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-  .field{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
-  .modal-body .field:last-of-type{flex:1;min-height:0;}   /* v18.48aa: todo 编辑最后一个 field (内容 textarea) 占满 body 剩余空间 */
+  .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;overflow:auto;padding:16px 0;}   /* v18.48aa: mask 改 overflow:auto + align-items:flex-start — modal 不再被 max-width:420px + 居中挤成"中间一点点", textarea 按内容撑开, 长内容超出视口 mask 整体可滚 */
+  /* v18.48aa: 去掉 .modal 的 max-width:420px / max-height:calc(100dvh-32px), modal 自然撑到内容那么宽高,
+     「取消/保存」按钮永远在 modal 底部, 整屏体验(用户原话 "原来这种一整屏的") */
+  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;width:calc(100vw - 32px);max-width:720px;box-shadow:0 20px 60px rgba(0,0,0,.25);flex-shrink:0;}
+  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;}
+  .modal-body{display:flex;flex-direction:column;gap:12px;}
+  .field{display:flex;flex-direction:column;gap:6px;}
   .field label{font-size:12.5px;color:var(--muted);font-weight:600;}
   .field textarea,.field input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--surface-2);font-family:inherit;outline:none;resize:none;}   /* v18.48y: 改 resize:vertical → none, 防止用户拖大扯碎布局 */
-  .modal-body .field:last-of-type textarea{flex:1;min-height:280px;overflow-y:auto;}   /* v18.48aa: 内容 textarea 占满 field, 默认 280px 起步, 长内容在 textarea 内可滚 */
+  .modal-body .field:last-of-type textarea{min-height:280px;overflow-y:auto;}   /* v18.48aa: 内容 textarea 默认 280px 起步, 长内容在 textarea 内可滚 */
   .field textarea:focus,.field input:focus{border-color:var(--accent);background:#fff;}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-shrink:0;padding-top:8px;border-top:1px solid var(--line);background:var(--surface);}   /* v18.48y: actions 区 sticky bottom 视觉, 加分隔线 + 背景色, 始终在 body 下方 */
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:10px;border-top:1px solid var(--line);background:var(--surface);}
   /* 齿轮按钮 */
   .settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;transition:transform .25s, background .15s, border-color .15s;padding:0;flex-shrink:0;}
   .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
@@ -2996,9 +2993,26 @@ async function loadTodos(){
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
   // 仅在 banner 不是 app_settings 引导时才隐藏（避免抢走错误信息显示时间）
   safeHideBanner(); setupError=false;
-  todos=data||[];
+  // v18.48aa: 把云端返回的对象挂上本地保存的 expanded 状态（轮询 1.5s 重建后用户主动展开/收起的偏好不丢）
+  // 之前 expanded 只是内存对象属性, 轮询一次就丢 → 用户反馈"点开展 2秒就没了"
+  const _exSet = loadExpandedSet();
+  todos=(data||[]).map(t=>{ const c=Object.assign({},t); if(_exSet.has(String(t.id))) c.expanded=true; return c; });
   renderStats(); renderList();
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}   // v17.40: 同步首页待办卡(realtime 推送让其他端首页也秒变)
+}
+// v18.48aa: todo 展开/收起状态持久化(localStorage, session 长期有效) — 1.5s 轮询重建 todos 后状态不丢
+const WB_TODO_EXPANDED_KEY='wbTodoExpanded';
+function loadExpandedSet(){
+  try{ return new Set(JSON.parse(localStorage.getItem(WB_TODO_EXPANDED_KEY)||'[]')); }catch(_){ return new Set(); }
+}
+function saveExpandedSet(set){
+  try{ localStorage.setItem(WB_TODO_EXPANDED_KEY, JSON.stringify(Array.from(set))); }catch(_){}
+}
+function toggleTodoExpanded(id){
+  const s=loadExpandedSet();
+  const k=String(id);
+  if(s.has(k)) s.delete(k); else s.add(k);
+  saveExpandedSet(s);
 }
 function renderStats(){
   const open=todos.filter(t=>!t.done);
@@ -3129,6 +3143,8 @@ $('list').onclick=async e=>{
   else if(act==='del'){
     if(confirm('确定删除这条待办吗？')){
       const idx=todos.findIndex(x=>x.id===id); if(idx>=0) todos.splice(idx,1);
+      // v18.48aa: 同步清理 localStorage 里的 expanded 状态, 避免长期累积死 key
+      try{ const s=loadExpandedSet(); s.delete(String(id)); saveExpandedSet(s); }catch(_){}
       renderList(); renderStats();
       try{
         const {error}=await sb.from('todos').delete().eq('id',id);
@@ -3137,7 +3153,7 @@ $('list').onclick=async e=>{
     }
   }
   else if(act==='edit'){ openEdit(t); }
-  else if(act==='expand'){ t.expanded=!t.expanded; renderList(); }
+  else if(act==='expand'){ toggleTodoExpanded(t.id); t.expanded=!t.expanded; renderList(); }
 };
 function openEdit(t){
   editId=t.id; $('eTitle').value=t.title||''; $('modal').hidden=false;
