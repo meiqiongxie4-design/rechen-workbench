@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ac</title>
+<title>GrowTime · v18.48ad</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -601,19 +601,18 @@
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
   @media (max-width:640px){ .drops-grid{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
   /* 编辑待办弹窗 */
-  .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;overflow:auto;padding:16px 0;}   /* v18.48aa: mask 改 overflow:auto + align-items:flex-start — modal 不再被 max-width:420px + 居中挤成"中间一点点", textarea 按内容撑开, 长内容超出视口 mask 整体可滚 */
-  /* v18.48aa: 去掉 .modal 的 max-width:420px / max-height:calc(100dvh-32px), modal 自然撑到内容那么宽高,
-     「取消/保存」按钮永远在 modal 底部, 整屏体验(用户原话 "原来这种一整屏的") */
-  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;width:calc(100vw - 32px);max-width:720px;min-height:520px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);flex-shrink:0;}   /* v18.48ab-2: 加 min-height:520px 让 modal 整体高度统一够大, 用户不会觉得"中间一点点"; 改 display:flex column 让 modal-body 占满剩余空间 */
-  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;flex-shrink:0;}
-  .modal-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow:hidden;}
+  .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:stretch;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;padding:0;}   /* v18.48ad: align-items:stretch + padding:0 — modal 占满整个 mask 高度(满屏), 不再 flex-start 留顶部 16px */
+  /* v18.48ad: 满屏 modal — .modal 用 height:100dvh + border-radius:0 (边到边), 像一个独立页面 */
+  .modal{background:var(--surface);border-radius:0;padding:24px 28px 20px;width:100%;max-width:760px;height:100dvh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.2);flex-shrink:0;}
+  .modal h3{margin:0 0 16px;font-size:17px;color:var(--accent);font-weight:700;flex-shrink:0;}
+  .modal-body{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:hidden;}
   .field{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
-  .modal-body .field:last-of-type{flex:1;min-height:0;}   /* v18.48ab-2: 最后一个 field (内容 textarea) 占满 modal-body 剩余空间, textarea 跟 modal 一起变高 */
+  .modal-body .field:last-of-type{flex:1;min-height:0;}   /* v18.48ad: 最后一个 field (内容 textarea) 占满 modal-body 剩余空间 */
   .field label{font-size:12.5px;color:var(--muted);font-weight:600;}
   .field textarea,.field input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--surface-2);font-family:inherit;outline:none;resize:none;}   /* v18.48y: 改 resize:vertical → none, 防止用户拖大扯碎布局 */
-  .modal-body .field:last-of-type textarea{flex:1;min-height:380px;overflow-y:auto;}   /* v18.48ab-2: textarea min-height 280→380, 占满 modal 剩余空间 (长内容在 textarea 内可滚) */
+  .modal-body .field:last-of-type textarea{flex:1;min-height:0;overflow-y:auto;}   /* v18.48ad: textarea 占满 modal 剩余高度, 长内容在 textarea 内可滚; 去掉 min-height:380 改 0 让 textarea 完全跟 modal 走 */
   .field textarea:focus,.field input:focus{border-color:var(--accent);background:#fff;}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:10px;border-top:1px solid var(--line);background:var(--surface);flex-shrink:0;}   /* v18.48ab-2: actions sticky 在 modal 底部, modal 内容再多也始终显示 */
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);background:var(--surface);flex-shrink:0;}   /* v18.48ad: actions sticky 在 modal 底部 */
   /* 齿轮按钮 */
   .settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;transition:transform .25s, background .15s, border-color .15s;padding:0;flex-shrink:0;}
   .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
@@ -1451,7 +1450,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ac';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48ad';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3171,12 +3170,35 @@ $('modal').addEventListener('input',e=>{ const ta=e.target.closest('textarea'); 
 
 /* ---------- 备忘录 ---------- */
 const MEMO_COLLAPSED_PX=60; // ~3 行
+// v18.48ad: 备忘展开/收起状态持久化(localStorage, 跨 session 有效) — 1.5s 轮询重建 DOM 后状态不丢
+// 之前 v18.48w/v18.48ac 用 dataset.userExpanded (session 内有效), 1.5s 轮询 → renderMemos 重建 DOM → 状态丢 → "展开按钮一点就消失 2 秒"
+// 跟 todo 的 wbTodoExpanded 完全平行: loadMemos 末尾把 localStorage set 里的 id 写到 memos[i]._expanded, refreshMemoHeight 读取
+const WB_MEMO_EXPANDED_KEY='wbMemoExpanded';
+function loadMemoExpandedSet(){
+  try{ return new Set(JSON.parse(localStorage.getItem(WB_MEMO_EXPANDED_KEY)||'[]')); }catch(_){ return new Set(); }
+}
+function saveMemoExpandedSet(set){
+  try{ localStorage.setItem(WB_MEMO_EXPANDED_KEY, JSON.stringify(Array.from(set))); }catch(_){}
+}
+function toggleMemoExpanded(id){
+  const s=loadMemoExpandedSet();
+  const k=String(id);
+  if(s.has(k)) s.delete(k); else s.add(k);
+  saveMemoExpandedSet(s);
+  // 同步 memos 数组里的 _expanded, 让本次 renderMemos 立即拿到新状态
+  const m=memos.find(x=>x.id===id);
+  if(m) m._expanded=s.has(k);
+}
 function refreshMemoHeight(ta){
   const card=ta.closest('.memo-card');
   if(!card) return;
   const focused=document.activeElement===ta;
-  // 默认收起；只有用户主动点了「展开 ↓」或正在编辑时才展开。session 内有效。
-  const userExpanded=card.dataset.userExpanded==='1';
+  // 展开状态: (1) dataset.userExpanded (本卡 DOM 状态), (2) m._expanded (localStorage 持久化)
+  // dataset 优先 (用户刚刚在本设备点 toggle), fallback 到 m._expanded (1.5s 轮询重建后从 localStorage 恢复)
+  const id=ta.dataset.id;
+  const m=id?memos.find(x=>String(x.id)===String(id)):null;
+  const persistedExpanded=m && m._expanded;
+  const userExpanded=card.dataset.userExpanded==='1' || !!persistedExpanded;
   ta.style.height='auto';
   const sh=ta.scrollHeight;
   if(!userExpanded && !focused){
@@ -3199,7 +3221,10 @@ async function loadMemos(){
   const {data,error}=await sb.from('memos').select('*').order('created_at',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
   safeHideBanner(); setupError=false;
-  memos=data||[]; renderMemos();
+  // v18.48ad: 把 localStorage 里的展开 id 集合回填到 memos[i]._expanded — 1.5s 轮询重建 DOM 后状态不丢
+  const _exSet=loadMemoExpandedSet();
+  memos=(data||[]).map(m=>({...m, _expanded:_exSet.has(String(m.id))}));
+  renderMemos();
 }
 function renderMemos(){
   const box=$('memoList');
@@ -3399,12 +3424,24 @@ $('memoList').addEventListener('focusout',e=>{
 });
 $('memoList').addEventListener('click',async e=>{
   const del=e.target.closest('[data-del]');
-  if(del){ if(confirm('确定删除这条备忘录吗？')){ const {error}=await sb.from('memos').delete().eq('id',del.dataset.del); if(error) showModErr('viewMemo','备忘录删除失败（'+error.message+'）'); loadMemos(); } return; }
+  if(del){
+    if(confirm('确定删除这条备忘录吗？')){
+      // v18.48ad: 删 memo 时同步清 localStorage 里的展开记录, 避免累积死 key
+      try{ const s=loadMemoExpandedSet(); s.delete(String(del.dataset.del)); saveMemoExpandedSet(s); }catch(_){}
+      const {error}=await sb.from('memos').delete().eq('id',del.dataset.del);
+      if(error) showModErr('viewMemo','备忘录删除失败（'+error.message+'）');
+      loadMemos();
+    }
+    return;
+  }
   const tg=e.target.closest('[data-toggle]');
   if(tg){
     const card=tg.closest('.memo-card');
     if(!card) return;
-    // 切换本卡的「用户主动展开」状态（session 内有效，不持久化到云端）
+    // v18.48ad: 改用 toggleMemoExpanded 写 localStorage (跨 session + 跨设备轮询重建都保留)
+    // 同时同步 dataset.userExpanded 反映本次切换 (立即生效, 1.5s 轮询重建后从 m._expanded 恢复)
+    const id=card.querySelector('.memo').dataset.id;
+    toggleMemoExpanded(id);
     card.dataset.userExpanded = card.dataset.userExpanded==='1' ? '' : '1';
     refreshMemoHeight(card.querySelector('.memo'));
     return;
