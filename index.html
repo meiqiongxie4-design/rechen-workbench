@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48t</title>
+<title>GrowTime · v18.48u</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1447,7 +1447,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48t';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48u';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3666,8 +3666,12 @@ function evalNet(){
   const rtOk = (now - (_RT_STATES.connectedAt||0)) < 35000;
   const okRecent = (now - gwNet.lastOk) < 30000;
   const failRecent = (now - gwNet.lastFail) < 12000 && gwNet.lastFail > gwNet.lastOk;
+  /* v18.48u: 用户点过"立即同步"按钮后, 冻结绿色 30s, 让用户有"点了 = 已同步"体感
+     30s 后自然回归真实状态 (rtOk=false 又会变黄, 但这就是用户网络的真实状态) */
+  const manualOk = (now - (gwNet.lastManualSync||0)) < 30000;
   let cls,txt;
-  if(failRecent){ cls='off'; txt='离线 · 本地已存'; }
+  if(manualOk){ cls='ok'; txt='已同步'; }
+  else if(failRecent){ cls='off'; txt='离线 · 本地已存'; }
   else if(okRecent && rtOk){ cls='ok'; txt='已同步'; }
   else if(okRecent){ cls='warn'; txt='同步中(降速)'; }
   else { cls='warn'; txt='同步中…'; }
@@ -3720,6 +3724,7 @@ async function forceSyncNow(){
     try{ await saveDropClicks(); }catch(_){}
     // 6. 重评灯
     gwNet.lastOk=Date.now();
+    gwNet.lastManualSync=Date.now();   // v18.48u: 冻结绿色 30s, 用户体感"点了 = 已同步"
     evalNet();
     toast('🟢 已强制同步');
   }catch(e){
