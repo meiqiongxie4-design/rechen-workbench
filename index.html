@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ab</title>
+<title>GrowTime · v18.48ac</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -326,7 +326,7 @@
   .row-actions{display:flex;gap:6px;flex-shrink:0;align-items:flex-start;}
   .memo-card{position:relative;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;box-shadow:var(--shadow);}
   .memo-card.collapsed .memo{overflow:hidden;}
-  .memo-card .memo{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;line-height:1.5;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;}   /* v18.48z: textarea 不再 max-height, 内容多长就撑多长, 整页外层滚(顶部 sticky topbar 兜底添加/清空按钮可达) */
+  .memo-card .memo{width:100%;max-height:70dvh;overflow-y:auto;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font-size:14.5px;line-height:1.5;background:var(--surface-2);font-family:inherit;outline:none;resize:none;white-space:pre-wrap;word-break:break-word;}   /* v18.48ab-2: 回到 v18.48w 默认收起(60px)设计 — 单条备忘 textarea 最多 70dvh, 超出在 textarea 内嵌滚动; 用户点「展开 ↓」才显示全文; 默认 60px 收起的卡片整页不多 → 用户滚动 window 不易丢失位置 */
   .memo-card .memo:focus{border-color:var(--accent);background:#fff;}
   .memo-del{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
   .memo-del:hover{background:var(--red-soft);color:var(--red);border-color:transparent;}
@@ -604,15 +604,16 @@
   .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;overflow:auto;padding:16px 0;}   /* v18.48aa: mask 改 overflow:auto + align-items:flex-start — modal 不再被 max-width:420px + 居中挤成"中间一点点", textarea 按内容撑开, 长内容超出视口 mask 整体可滚 */
   /* v18.48aa: 去掉 .modal 的 max-width:420px / max-height:calc(100dvh-32px), modal 自然撑到内容那么宽高,
      「取消/保存」按钮永远在 modal 底部, 整屏体验(用户原话 "原来这种一整屏的") */
-  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;width:calc(100vw - 32px);max-width:720px;box-shadow:0 20px 60px rgba(0,0,0,.25);flex-shrink:0;}
-  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;}
-  .modal-body{display:flex;flex-direction:column;gap:12px;}
-  .field{display:flex;flex-direction:column;gap:6px;}
+  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;width:calc(100vw - 32px);max-width:720px;min-height:520px;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);flex-shrink:0;}   /* v18.48ab-2: 加 min-height:520px 让 modal 整体高度统一够大, 用户不会觉得"中间一点点"; 改 display:flex column 让 modal-body 占满剩余空间 */
+  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;flex-shrink:0;}
+  .modal-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow:hidden;}
+  .field{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .modal-body .field:last-of-type{flex:1;min-height:0;}   /* v18.48ab-2: 最后一个 field (内容 textarea) 占满 modal-body 剩余空间, textarea 跟 modal 一起变高 */
   .field label{font-size:12.5px;color:var(--muted);font-weight:600;}
   .field textarea,.field input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--surface-2);font-family:inherit;outline:none;resize:none;}   /* v18.48y: 改 resize:vertical → none, 防止用户拖大扯碎布局 */
-  .modal-body .field:last-of-type textarea{min-height:280px;overflow-y:auto;}   /* v18.48aa: 内容 textarea 默认 280px 起步, 长内容在 textarea 内可滚 */
+  .modal-body .field:last-of-type textarea{flex:1;min-height:380px;overflow-y:auto;}   /* v18.48ab-2: textarea min-height 280→380, 占满 modal 剩余空间 (长内容在 textarea 内可滚) */
   .field textarea:focus,.field input:focus{border-color:var(--accent);background:#fff;}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:10px;border-top:1px solid var(--line);background:var(--surface);}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:10px;border-top:1px solid var(--line);background:var(--surface);flex-shrink:0;}   /* v18.48ab-2: actions sticky 在 modal 底部, modal 内容再多也始终显示 */
   /* 齿轮按钮 */
   .settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;transition:transform .25s, background .15s, border-color .15s;padding:0;flex-shrink:0;}
   .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
@@ -1450,7 +1451,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ab';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48ac';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3169,15 +3170,29 @@ $('eSave').onclick=async()=>{
 $('modal').addEventListener('input',e=>{ const ta=e.target.closest('textarea'); if(ta) autoResize(ta); });
 
 /* ---------- 备忘录 ---------- */
-// textarea 完全跟随内容撑高, 不限高度、不在内部嵌滚动条. 整页外层滚(用户偏好)
+const MEMO_COLLAPSED_PX=60; // ~3 行
 function refreshMemoHeight(ta){
   const card=ta.closest('.memo-card');
   if(!card) return;
+  const focused=document.activeElement===ta;
+  // 默认收起；只有用户主动点了「展开 ↓」或正在编辑时才展开。session 内有效。
+  const userExpanded=card.dataset.userExpanded==='1';
   ta.style.height='auto';
   const sh=ta.scrollHeight;
-  ta.style.height=sh+'px';
-  ta.style.overflow='';
-  card.classList.remove('collapsed');
+  if(!userExpanded && !focused){
+    ta.style.height=MEMO_COLLAPSED_PX+'px';
+    ta.style.overflow='hidden';
+    card.classList.add('collapsed');
+  }else{
+    ta.style.height=sh+'px';
+    ta.style.overflow='';
+    card.classList.remove('collapsed');
+  }
+  const btn=card.querySelector('.memo-toggle');
+  if(btn){
+    btn.style.display=sh>MEMO_COLLAPSED_PX?'':'none';
+    btn.textContent=(!userExpanded && !focused)?'展开 ↓':'收起 ↑';
+  }
 }
 async function loadMemos(){
   if(!sb){ memos=[]; safeHideBanner(); renderMemos(); return; }
@@ -3192,10 +3207,13 @@ function renderMemos(){
   const activeId=active&&active.dataset&&active.dataset.id?active.dataset.id:null;
   const activeVal=activeId?active.value:null;
   const activeStart=active&&active.selectionStart;
+  // v18.48ab-2: 1.5s 轮询 → loadMemos → renderMemos 会重建所有 memo card DOM, 窗口 scroll 位置丢失
+  // → 用户感受"滚到中间, 2 秒又回到第一个"。这里保存窗口 scrollY, render 完成后 rAF 内还原
+  const _scrollY=window.scrollY;
   if(!memos.length){box.innerHTML='<div class="empty"><div class="big">📝</div>还没有备忘录，点「新建备忘录」记一条吧</div>';return;}
   box.innerHTML=memos.map(m=>{
     const imgs=Array.isArray(m.images)?m.images:[];
-    // textarea 始终展开, 不再需要收起/展开按钮
+    // v18.48ab-2: 恢复 toggle 按钮 + 默认收起逻辑
     return `<div class="memo-card" data-card="${m.id}">
       <button class="memo-del" data-del="${m.id}" title="删除">×</button>
       <textarea class="memo" data-id="${m.id}" placeholder="随手记下客户信息、账号、临时想法…（可粘贴图片）">${esc(m.text)}</textarea>
@@ -3227,7 +3245,12 @@ function renderMemos(){
         if(!ta) return;
         refreshMemoHeight(ta);
       });
+      // v18.48ab-2: render 完成后还原窗口 scroll 位置 (防止轮询重建 DOM 把用户滚到中间又弹回顶部)
+      window.scrollTo(0,_scrollY);
     });
+  }else{
+    // 视图不可见时(后台切换), 也延迟还原 scrollY —— 切回 memo 时不至于闪跳
+    requestAnimationFrame(()=>window.scrollTo(0,_scrollY));
   }
 }
 function refreshAllMemoHeights(){
