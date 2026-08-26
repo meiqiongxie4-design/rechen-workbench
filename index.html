@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48x</title>
+<title>GrowTime · v18.48y</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -619,14 +619,18 @@
   @media (max-width:640px){ .drops-grid{grid-template-columns:repeat(4,minmax(0,1fr));} .history-item .badge{font-size:10.5px;padding:2px 7px;} .history-item .n{font-size:16px;} }
   /* 编辑待办弹窗 */
   .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(2px);animation:fadeIn .15s;}
-  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;max-width:420px;width:calc(100vw - 32px);box-shadow:0 20px 60px rgba(0,0,0,.25);}
-  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;}
-  .modal-body{display:flex;flex-direction:column;gap:12px;}
-  .field{display:flex;flex-direction:column;gap:6px;}
+  /* v18.48y: modal 自身限高度, body 区可滚, actions 区不被截 — 之前 modal 没 max-height, 内容超长 (todo 内容 100+ 行) 时
+     .modal 直接撑到内容高度, 居中后超出视口, 底部的「取消/保存」按钮看不到, 用户必须 ctrl+- 缩放才能点
+     现在: .modal{max-height:calc(100dvh - 32px)} + display:flex column, .modal-body{flex:1,min-height:0,overflow-y:auto}
+     — modal 最多等于视口高-32px, body 区占满剩余, 超长内容在 body 内可滚, 标题+actions 区始终可见 */
+  .modal{background:var(--surface);border-radius:14px;padding:22px 22px 18px;max-width:420px;width:calc(100vw - 32px);max-height:calc(100dvh - 32px);box-shadow:0 20px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;overflow:hidden;}
+  .modal h3{margin:0 0 14px;font-size:16px;color:var(--accent);font-weight:700;flex-shrink:0;}
+  .modal-body{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .field{display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
   .field label{font-size:12.5px;color:var(--muted);font-weight:600;}
-  .field textarea,.field input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--surface-2);font-family:inherit;outline:none;resize:vertical;}
+  .field textarea,.field input{padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:var(--surface-2);font-family:inherit;outline:none;resize:none;}   /* v18.48y: 改 resize:vertical → none, 防止用户拖大扯碎布局 */
   .field textarea:focus,.field input:focus{border-color:var(--accent);background:#fff;}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;flex-shrink:0;padding-top:8px;border-top:1px solid var(--line);background:var(--surface);}   /* v18.48y: actions 区 sticky bottom 视觉, 加分隔线 + 背景色, 始终在 body 下方 */
   /* 齿轮按钮 */
   .settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:50%;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;line-height:1;transition:transform .25s, background .15s, border-color .15s;padding:0;flex-shrink:0;}
   .settings-btn:hover{transform:rotate(45deg);background:var(--surface-2);border-color:var(--accent);}
@@ -1464,7 +1468,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48x';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48y';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -2990,7 +2994,7 @@ function getDropStatus(n){
 }
 
 /* 自动增高 */
-function autoResize(ta){ ta.style.height='auto'; ta.style.height=ta.scrollHeight+'px'; }
+function autoResize(ta){ ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight, 220)+'px'; }   /* v18.48y: 限 220px 上限, 超出由 modal-body 滚动; 之前写 scrollHeight 不限, content 100+ 行时 textarea 直接撑到几千 px 把 modal 顶出去, 「取消/保存」按钮看不到 */
 function fmtTime(iso){
   if(!iso) return '';
   const d=new Date(iso);
