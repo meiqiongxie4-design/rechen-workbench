@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ah</title>
+<title>GrowTime · v18.48ai</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1393,6 +1393,7 @@
       <div class="field"><textarea id="eTitle" rows="3" placeholder="待办内容…"></textarea></div>
     </div>
     <div class="modal-actions">
+      <button class="btn ghost" id="eDone">完成</button>
       <button class="btn ghost" id="eCancel">取消</button>
       <button class="btn" id="eSave">保存</button>
     </div>
@@ -1450,7 +1451,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48af';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48ai';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3188,6 +3189,15 @@ $('eSave').onclick=async()=>{
   // 只更新内容，保留原有的 due / note 字段不被清空
   await sb.from('todos').update({title}).eq('id',editId);
   $('modal').hidden=true;editId=null;toast('已保存');loadTodos();
+};
+// v18.48ai: 待办编辑 modal — 取消前新增【完成】按钮. 复用 homeToggleTodo (line 1998) 完整 sb 直写 + 离线队列兜底 + renderHomeCards 路径, todos-rt realtime 通道 (line 4527) 自动同步到其他设备.
+$('eDone').onclick=async()=>{
+  if(!editId){ $('modal').hidden=true; return; }
+  const t=todos.find(x=>x.id===editId);
+  if(!t){ $('modal').hidden=true; return; }
+  if(t.done){ toast('已是完成'); $('modal').hidden=true; return; }
+  $('modal').hidden=true;          // 先关 modal, 操作立刻有反馈
+  await homeToggleTodo(editId);   // 复用: sb.update({done:true}) + 离线队列兜底 + renderHomeCards()
 };
 $('modal').addEventListener('input',e=>{ const ta=e.target.closest('textarea'); if(ta) autoResize(ta); });
 
