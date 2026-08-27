@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ak</title>
+<title>GrowTime · v18.48al</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1457,7 +1457,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ak';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48al';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3017,10 +3017,10 @@ function fmtTime(iso){
 
 /* ---------- 待办 ---------- */
 async function loadTodos(){
-  if(!sb){ todos=[]; safeHideBanner(); renderStats(); renderList(); return; }
+  if(!sb){ try{ const c=JSON.parse(localStorage.getItem('wbCache_todos')||'[]'); if(Array.isArray(c)&&c.length) todos=c; }catch(_){} safeHideBanner(); renderStats(); renderList(); return; }
   if(__todosHasImages===null) await probeTodosHasImages();   // v18.37: 进入待办视图先探测列, 决定 images vs note 兜底
   const {data,error}=await sb.from('todos').select('*').order('created_at',{ascending:false});
-  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
+  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} renderStats(); renderList(); return; }
   // 仅在 banner 不是 app_settings 引导时才隐藏（避免抢走错误信息显示时间）
   safeHideBanner(); setupError=false;
   // v18.48aa: 把云端返回的对象挂上本地保存的 expanded 状态（轮询 1.5s 重建后用户主动展开/收起的偏好不丢）
@@ -3257,9 +3257,9 @@ function refreshMemoHeight(ta){
   }
 }
 async function loadMemos(){
-  if(!sb){ memos=[]; safeHideBanner(); renderMemos(); return; }
+  if(!sb){ try{ const c=JSON.parse(localStorage.getItem('wbCache_memos')||'[]'); if(Array.isArray(c)&&c.length) memos=c; }catch(_){} safeHideBanner(); renderMemos(); return; }
   const {data,error}=await sb.from('memos').select('*').order('created_at',{ascending:false});
-  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} return; }
+  if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} renderMemos(); return; }
   safeHideBanner(); setupError=false;
   // v18.48ad: 把 localStorage 里的展开 id 集合回填到 memos[i]._expanded — 1.5s 轮询重建 DOM 后状态不丢
   const _exSet=loadMemoExpandedSet();
@@ -3508,6 +3508,7 @@ $('memoList').addEventListener('paste',async e=>{
 
 /* ---------- 护眼记 ---------- */
 async function loadDrops(){
+  if(!sb){ try{ const c=JSON.parse(localStorage.getItem('wbCache_drops')||'[]'); if(Array.isArray(c)&&c.length) drops=c; }catch(_){} safeHideBanner(); try{ if($('homeCards')) renderHomeCards(); }catch(_){} return; }
   // v17.39: 改用 gte 拉最近 90 天（避免 limit(30) 边缘情况把今天挤出, 也避免 limit 太小漏掉今天）
   const since=new Date(); since.setDate(since.getDate()-90);
   const sinceStr=since.toISOString().slice(0,10);
