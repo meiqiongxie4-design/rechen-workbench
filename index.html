@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ae</title>
+<title>GrowTime · v18.48af</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -667,7 +667,7 @@
   .sidebar-foot{margin-top:0;display:flex;flex-direction:column;gap:4px;}   /* v17.88: 设置按钮紧跟最后一个 sb-item (margin-top:auto 之前把设置推得太远) */
 
   .main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;gap:12px;}   /* v17.88: 取消 overflow:hidden (v17.86 那个会让 main 高度被截, sidebar 永远只能跟 .app 同高不跟内容延长); 保留 min-height:0 是 flex item 必需 (否则会被内容撑到 min-content) */
-  #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{flex:1;min-height:0;display:flex;flex-direction:column;}   /* v17.88: 取消 overflow:auto (让 view 内容可超高撑大 main → 撑大 .app → sidebar 跟着延长; 同时 .app{min-height} 保证首页 sidebar 满屏) */
+  #viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving,#viewReward{flex:1;min-height:0;display:flex;flex-direction:column;}   /* v18.48af: 加 #viewReward — 之前 v19 加奖励模块时漏写, 切到奖励页时 viewReward 会因为没 flex:1 而塌缩成 0 高, 显示不出来 */
 
   /* 首页 4 卡片 - v17.27: 取消所有 flex:1，让卡片 content-size；
      顶卡 3 张之间靠相同 min-height:88 / max-height:124 自然等高；
@@ -1450,7 +1450,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ae';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48af';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -2315,6 +2315,29 @@ function reflectWaterInputsToUI(){
 document.addEventListener('DOMContentLoaded', ()=>{
   setTimeout(reflectWaterInputsToUI, 50);   // 等 input 元素 ready
   setTimeout(reflectWaterInputsToUI, 800);  // 等可能的 autocomplete 跑完再覆盖
+  /* v18.48af: 兜底 — 立即渲染首页框架, 不依赖 sb init / loadTodos.
+     之前 init 顺序: 等 supabase client 初始化 + 多个表 load + 最后 switchView('home') 才画首页.
+     在慢网/GitHub Pages CDN 边缘冷启动时, 几秒内用户看到的是空白页 — 没卡片、没鼓励语.
+     现在 DOMContentLoaded 立刻 renderHomeCards 一次 (即使 todos/drops 都是 [], 4 张占位卡也能立刻显示,
+     真实数据到达后 1.5s 轮询会自动覆盖). 这条不依赖 sb, sb=null 时函数内部已有 (drops||[]) 兜底. */
+  try{ renderHomeCards(); startClock(); }catch(e){ console.warn('[init] 立即 renderHomeCards 失败:', e); }
+  /* v18.48af: 再次兜底 — 1.5s 后若首页仍是空 (说明 init 序列真出问题), 重渲一次.
+     防止 init catch 吞错后用户看到永远空白 */
+  setTimeout(()=>{
+    try{
+      const box=$('homeCards');
+      if(box && box.children.length===0){
+        // v18.48af: 用户能看到"重试中"提示, 而不是永远空白
+        box.innerHTML='<div style="padding:18px;text-align:center;color:#dc2626;font-size:13px;">⚠️ 首页数据加载超时，正在重试…</div>';
+        renderHomeCards();
+        setTimeout(()=>{
+          if($('homeCards') && $('homeCards').children.length===0){
+            $('homeCards').innerHTML='<div style="padding:18px;text-align:center;color:#dc2626;font-size:13px;">⚠️ 首页仍为空。<br>请按上面“同步”按钮重连，或刷新一次网页 (Ctrl+F5 / Cmd+Shift+R)。</div>';
+          }
+        }, 1500);
+      }
+    }catch(e){ console.error('[init-fallback] 重渲失败:', e); }
+  }, 1500);
 });
 function renderWater(){
   // v17.78: input 永远显示已保存值 (用户键入/启航后保留显示) — 不再强制清空
@@ -5356,7 +5379,7 @@ try{ renderStats(); renderList(); }catch(e){}
   ]);
   // v17: 数据到位后如果停在首页，重渲染 4 卡片
   try{ if(view==='home') renderHomeCards(); }catch(e){}
-  // v17: 触发首页渲染（含 4 张聚合卡 + 时钟 + 鼓励语 footer）
+  /* v18.48af: 启动时若 viewHome 是空白 (homeCards.children.length===0), 自动 1.5s 后再渲一次 — 兜底 init 失败 */
   try{
     const saved=(localStorage.getItem('rechen_current_view')||'').trim();
     const VALID=['home','todo','memo','counter','period','farm','water','saving','reward'];
