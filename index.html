@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ad</title>
+<title>GrowTime · v18.48ae</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1450,7 +1450,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ad';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48ae';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3736,20 +3736,27 @@ function evalNet(){
   const rtOk = (now - (_RT_STATES.connectedAt||0)) < 35000;
   const okRecent = (now - gwNet.lastOk) < 30000;
   const failRecent = (now - gwNet.lastFail) < 12000 && gwNet.lastFail > gwNet.lastOk;
-  /* v18.48v: 移除 30s 假绿冻结. 灯只反映真实同步状态:
+  // v18.48ae: 用户点 "立即同步" 按钮后 5s 内, 短期显示 "已同步" 绿灯 (确认反馈)
+  //   之前 v18.48u 30s 假绿被 v18.48v 撤回 (用户反对假绿), 现在改 5s 短期提示 —
+  //   仅作为"我点了按钮 = 操作已完成"的反馈, 5s 后立刻回到真实状态 (不假装数据已同步成功)
+  const justSynced = (now - (gwNet.lastManualSync||0)) < 5000;
+  /* 灯只反映真实同步状态:
      - 绿 = 探针 30s 内成功 (网络通, 同步机制在工作) — 不要求 rtOk(实时直连), 因为轮询兜底已够用
      - 黄 = 探针能连但实时未直连 (靠轮询 ≤1.5s 兜底) 或 探针窗口空 (等待中)
      - 红 = 探针 12s 内失败 (离线, 数据存本地队列)
      附加"上次同步 Xs 前"让用户看到同步真在发生, 不是假象 */
   let cls,txt;
   if(failRecent){ cls='off'; txt='离线 · 本地已存'; }
+  else if(justSynced){ cls='ok'; txt='已同步'; }
   else if(okRecent && rtOk){ cls='ok'; txt='实时同步'; }
   else if(okRecent){ cls='warn'; txt='轮询同步中'; }
   else { cls='warn'; txt='同步中…'; }
-  // v18.48v: 显示上次成功同步时间, 让用户看到同步机制真的在工作
+  // 显示上次成功同步时间, 让用户看到同步机制真的在工作
   const since = _lastSyncOk ? Math.round((now - _lastSyncOk)/1000) : null;
-  if(since!==null && !failRecent){
+  if(since!==null && !failRecent && !justSynced){
     txt += ' · ' + (since<=1 ? '刚刚' : since+'s前');
+  }else if(justSynced){
+    txt += ' · 刚刚';
   }
   el.className='net-light '+cls;
   el.querySelector('.net-txt').textContent=txt;
@@ -3776,6 +3783,8 @@ async function forceSyncNow(){
   _forceSyncing=true;
   const btn=document.querySelector('#netLight .net-sync');
   if(btn){ btn.disabled=true; btn.textContent='同步中…'; }
+  // v18.48ae: 统计补传了多少离线操作, 给用户明确反馈 (用户反馈"点了没反应")
+  let flushedDrops=0, flushedOps=0;
   try{
     // 1. 探针确认能连
     let probeOk=false;
@@ -3787,9 +3796,13 @@ async function forceSyncNow(){
       return;
     }
     // 2. 冲刷护眼离线增量队列 (count 兜底)
+    const _dropsQBefore = gwOfflineQueue().length;
     try{ await flushOfflineQueue(); }catch(_){}
+    flushedDrops = _dropsQBefore - gwOfflineQueue().length;
     // 3. 冲刷通用队列 (todo/memo/reward/period/settings)
+    const _opsQBefore = gwOfflineOps().length;
     try{ await gwFlushOps(); }catch(_){}
+    flushedOps = _opsQBefore - gwOfflineOps().length;
     // 4. 全量重拉 (覆盖内存, 让所有模块与云端一致)
     await Promise.allSettled([
       loadDrops(), loadDropClicks(), loadPeriod(), loadSettings(),
@@ -3798,10 +3811,16 @@ async function forceSyncNow(){
     ]);
     // 5. 强制把 localStorage 里的 click 时间补传云端 (修复 v18.48t 之前的"早 return 漏 saveDropClicks"历史 click)
     try{ await saveDropClicks(); }catch(_){}
-    // 6. 重评灯
+    // 6. 重评灯 + 5s 短期 "已同步" 反馈 (v18.48ae, 见 evalNet)
     gwNet.lastOk=Date.now();
+    gwNet.lastManualSync=Date.now();
     evalNet();
-    toast('🟢 已强制同步');
+    // v18.48ae: 详细反馈 — 让用户看到"确实同步了 N 条"
+    const detail = [];
+    if(flushedDrops>0) detail.push(`护眼 +${flushedDrops} 滴`);
+    if(flushedOps>0) detail.push(`操作 ${flushedOps} 条`);
+    if(detail.length===0) detail.push('已与云端一致');
+    toast('🟢 同步完成 · ' + detail.join(' · '));
   }catch(e){
     toast('🟡 部分同步失败: ' + ((e&&e.message)||e));
   }finally{
@@ -3838,7 +3857,15 @@ async function addDrop(){
     const {error}=await sb.from('drops').update({count:rec.count, max_count:10}).eq('id',rec.id);   /* v17.49: max_count 固定 10, 不跟 count 涨 */
     _dropWriting=false;
     // v18.48q: 云端失败不再回滚 (数据不丢) — 本地已 +1 显示, 进离线队列, 网好自动补传
-    if(error){ addOfflineDrop(today); if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步'); return; }
+    if(error){
+      addOfflineDrop(today);
+      // v18.48ae: 失败路径也要调 saveDropClicks — click 时间不能只在本地, 跨设备要同步
+      //   之前错误: 早 return → saveDropClicks 永远不执行 → click 时间只在本设备 localStorage
+      //   现在: 失败也调 (saveDropClicks 内部自己判断能不能上云端, 不能就静默回写队列)
+      saveDropClicks().catch(e => recordError('saveDropClicks.fallback', (e&&e.message)||String(e)));
+      if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步');
+      return;
+    }
   }else{
     rec={date:today,count:1,max_count:10};
     drops.unshift(rec);
@@ -3848,7 +3875,13 @@ async function addDrop(){
     const {data,error}=await sb.from('drops').insert({date:today,count:1,max_count:10}).select();
     _dropWriting=false;
     // v18.48q: 云端失败不回滚, 进队列 (数据不丢)
-    if(error){ addOfflineDrop(today); if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步'); return; }
+    if(error){
+      addOfflineDrop(today);
+      // v18.48ae: 同上, 失败路径也调 saveDropClicks
+      saveDropClicks().catch(e => recordError('saveDropClicks.fallback', (e&&e.message)||String(e)));
+      if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步');
+      return;
+    }
     if(data&&data[0]) rec.id=data[0].id;
   }
   /* v17.92: 异步把点击时间戳持久化到 app_settings (fire-and-forget, 不阻塞 UI) */
@@ -4343,13 +4376,13 @@ async function loadDropClicks(){
     local = _mergeDropClicks(local, dropClicks);
   }
   let merged = _mergeDropClicks(local, cloud);
-  // v18.45: 今天的数据以云端为准 — 若云端没有今天的记录(说明被远程清过/测试数据已删),
-  //         本地也不再保留, 避免浏览器 localStorage 缓存把已清的测试数据顶回来.
-  //         不影响历史天(云端有), 也不影响"今天真点"(真点时云端也会有记录).
-  const _todayKey = todayStr();
-  if(!( _todayKey in cloud) && ( _todayKey in merged)){
-    delete merged[_todayKey];
-  }
+  // v18.48ae (8/27): 删 v19 (8096f9e4) 误加回的 v18.45/v18.47 清空逻辑
+  //   v18.45/v18.47 假设"云端无今天键 = 被远程清过", 实际 addDrop 早 return 路径里
+  //     saveDropClicks 没被调用 → 云端 drop_clicks 没今天键 → 但 localStorage 有今天 click
+  //     加载时清掉本地今天 click → dropClicks[today]=[] → getDropClicks(today)=[] → clickHtml=''
+  //     → 用户看到 detail panel 里 "今天·滴了 1 次" 但 "点击时间" 那栏整段消失 (count 有, 时间没了)
+  //   v18.48 已经撤回过这段清空, 但 v19 (8096f9e4) 合并的时候不知道, 又把清空代码加回去了
+  //   v18.48ae: 永久合并 (append-only), 真清测试数据走我手动 curl 清云端, 不该让 JS 自动清
   dropClicks = merged;
 
   // 4. 持久化 localStorage
