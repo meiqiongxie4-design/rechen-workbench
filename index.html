@@ -4382,13 +4382,13 @@ async function loadDropClicks(){
   if(sb){
     try{
       const {data, error} = await sb.from('app_settings').select('*').eq('key','drop_clicks').limit(1);
-      if(error){recordError('loadDropClicks', error.message);}
+      if(error){recordError('loadDropClicks', error.message, true);}   // v18.48ag: 已知有 localStorage 兜底 + 轮询, 不弹红条
       else if(data && data[0] && data[0].value){
         const v = data[0].value;
         const parsed = (typeof v === 'string') ? JSON.parse(v) : v;
         if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) cloud = parsed;
       }
-    }catch(e){recordError('loadDropClicks', e.message||String(e));}
+    }catch(e){recordError('loadDropClicks', e.message||String(e), true);}   // v18.48ag: 同上, 网络抖时只写日志不弹红条
   }
 
   // 3. v18.30 合并 localStorage + 云端 (按 ISO 去重) — 修"丢的点击时间"自动找回
@@ -4604,7 +4604,7 @@ loadReward().catch(()=>{});   // v19: 启动立即拉一次云端, 首页卡和�
 if(sb){
   setTimeout(()=>{
     if(!_RT_STATES.connectedAt){
-      recordError('realtime', 'WebSocket 实时通道 30s 内未连接成功 (通常是因为 supabase 的 realtime publication 没加这些表, 或网络区域限制)。已自动切换为每 1.5s 定时轮询同步兜底, 跨设备同步仍然有效 (延迟 ≤1.5s), 数据不丢。无需手动改任何配置。');
+      recordError('realtime', 'WebSocket 实时通道 30s 内未连接成功 (通常是因为 supabase 的 realtime publication 没加这些表, 或网络区域限制)。已自动切换为每 1.5s 定时轮询同步兜底, 跨设备同步仍然有效 (延迟 ≤1.5s), 数据不丢。无需手动改任何配置。', true);   // v18.48ag: 这条本就是"已知有兜底"的提示, 设计意图是只写日志不弹红条 — 之前漏传 silent=true 才弹红框, 让用户误以为坏了
     }
   }, 30000);
 }
