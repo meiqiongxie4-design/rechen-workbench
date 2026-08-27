@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48aj</title>
+<title>GrowTime · v18.48ak</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1094,8 +1094,14 @@
     .net-light .net-sync:disabled{opacity:.5;cursor:wait;}
     .net-light.warn .net-sync,.net-light.off .net-sync{display:inline-block;}
     .net-light.ok .net-sync{display:none;}
+    /* v18.48ak: 灯可最小化 — 默认挡事的话, 点 × 收成小圆点, 点圆点再展开. localStorage 持久化, 下次进来记得 */
+    .net-light .net-min{pointer-events:auto;cursor:pointer;border:none;background:transparent;color:#94a3b8;font-size:14px;font-weight:700;padding:0 0 0 4px;line-height:1;display:inline-block;font-family:inherit;transition:color .15s;}
+    .net-light .net-min:hover{color:#475569;}
+    .net-light.minimized{padding:4px;max-width:24px;box-shadow:0 2px 6px rgba(0,0,0,.18);}
+    .net-light.minimized .net-txt,.net-light.minimized .net-sync,.net-light.minimized .net-min{display:none !important;}
+    .net-light.minimized .net-dot{box-shadow:0 0 0 2px rgba(255,255,255,.9);}
   </style>
-  <div id="netLight" class="net-light warn"><span class="net-dot"></span><span class="net-txt">同步中…</span><button class="net-sync" type="button" onclick="forceSyncNow()" title="立刻重试同步 (探针只测连通, 检测不到 update 失败)">🔄 同步</button></div>
+  <div id="netLight" class="net-light warn" onclick="if(event.target===this && this.classList.contains('minimized'))toggleNetMin()"><span class="net-dot"></span><span class="net-txt">同步中…</span><button class="net-sync" type="button" onclick="forceSyncNow()" title="立刻重试同步 (探针只测连通, 检测不到 update 失败)">🔄 同步</button><button class="net-min" type="button" onclick="toggleNetMin()" title="最小化(收起成小点, 点击点再展开)">×</button></div>
 
   <div class="app">
     <aside class="sidebar" id="sidebar">
@@ -1451,7 +1457,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48aj';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48ak';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3797,6 +3803,14 @@ function evalNet(){
   el.className='net-light '+cls;
   el.querySelector('.net-txt').textContent=txt;
 }
+/* v18.48ak: 灯最小化 — 把灯收成只有圆点(24px), 默认不再挡事. 点击圆点再展开 */
+function toggleNetMin(){
+  const el=$('netLight'); if(!el) return;
+  const wasMin=el.classList.contains('minimized');
+  if(wasMin){ el.classList.remove('minimized'); }
+  else{ el.classList.add('minimized'); }
+  try{ localStorage.setItem('wbNetLightMin', wasMin?'0':'1'); }catch(_){}
+}
 async function probeNet(){
   if(!sb){ gwNet.lastFail=Date.now(); evalNet(); return; }
   try{
@@ -5415,6 +5429,8 @@ function _runInitLoads(){
   try{ loadTodos(); }catch(e){}
   try{ loadMemos(); }catch(e){}
   try{ loadFarm(); }catch(e){}
+  // v18.48ak: 启动恢复灯最小化状态 — 上次选了"收起"就记住, 不挡事
+  try{ if(localStorage.getItem('wbNetLightMin')==='1'){ const el=$('netLight'); if(el) el.classList.add('minimized'); } }catch(_){}
   try{ loadSettings(); }catch(e){}
   Promise.all([
     loadSettings().catch(()=>{}), loadPeriod().catch(()=>{}),
