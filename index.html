@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48af</title>
+<title>GrowTime · v18.48ah</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -3854,6 +3854,21 @@ async function forceSyncNow(){
 
 /* v18.48v: 护眼写锁 — addDrop 写云端期间置 true, 轮询的 loadDrops 跳过, 避免拉云端旧值覆盖乐观 count */
 let _dropWriting=false;
+/* v18.48ah: 护眼写入带 3 次重试 (400ms / 1s 间隔) — 瞬时网络抖立即恢复, 不需等 5s 探针/离线队列
+   重试成功跳过 addOfflineDrop (避免队列重复 +1). _dropWriting 包裹整个重试周期, 防轮询覆盖乐观 count. */
+async function _dropWriteWithRetry(doWrite){
+  let lastErr=null;
+  for(let i=0;i<3;i++){
+    _dropWriting=true;
+    let r;
+    try{ r=await doWrite(); }catch(e){ r={error:e}; _dropWriting=false; lastErr=e; if(i<2) await new Promise(res=>setTimeout(res, i===0?400:1000)); continue; }
+    _dropWriting=false;
+    if(!r.error) return r;
+    lastErr=r.error;
+    if(i<2) await new Promise(res=>setTimeout(res, i===0?400:1000));
+  }
+  return {error:lastErr};
+}
 async function addDrop(){
   playDropSound();   // v18.12: 滴一滴眼药水 → 清脆"滴"音效 (WebAudio 合成)
   dropSplash();      // v18.12: 滴一滴眼药水 → 蓝药水落入水池小动画
@@ -3876,11 +3891,9 @@ async function addDrop(){
     renderDrops(); // 立即刷新（水池+今天格子+详情都跟着变）
     // v17.26: 同步首页护眼数（不依赖 realtime 回环，立即反映）
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}
-    _dropWriting=true;
-    const {error}=await sb.from('drops').update({count:rec.count, max_count:10}).eq('id',rec.id);   /* v17.49: max_count 固定 10, 不跟 count 涨 */
-    _dropWriting=false;
-    // v18.48q: 云端失败不再回滚 (数据不丢) — 本地已 +1 显示, 进离线队列, 网好自动补传
-    if(error){
+    // v18.48ah: 改用 _dropWriteWithRetry — 3 次重试 (400ms/1s) 覆盖瞬时网络抖, 失败最后才走离线队列
+    const w=await _dropWriteWithRetry(()=>sb.from('drops').update({count:rec.count, max_count:10}).eq('id',rec.id));   /* v17.49: max_count 固定 10, 不跟 count 涨 */
+    if(w.error){
       addOfflineDrop(today);
       // v18.48ae: 失败路径也要调 saveDropClicks — click 时间不能只在本地, 跨设备要同步
       //   之前错误: 早 return → saveDropClicks 永远不执行 → click 时间只在本设备 localStorage
@@ -3894,18 +3907,16 @@ async function addDrop(){
     drops.unshift(rec);
     renderDrops(); // 立即刷新
     try{ if($('homeCards')) renderHomeCards(); }catch(e){}  // v17.26: 同步首页
-    _dropWriting=true;
-    const {data,error}=await sb.from('drops').insert({date:today,count:1,max_count:10}).select();
-    _dropWriting=false;
-    // v18.48q: 云端失败不回滚, 进队列 (数据不丢)
-    if(error){
+    // v18.48ah: 改用 _dropWriteWithRetry — 3 次重试 (400ms/1s) 覆盖瞬时网络抖, 失败最后才走离线队列
+    const w=await _dropWriteWithRetry(()=>sb.from('drops').insert({date:today,count:1,max_count:10}).select());
+    if(w.error){
       addOfflineDrop(today);
       // v18.48ae: 同上, 失败路径也调 saveDropClicks
       saveDropClicks().catch(e => recordError('saveDropClicks.fallback', (e&&e.message)||String(e)));
       if(!setupError) toast('🟡 已记到本地, 网络恢复自动同步');
       return;
     }
-    if(data&&data[0]) rec.id=data[0].id;
+    if(w.data&&w.data[0]) rec.id=w.data[0].id;
   }
   /* v17.92: 异步把点击时间戳持久化到 app_settings (fire-and-forget, 不阻塞 UI) */
   saveDropClicks().catch(e => recordError('saveDropClicks', (e&&e.message)||String(e)));
