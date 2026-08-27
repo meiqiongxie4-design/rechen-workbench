@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ai</title>
+<title>GrowTime · v18.48aj</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1451,7 +1451,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ai';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48aj';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3021,6 +3021,7 @@ async function loadTodos(){
   // 之前 expanded 只是内存对象属性, 轮询一次就丢 → 用户反馈"点开展 2秒就没了"
   const _exSet = loadExpandedSet();
   todos=(data||[]).map(t=>{ const c=Object.assign({},t); if(_exSet.has(String(t.id))) c.expanded=true; return c; });
+  try{ localStorage.setItem('wbCache_todos', JSON.stringify(todos)); }catch(_){}
   renderStats(); renderList();
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}   // v17.40: 同步首页待办卡(realtime 推送让其他端首页也秒变)
 }
@@ -3257,6 +3258,7 @@ async function loadMemos(){
   // v18.48ad: 把 localStorage 里的展开 id 集合回填到 memos[i]._expanded — 1.5s 轮询重建 DOM 后状态不丢
   const _exSet=loadMemoExpandedSet();
   memos=(data||[]).map(m=>({...m, _expanded:_exSet.has(String(m.id))}));
+  try{ localStorage.setItem('wbCache_memos', JSON.stringify(memos)); }catch(_){}
   renderMemos();
 }
 function renderMemos(){
@@ -3507,6 +3509,7 @@ async function loadDrops(){
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 护眼记需要新的数据表。请在 Supabase 的 <code>SQL 编辑器</code> 运行下方 SQL 后刷新。<br><br>create table if not exists public.drops (id uuid primary key default gen_random_uuid(), date text not null unique, count int not null default 0, max_count int not null default 10, created_at timestamptz default now());<br>alter table public.drops disable row level security;<br>grant insert, update, delete, select on table public.drops to anon;');} return; }
   safeHideBanner(); setupError=false;
   drops=data||[]; renderDrops();
+  try{ localStorage.setItem('wbCache_drops', JSON.stringify(drops)); }catch(_){}
   clearOldEyeMonths();   // v18.13: 跨月自动清掉上月及更早的护眼记录
   // v17.26: 同步刷新首页卡（首页护眼数 = 今天 drops count）
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
@@ -5380,9 +5383,55 @@ bindFarmEvents();
 /* 初始加载（任一失败不影响其它，先把 UI 框架渲染出来） */
 // 本地预览（sb 为 null）也要先把 stats/列表框架渲染出来，避免打开一片空白
 try{ renderStats(); renderList(); }catch(e){}
+// v18.48aj: sb 自愈 — 初始 sb 为 null (supabase.min.js 加载失败/慢/运营商拦截) 时,
+//   不再 init 直接 return 导致手机永远空白, 而是重试加载脚本 + createClient, 成功后拉数据.
+//   轮询(4610)本就在跑, sb 就绪后自动开始; realtime 不绑定也靠轮询兜底(≤1.5s 同步).
+function startSbSelfHeal(){
+  if(sb){ _runInitLoads(); return; }
+  let _tries=0;
+  const _heal=()=>{
+    _tries++;
+    if(sb){ _runInitLoads(); return; }
+    const _needScript=(typeof supabase==='undefined'||!supabase||!supabase.createClient);
+    if(_needScript){
+      try{
+        const s=document.createElement('script');
+        s.src='./supabase.min.js?_='+Date.now();
+        s.onload=()=>{ if(supabase&&supabase.createClient){ try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false}}); }catch(e){} } if(sb)_runInitLoads(); else if(_tries<30) setTimeout(_heal,3000); };
+        s.onerror=()=>{ if(_tries<30) setTimeout(_heal,3000); };
+        document.head.appendChild(s);
+        return;
+      }catch(e){}
+    }
+    if(supabase&&supabase.createClient){
+      try{ sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false}}); }catch(e){}
+      if(sb){ _runInitLoads(); return; }
+    }
+    if(_tries<30) setTimeout(_heal,3000);
+  };
+  _heal();
+}
+function _runInitLoads(){
+  try{ loadTodos(); }catch(e){}
+  try{ loadMemos(); }catch(e){}
+  try{ loadFarm(); }catch(e){}
+  try{ loadSettings(); }catch(e){}
+  Promise.all([
+    loadSettings().catch(()=>{}), loadPeriod().catch(()=>{}),
+    loadDrops().catch(()=>{}), loadWaterCups().catch(()=>{}),
+    loadSavings().catch(()=>{}), loadWaterSettings().catch(()=>{}),
+    loadReward().catch(()=>{})
+  ]);
+  try{ if(view==='home') renderHomeCards(); }catch(e){}
+}
 (async()=>{
-  if(!sb){ toast('ℹ️ 本地预览模式：数据不会保存，输入框/tab 切换仍可用'); return; }
+  if(!sb){ startSbSelfHeal(); return; }
   restoreDebugBar(); // v11: 有上次错误就常驻显示，不再一闪而过
+  // v18.48aj: init 先用本地缓存填充, 避免空白等待 (云端拉取慢/失败时不空白)
+  try{ const c=JSON.parse(localStorage.getItem('wbCache_todos')||'[]'); if(Array.isArray(c)&&c.length) todos=c; }catch(_){}
+  try{ const c=JSON.parse(localStorage.getItem('wbCache_memos')||'[]'); if(Array.isArray(c)&&c.length) memos=c; }catch(_){}
+  try{ const c=JSON.parse(localStorage.getItem('wbCache_drops')||'[]'); if(Array.isArray(c)&&c.length) drops=c; }catch(_){}
+  try{ if(view==='home') renderHomeCards(); }catch(e){}
   try{await loadTodos();}catch(e){showFatal('loadTodos: '+(e.message||e));}
   try{await loadMemos();}catch(e){showFatal('loadMemos: '+(e.message||e));}
   try{await loadFarm();}catch(e){showFatal('loadFarm: '+(e.message||e));}
