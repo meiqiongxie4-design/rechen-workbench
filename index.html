@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48al</title>
+<title>GrowTime · v18.48am</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1457,7 +1457,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48al';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48am';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3523,34 +3523,17 @@ async function loadDrops(){
   /* v17.92: 加载每次点击时间 (app_settings key='drop_clicks'), 详情面板才能展示 */
   loadDropClicks().catch(e => recordError('loadDropClicks.async', (e&&e.message)||String(e)));
 }
-// v18.13: 护眼记录按月保留 — 跨月自动清除上月及更早 (到 9.1 清掉 8 月); localStorage 标记本月已清, 避免每次 load 重复删
+// v18.48am: 删"跨月自动清"的所有破坏性动作 — 之前 v18.13 加的 sb.from('drops').delete() 在 9.1 把用户 8 月整月数据清零 (drops 表空, 只剩 drop_clicks 是因为清理 catch 吞错). 移除: (1) 云端 drops DELETE, (2) drop_clicks 老月份键清理, (3) 本地 drops 过滤. 保留: busy 锁 + eye_cleared_month 标记 (防止后续轮询反复进入此函数). 用户原话: "要把前面的记录补回来, 不要再出现这种丢失的情况了".
 async function clearOldEyeMonths(){
   if(window._eyeClearBusy) return;
-  try{
-    const now=new Date();
-    const y=now.getFullYear(), mo=now.getMonth();
-    const curMonth=y+'-'+String(mo+1).padStart(2,'0');
-    const last=localStorage.getItem('eye_cleared_month');
-    if(last===curMonth) return;          // 本月已经清过, 跳过
-    window._eyeClearBusy=true;
-    const firstStr=y+'-'+String(mo+1).padStart(2,'0')+'-01';   // 本月1号; 删 date < 此值 = 上月及更早
-    const {error}=await sb.from('drops').delete().lt('date',firstStr);
-    window._eyeClearBusy=false;
-    if(error) return;
-    localStorage.setItem('eye_cleared_month',curMonth);
-    // 顺手清掉 drop_clicks 里的旧月键 (详情面板不再引用)
-    try{
-      const {data:dc}=await sb.from('app_settings').select('value').eq('key','drop_clicks').single();
-      if(dc && dc.value){
-        const obj=dc.value; let changed=false;
-        Object.keys(obj).forEach(k=>{ if(k<firstStr){ delete obj[k]; changed=true; } });
-        if(changed) await sb.from('app_settings').update({value:obj}).eq('key','drop_clicks');
-      }
-    }catch(e){}
-    // 本地立即反映 (无需再发一次请求)
-    drops=drops.filter(d=>d.date>=firstStr);
-    renderDrops();
-  }catch(e){ if(window) window._eyeClearBusy=false; }
+  const now=new Date();
+  const y=now.getFullYear(), mo=now.getMonth();
+  const curMonth=y+'-'+String(mo+1).padStart(2,'0');
+  const last=localStorage.getItem('eye_cleared_month');
+  if(last===curMonth) return;
+  window._eyeClearBusy=true;
+  localStorage.setItem('eye_cleared_month',curMonth);
+  window._eyeClearBusy=false;
 }
 function comfortState(count){
   // v17.3: 颜色统一 workbuddy 绿系（蓝/橙/红分别对应舒适/疲劳/危险）
@@ -3561,7 +3544,7 @@ function comfortState(count){
   /* v17.90: 超 10 次 — 表情改 💔 (破碎的心), 视觉"破碎感"更直接 */
   return {cls:'bad', face:'💔', text:'需要休息', color:'linear-gradient(180deg,#f87171 0%,#dc2626 100%)', tip:'已超过医生建议 10 次/天上限。'};
 }
-// v18.14: 已移除按月折叠偏好 (护眼历史改为直接平铺当前月, 由 clearOldEyeMonths 次月自动清零)
+// v18.48am: 旧 v18.14 注释"由 clearOldEyeMonths 次月自动清零"已不成立 (清零函数已禁), 现在直接平铺 drops 里所有日期
 function renderDrops(){
   const today=todayStr();
   let rec=drops.find(d=>d.date===today);
@@ -3593,14 +3576,15 @@ function renderDrops(){
   const statusEl=$('dropStatus');
   statusEl.className='status '+st.cls;
   statusEl.innerHTML=(overLimit?'⚠️ ':'')+st.face+' '+st.text+(overLimit?' · 已超医生建议 10 次':'');
-  // v18.14: 历史只展示当前月, 平铺 7 列网格 (不再按月分组/折叠; 次月记录由 clearOldEyeMonths 自动清零)
+  // v18.48am: v18.14 旧版 "只显示当月" (依赖 v18.13 clearOldEyeMonths 跨月自动清, 才有"无跨月数据"成立). 现清空函数已不再 DELETE → 改显示全部 drops; 跨月日期 label 改为完整 YYYY-MM-DD 区分. 用户原话: "要把我前面的记录补回来".
   const curMonth=today.slice(0,7);
-  let history=drops.filter(d=>d.date.slice(0,7)===curMonth);
+  let history=drops.slice();
   if(!history.find(d=>d.date===today)) history.unshift(rec);
   history.sort((a,b)=>b.date.localeCompare(a.date));
   const items=history.map(d=>{
     const isToday=d.date===today;
-    const label=isToday?'今天':d.date.slice(5);
+    const isThisMonth=d.date.slice(0,7)===curMonth;
+    const label=isToday?'今天':(isThisMonth?d.date.slice(5):d.date);
     const cnt=isToday?rec.count:(d.count||0);
     const dmax=10;
     const s=comfortState(cnt);
