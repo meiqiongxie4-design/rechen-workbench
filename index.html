@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48am</title>
+<title>GrowTime · v18.48an</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -216,6 +216,17 @@
 <!-- 版本：rechen-v2026-08-16-v18.36-paste-on-create (1) 修复顶部快速输入框 (#memoQuick 备忘 / #qTitle 待办) 不能贴图的 bug — 之前 paste 监听只绑在已建好的卡片 textarea 上, 现在顶部也支持粘贴图片 (压缩到 900px JPEG 后临时存 pendingMemoImages/pendingTodoImages 数组, 渲染成缩略图, 点 × 可删除, 点图片本身全屏预览); (2) 点「添加」按钮时把 pendingImages 随 text 一起 insert 到 supabase (新增 images 字段); (3) 已建好的卡片里图片默认 60×60 缩略图, 点击触发 overlay 全屏放大 (用户说「我自己点放大就好」, 这块已满足); (4) 待办卡片 (#list) 也加上 images 渲染 + 点击放大 (跟备忘同款) -->
 
 <!-- 版本：rechen-v2026-08-15-v17.99 (1) 通用 .hc-left gap 8→14 跟 v17.97 时间卡行距统一; 删掉 .home-left>.hc:first-child .hc-left 冗余覆盖 (现通用已是 14); (2) 喝水/护眼卡「今日已喝 0 杯」+「0 ml · 已完成 0%」两行行距跟时间卡三行一致; (3) 高度 v17.98 (132/186 桌面 120min 手机) 不变, 部署后请硬刷一次解决 CDN 缓存未显示 v17.98 的问题 --><!-- 版本：rechen-v2026-08-15-v18.35-transparent-rounded (1) v18.34 解决了"大小+圆角"但 v18.34 把四角 alpha=0 填了品牌绿 → 跟用户截图 WorkBuddy 的圆角视觉一样但 Win11 桌面渲染 .lnk 时不读 .png，只读 .ico / embedded .lnk icon 数据 → v18.34 .ico 也填了品牌绿 (opaque square) → Win11 看到 100% 不透明方角 = 视觉方块. (2) v18.35 真因: Win11 .lnk 圆角渲染**必须**有 alpha=0 透明角 (桌面壁纸从透明透出来 = 圆角视觉). 但 Chrome PWA 安全区会缩透明图 = 又回到"图标小". (3) v18.35 正确解法: any 图标 (pwa-icon-180/192/360/512 + apple-touch-180 + favicon.ico) = 17.6% 圆角 + 四角 alpha=0 透明 (匹配 WorkBuddy ICO 测量值 45/256 ≈ 17.578% = 一致). (4) maskable 图标 = 满版 80% cat + 外圈 20% 品牌绿 (不圆角, 不透明) → Chrome 看到 maskable 不再 safe-zone 缩图. (5) manifest id 改 /?v=18.35 强制 Chrome 视为新 PWA 清缓存. (6) 部署后请按"完全卸载 + chrome://apps 移除 + 硬刷 + 重新安装为应用"操作 --><!-- 版本：rechen-v2026-08-15-v18.34-rounded (1) v18.33 解决了"大小一致"但图标四角方角 vs WorkBuddy 圆角: v18.33 PNG 是 100% 满版方角, Windows 11 不给 PWA 自动加圆角 mask (只给 UWP/Electron 原生应用加); (2) v18.34 用 PIL rounded_rectangle mask 加 22% 圆角 (Apple/Win11 应用图标标准), 圆角外填品牌绿保持不透明满版 → Chrome 不加 safe-zone padding, 图标本身就是圆角 → 跟 WorkBuddy 圆角视觉一致; (3) maskable 也加 22% 圆角 (圆角 rect 内 80% 缩放 cat + 外圈 20% 品牌绿); (4) favicon.ico 重生成 7 档; (5) manifest id 改 /?v=18.34 强制 Chrome 识别为新应用清缓存 --><!-- 版本：rechen-v2026-08-15-v18.33-maskable (1) PWA 图标四 alpha=0 透明角造成桌面图标比 WorkBuddy 小一圈: v18.32 之前是「图标主体居中、外圈透明」的浮动版本, Chrome PWA 安装时把透明区识别为 safe-zone padding → 视觉缩小; (2) v18.33 用 Pillow 把 alpha=0 的 4 角填品牌绿 + 新增 maskable 192/512 档（中心 80% = 猫头, 外圈 20% = 品牌绿 → Chrome 拿到 maskable 不再叠 safe-zone padding, 桌面图标满版 100% = WorkBuddy 等大）; (3) manifest.json 加 id:'/?v=18.33' 字段强制 Chrome 识别为新应用, 清掉旧 PWA icon 缓存; (4) refreshManifest() Blob 注入同步加 maskable 条目; (5) 部署后请清 Chrome 缓存后重新安装 PWA --><!-- 版本：rechen-v2026-08-15-v17.99b (1) 修手机端 .hc-left 漏改: @media(max-width:640px) 里有 .hc-left{gap:5px} 覆盖桌面 14, 导致手机上行距仍为 5px 偏紧; (2) 改为 gap:14px 跟桌面统一 --><!-- 版本：rechen-v2026-08-15-v17.99c (1) 今日待办标题 .todo-summary-hd .lb 改跟 .water-list-title 同款绿色加粗 (#16a34a + 700 + 13px); (2) 删「· 还剩 N 条」文案, 标题只留「📝 今日待办」 --><!-- 版本：rechen-v2026-08-15-v18.20-white-rounded-icon (1) PWA 图标透明 4 角造成桌面图标比 WorkBuddy 小一圈: 本版用 Pillow 把 alpha=0 的 4 角填白 + 22.5% 圆角, 重新导出 apple-touch-icon/favicon-192/favicon-512/.ico, manifest 改 purpose:'any' (去掉 maskable 二次裁剪), theme/background 改 #ffffff 与图标白底一致 → 跟原生 WorkBuddy 等大; (2) 共享报错 Script error (:) 修复: v18.19 banner 加「复制」按钮, 用户可一键复制错误内容发我 -->
+<!-- 版本：rechen-v2026-09-10-v18.48an (修「备忘里选中一秒就没了, 复制不了」)
+  根因: 每 1.5s 的同步轮询会跑 loadMemos → renderMemos, 而 renderMemos 用 box.innerHTML = memos.map(...) 整块重建
+        备忘卡片 DOM → 用户刚划好的选区跟着旧 textarea 节点一起被丢掉。
+        更糟的是重建后那行"恢复光标"的代码写的是 setSelectionRange(activeStart, activeStart)
+        —— 起点终点传同一个值, 等于把选中范围塌缩成 0 长度的光标, 所以选中必然消失。
+  修法 (只动备忘这一个模块, 其它模块一行没碰):
+    1. renderMemos 多记一个 activeEnd(选区终点), 重建后按 起点+终点+方向 还原完整选区 → 高亮还在, Ctrl+C 能复制;
+    2. loadMemos 开头加 _memoTextSelecting() 门卫: 用户正在备忘 textarea 里划着选区(selectionEnd > selectionStart)时,
+       本轮同步整体跳过(不拉不渲染), 从根上避免"划到一半被重建打断"; 选区消失后下一轮自动恢复同步。
+  不动: 备忘的数据/增删改/贴图/展开收起/跨设备同步逻辑, 以及其它所有模块。
+-->
 <!-- v18.38: 强制 PWA / 浏览器不缓存 HTML — 防止手机 PWA 安装版本用了 v18.37 之前的旧 JS, 导致 fallback 路径写出去后渲染时 todoNoteSplit 没生效 (raw __TODO_PASTE_V1__ JSON 泄露给用户) -->
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
@@ -1457,7 +1468,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48am';  // 部署版本号 — 供自动更新检测 (与 version.json 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48an';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3256,7 +3267,17 @@ function refreshMemoHeight(ta){
     btn.textContent=(!userExpanded && !focused)?'展开 ↓':'收起 ↑';
   }
 }
+// v18.48an: 用户在备忘卡片里划好了选区(准备复制)时, 本轮同步整体跳过 —
+// 每 1.5s 的轮询会 loadMemos → renderMemos → box.innerHTML = ... 把备忘卡片的所有 textarea 重建一遍,
+// 用户刚划好的选区随旧节点一起被丢掉 → 表现就是"选中一秒就没了, 复制不了"。
+// 选区自然消失(点别处 / 取消选中)后, 下一轮轮询立刻恢复同步, 不影响跨设备同步。
+function _memoTextSelecting(){
+  const el=document.activeElement;
+  if(!el||el.tagName!=='TEXTAREA'||!el.classList||!el.classList.contains('memo')) return false;
+  try{ return typeof el.selectionStart==='number' && typeof el.selectionEnd==='number' && el.selectionEnd>el.selectionStart; }catch(_){ return false; }
+}
 async function loadMemos(){
+  if(_memoTextSelecting()) return;
   if(!sb){ try{ const c=JSON.parse(localStorage.getItem('wbCache_memos')||'[]'); if(Array.isArray(c)&&c.length) memos=c; }catch(_){} safeHideBanner(); renderMemos(); return; }
   const {data,error}=await sb.from('memos').select('*').order('created_at',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} renderMemos(); return; }
@@ -3273,6 +3294,7 @@ function renderMemos(){
   const activeId=active&&active.dataset&&active.dataset.id?active.dataset.id:null;
   const activeVal=activeId?active.value:null;
   const activeStart=active&&active.selectionStart;
+  const activeEnd=active&&active.selectionEnd;   // v18.48an: 选区终点 — 只记 start 会把选区还原成 0 长度光标
   // v18.48ab-2: 1.5s 轮询 → loadMemos → renderMemos 会重建所有 memo card DOM, 窗口 scroll 位置丢失
   // → 用户感受"滚到中间, 2 秒又回到第一个"。这里保存窗口 scrollY, render 完成后 rAF 内还原
   const _scrollY=window.scrollY;
@@ -3292,7 +3314,15 @@ function renderMemos(){
   }).join('');
   if(activeId){
     const ta=box.querySelector(`.memo[data-id="${activeId}"]`);
-    if(ta){ ta.value=activeVal; ta.focus(); try{ta.setSelectionRange(activeStart,activeStart);}catch(e){} }
+    // v18.48an: 原来写的是 setSelectionRange(activeStart,activeStart) — 首尾传同一个值,
+    // 等于把用户选中的这段文本塌缩成一个光标 → 高亮消失, Ctrl+C 复制不到东西。
+    // 改为按真实起点+终点+方向还原, 重建 DOM 后选区照样保留。
+    if(ta){
+      ta.value=activeVal; ta.focus();
+      const _selStart=(typeof activeStart==='number')?activeStart:0;
+      const _selEnd=(typeof activeEnd==='number')?activeEnd:_selStart;
+      try{ ta.setSelectionRange(_selStart,_selEnd,(active&&active.selectionDirection)||'none'); }catch(e){}
+    }
   }
   // 高度计算必须在 memo 视图可见时进行：视图隐藏时 textarea 的 scrollHeight 不可靠，
   // 若在后台（realtime 推送）渲染会算出错的折叠高度，切到可见时残留 → 出现「先折叠几秒再展开」。
