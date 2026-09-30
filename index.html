@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48an</title>
+<title>GrowTime · v18.48ao</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1468,7 +1468,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48an';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48ao';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
@@ -3276,8 +3276,19 @@ function _memoTextSelecting(){
   if(!el||el.tagName!=='TEXTAREA'||!el.classList||!el.classList.contains('memo')) return false;
   try{ return typeof el.selectionStart==='number' && typeof el.selectionEnd==='number' && el.selectionEnd>el.selectionStart; }catch(_){ return false; }
 }
+let _memosSig=null;   // v18.49: 备忘"轻量签名" — 周期轮询只拉 id/created_at/text 算签名, 没变就不下载图片, 避免每轮重复拉 base64 图片(流量超额主因)
 async function loadMemos(){
   if(_memoTextSelecting()) return;
+  // v18.49: 轻量模式(lite) — 仅周期轮询(loadMemos(true))走此分支; 首拉/实时/手动仍是完整加载
+  if(arguments[0]===true && sb){
+    try{
+      const {data,error}=await sb.from('memos').select('id,created_at,text').order('created_at',{ascending:false});
+      if(error) return; // 轻量轮询出错不打横幅(避免误报"请运行建表语句"), 交给首拉/实时处理
+      const sig=data.map(m=>String(m.id)+'~'+String(m.created_at)+'~'+String((m.text||'').length)).join('|');
+      if(sig===_memosSig) return;   // 备忘没变 → 不下载图片、不重建 DOM
+      _memosSig=sig;                // 有变化 → 继续走下面的完整加载
+    }catch(_){ return; }
+  }
   if(!sb){ try{ const c=JSON.parse(localStorage.getItem('wbCache_memos')||'[]'); if(Array.isArray(c)&&c.length) memos=c; }catch(_){} safeHideBanner(); renderMemos(); return; }
   const {data,error}=await sb.from('memos').select('*').order('created_at',{ascending:false});
   if(error){ if(!setupError){setupError=true;showBanner('⚠️ 还没连上云端数据表。请按说明在 Supabase 的 <code>SQL 编辑器</code> 运行建表语句后再刷新。');} renderMemos(); return; }
@@ -3285,6 +3296,7 @@ async function loadMemos(){
   // v18.48ad: 把 localStorage 里的展开 id 集合回填到 memos[i]._expanded — 1.5s 轮询重建 DOM 后状态不丢
   const _exSet=loadMemoExpandedSet();
   memos=(data||[]).map(m=>({...m, _expanded:_exSet.has(String(m.id))}));
+  _memosSig=(data||[]).map(m=>String(m.id)+'~'+String(m.created_at)+'~'+String((m.text||'').length)).join('|');  // v18.49: 完整加载后同步签名, 让后续轻量轮询能正确判断是否变化
   try{ localStorage.setItem('wbCache_memos', JSON.stringify(memos)); }catch(_){}
   renderMemos();
 }
@@ -3421,7 +3433,7 @@ async function attachQuickPaste(ta,list,boxId){
     list.push({name:file.name||(tmpId+'.jpg'),data:''});
     renderQuickThumbs(boxId,list);
     const idx=list.length-1;
-    compressImage(file,900,0.7).then(dataUrl=>{
+    compressImage(file,800,0.65).then(dataUrl=>{
       if(list[idx]){ list[idx].data=dataUrl; renderQuickThumbs(boxId,list); }
     }).catch(err=>{
       if(list[idx]) list.splice(idx,1);
@@ -3528,7 +3540,7 @@ $('memoList').addEventListener('paste',async e=>{
   if(!item) return;
   e.preventDefault();
   const file=item.getAsFile(); if(!file) return;
-  const dataUrl=await compressImage(file,900,0.7);
+  const dataUrl=await compressImage(file,800,0.65);
   const id=ta.dataset.id, m=memos.find(x=>x.id===id); if(!m) return;
   m.images=[...(m.images||[]),{name:file.name,data:dataUrl}];
   const {error}=await sb.from('memos').update({images:m.images}).eq('id',id); if(error) showModErr('viewMemo','备忘录图片保存失败（'+error.message+'）');
@@ -4646,11 +4658,11 @@ function _syncBlocked(){ return !!document.querySelector('.modal-mask:not([hidde
     if(!sb) return;
     if(_syncBlocked()) return;   // 编辑 modal 打开时暂停, 防覆盖
     Promise.allSettled([
-      loadTodos(), loadMemos(), loadFarm(),
+      loadTodos(), loadMemos(true), loadFarm(),
       (_dropWriting ? Promise.resolve() : loadDrops()), loadDropClicks(), loadPeriod(),
       loadWaterCups(), loadWaterSettings(), loadSavings(), loadReward(), loadSettings()
     ]).then(()=>{ _lastSyncOk=Date.now(); }).catch(()=>{});
-  }, 1500);
+  }, 30000);  // v18.49: 同步间隔 1.5s → 30s, 配合备忘轻量检测, 出网流量降到原来的 ~1/20 (解决流量超额被封)
 })();
 loadReward().catch(()=>{});   // v19: 启动立即拉一次云端, 首页卡和奖励页更快显示最新数据
 // v18.48v: realtime 连接诊断 — 如果 30s 内没收到 SUBSCRIBED, 在 debugBar 提示用户 (不阻塞, 轮询继续兜底)
