@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48aq</title>
+<title>GrowTime · v18.48ar</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1059,9 +1059,10 @@
   .r-modal-btn.ok.danger{background:var(--red);}
   .r-modal-btn.ok.danger:active{background:#b91c1c;}
 
-  /* ===== v18.48aq: 充值预扣计算器 (独立模块, 样式全部 .calc- 前缀, 不改动任何已有类) ===== */
-  .calc-wrap{ width:100%; max-width:520px; margin:0 auto; padding:2px 0 22px; }
-  .calc-head{ margin:0 3px 14px; text-align:center; }   /* v18.48aq: 标题居中, 副标题按用户要求删除 */
+  /* ===== v18.48ar: 充值预扣计算器 (独立模块, 样式全部 .calc- 前缀, 不改动任何已有类) ===== */
+  /* v18.48ar: 去掉 520px 限宽 — 跟首页/喝水/存钱等模块一样铺满主区, 手机和电脑都不再是"中间一小块" */
+  .calc-wrap{ width:100%; max-width:none; margin:0; padding:2px 0 22px; }
+  .calc-head{ margin:0 3px 14px; text-align:center; }   /* v18.48ar: 标题居中, 副标题按用户要求删除 */
   .calc-head h2{ margin:0; font-size:18px; font-weight:700; color:var(--text); letter-spacing:.2px; }
   .calc-card{
     background:#fff; border-radius:16px; padding:16px 15px 18px;
@@ -1070,6 +1071,17 @@
   }
   .calc-card + .calc-card{ margin-top:12px; }
   .calc-lbl{ display:block; font-size:13px; font-weight:600; color:#3c4a63; margin:0 0 9px; letter-spacing:.2px; }
+  /* v18.48ar: 金额标签 + 一键清除按钮同一行, 按钮靠右 */
+  .calc-lbl-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 9px; }
+  .calc-lbl-row .calc-lbl{ margin:0; }
+  .calc-clear{
+    font-family:inherit; font-size:12px; font-weight:600; line-height:1; color:#6b7a90;
+    background:#f7faf8; border:1px solid #e2ede6; border-radius:8px; padding:6px 11px;
+    cursor:pointer; transition:background .15s, color .15s, border-color .15s;
+    -webkit-tap-highlight-color:transparent; white-space:nowrap;
+  }
+  .calc-clear:hover{ background:#f0fdf4; color:#15803d; border-color:#c9e9d5; }
+  .calc-clear:active{ transform:scale(.97); }
 
   .calc-field{
     display:flex; align-items:center; justify-content:center; background:#f7faf8; border:1.5px solid #e2ede6;
@@ -1079,7 +1091,7 @@
   .calc-field:focus-within{ background:#fff; border-color:var(--accent); box-shadow:0 0 0 4px rgba(34,197,94,.12); }
   .calc-field .calc-cur{ font-size:20px; font-weight:600; color:#9aa7bd; margin-right:6px; line-height:1; transition:color .18s; }
   .calc-field:focus-within .calc-cur{ color:var(--accent); }
-  /* v18.48aq: 有值时 $ 和数字作为一组居中 (JS 按字数设宽度); 空值时只显示居中的 placeholder */
+  /* v18.48ar: 有值时 $ 和数字作为一组居中 (JS 按字数设宽度); 空值时只显示居中的 placeholder */
   .calc-field.calc-empty .calc-cur{ display:none; }
   .calc-field input{
     flex:0 0 auto; width:100%; max-width:100%; min-width:0; border:0; outline:0; background:transparent;
@@ -1169,6 +1181,28 @@
     .calc-field{ height:52px; }
     .calc-field input{ font-size:20px; }
   }
+  /* v18.48ar: 电脑端(≥900px) 卡片仍是整宽, 但内部排成「金额 | 费率 | 计算」一行,
+     结果区「大数字 | 税费/到账」两栏 — 避免宽屏下出现一条 1000px 长的巨型按钮 */
+  @media (min-width:900px){
+    #viewCalc .calc-card:not(.calc-res){
+      display:grid; grid-template-columns:minmax(0,1fr) auto auto;
+      grid-template-areas:"lbl lbl lbl" "field rate btn" "err err err";
+      gap:9px 16px; align-items:center; padding:18px 20px 20px;
+    }
+    #viewCalc .calc-lbl-row{ grid-area:lbl; margin:0; }
+    #viewCalc .calc-field{ grid-area:field; }
+    #viewCalc .calc-rate-row{ grid-area:rate; margin:0; gap:10px; }
+    #viewCalc .calc-btn{ grid-area:btn; margin:0; width:190px; height:56px; }
+    #viewCalc .calc-err{ grid-area:err; margin:0; }
+
+    #viewCalc .calc-res.show{
+      display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);
+      gap:14px 26px; align-items:center; padding:18px 20px 18px;
+    }
+    #viewCalc .calc-res-main{ grid-column:1; }
+    #viewCalc .calc-rows{ grid-column:2; margin:0; }
+    #viewCalc .calc-formula{ grid-column:1 / -1; margin:0; }
+  }
   @media (prefers-reduced-motion:reduce){
     .calc-res.show{ animation:none; }
   }
@@ -1240,7 +1274,7 @@
       <button class="sb-item" data-view="saving" data-label-key="saving" title="存钱"><span class="ic">💰</span><span class="lb">存钱</span></button>
       <button class="sb-item" data-view="water" data-label-key="water" title="喝水"><span class="ic">💧</span><span class="lb">喝水</span></button>
       <button class="sb-item" data-view="reward" data-label-key="reward" title="奖励"><span class="ic">🌟</span><span class="lb">奖励</span></button>
-      <!-- v18.48aq: 充值预扣计算器 (纯本地计算, 不写云端, 不产生任何流量) -->
+      <!-- v18.48ar: 充值预扣计算器 (纯本地计算, 不写云端, 不产生任何流量) -->
       <button class="sb-item" data-view="calc" data-label-key="calc" title="预扣"><span class="ic">🧮</span><span class="lb">预扣</span></button>
       <div class="sb-spacer"></div>
       <div class="sidebar-foot"><button class="sb-item" id="settingsBtnSb" title="设置"><span class="ic">⚙️</span><span class="lb">设置</span></button></div>
@@ -1516,7 +1550,7 @@
     <div class="reward-wrap" id="rewardRoot"></div>
   </div>
 
-  <!-- v18.48aq: 充值预扣计算器 — 纯前端计算, 不读不写云端 (零流量), 手机端同样可用 -->
+  <!-- v18.48ar: 充值预扣计算器 — 纯前端计算, 不读不写云端 (零流量), 手机端同样可用 -->
   <div id="viewCalc" hidden>
     <div class="calc-wrap">
       <div class="calc-head">
@@ -1524,7 +1558,10 @@
       </div>
 
       <div class="calc-card">
-        <label class="calc-lbl" for="calcTarget">目标充值金额</label>
+        <div class="calc-lbl-row">
+          <label class="calc-lbl" for="calcTarget">目标充值金额</label>
+          <button class="calc-clear" id="calcClear" type="button">一键清除</button>
+        </div>
         <div class="calc-field calc-empty" id="calcField">
           <span class="calc-cur">$</span>
           <input id="calcTarget" type="text" inputmode="decimal" autocomplete="off" size="1" placeholder="请输入目标充值金额">
@@ -1563,7 +1600,7 @@
         <div class="calc-formula" id="calcFormula"></div>
       </div>
 
-      <p class="calc-tip">预扣金额向上取整到分，确保实际到账不低于目标金额</p>
+      <p class="calc-tip">预扣金额按分校正，实际到账正好等于目标金额</p>
     </div>
   </div>
 
@@ -1636,7 +1673,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48aq';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48ar';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励', calc:'🧮 预扣'};
@@ -6323,8 +6360,8 @@ document.addEventListener('reward:changed',()=>{
   try{ if(typeof view!=='undefined'&&view==='reward' && !rewardEditorOpen()) renderReward(); }catch(e){}
 });
 
-/* v18.48aq: 充值预扣计算器 — 纯本地计算, 不读不写云端(零流量); 费率可自行填写, 默认 4%.
-   公式: 预扣 = 目标 ÷ (1 − 费率), 向上取整到分, 保证实际到账 ≥ 目标 */
+/* v18.48ar: 充值预扣计算器 — 纯本地计算, 不读不写云端(零流量); 费率可自行填写, 默认 4%.
+   公式: 预扣 = 目标 ÷ (1 − 费率), 再按"分"校正到「实际到账正好等于目标金额」(v18.48ar) */
 (function initCalcModule(){
   var $t=$('calcTarget'), $r=$('calcRate'), $btn=$('calcBtn'),
       $err=$('calcErr'), $res=$('calcRes'), $copy=$('calcCopy');
@@ -6332,7 +6369,7 @@ document.addEventListener('reward:changed',()=>{
 
   var lastPre='';
 
-  // v18.48aq: 输入框里「$ + 数字」作为一组水平居中 — 按文字实际宽度给 input 设宽度,
+  // v18.48ar: 输入框里「$ + 数字」作为一组水平居中 — 按文字实际宽度给 input 设宽度,
   // 空值时铺满整行只显示居中的 placeholder, 并隐藏 $ (避免 $ 孤零零贴左边)。
   // 用 canvas 量文字宽度(px)而不是 ch 单位: ch 在 input 上某些情况算出来不准, 会把框撑得过大。
   var $field=$('calcField'), _cc=document.createElement('canvas').getContext('2d');
@@ -6354,10 +6391,27 @@ document.addEventListener('reward:changed',()=>{
   try{ var _r0=localStorage.getItem('wbCalcRate'); if(_r0!==null && _r0!=='') $r.value=_r0; }catch(e){}
 
   function cFmt(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-  function cCeil2(n){ return Math.ceil(n*100-1e-9)/100; }
   function cErr(m){
     if(m){ $err.textContent=m; $err.classList.add('show'); }
     else { $err.textContent=''; $err.classList.remove('show'); }
+  }
+
+  /* v18.48ar: 修正「到账多 1 分」的根因。
+     旧算法: 预扣 = 目标 ÷ (1−费率) 向上取整到分 → 税费 = 四舍五入(预扣×费率) → 到账 = 预扣 − 税费。
+     例 50 / 4%: 52.09 − 2.08 = 50.01 (目标 50 却到账 50.01), 800 / 4% 也是 800.01。
+     新算法: 以「分」为单位在理论值附近逐个试, 找让「预扣 − 四舍五入(预扣×费率)」正好等于目标金额的最小预扣值;
+     这样 50 → 52.08 − 2.08 = 50.00, 800 → 833.33 − 33.33 = 800.00, 一分不差。 */
+  function cSolve(targetCents, rt){
+    var start=Math.max(1, Math.floor(targetCents/(1-rt))-3);   // 从理论值往下 3 分开始试, 留出四舍五入的摆动空间
+    var fallback=0;
+    for(var i=0;i<4000;i++){
+      var p=start+i;                 // 预扣金额(分)
+      var tax=Math.round(p*rt);      // 税费(分), 与平台一致的四舍五入
+      if(p-tax===targetCents) return {pre:p, tax:tax};
+      if(!fallback && p-tax>=targetCents) fallback=p;   // 兜底: 找不到精确值时, 取第一个不少于目标的
+    }
+    var pp=fallback || Math.max(1,Math.ceil(targetCents/(1-rt)));
+    return {pre:pp, tax:Math.round(pp*rt)};
   }
 
   function cCalc(){
@@ -6370,17 +6424,17 @@ document.addEventListener('reward:changed',()=>{
     if(isNaN(rateNum)||rateNum<0||rateNum>=100){ cErr('服务费率需在 0 ~ 99 之间'); $res.classList.remove('show'); $r.focus(); return; }
     cErr('');
 
+    target=Math.round(target*100)/100;                    // 目标金额先精确到分
     var rt=rateNum/100;
-    var pre=cCeil2(target/(1-rt));                       // 预扣金额（向上取整到分）
-    var tax=Math.round(pre*rt*100)/100;                  // 税费
-    var arrive=Math.round((pre-tax)*100)/100;            // 实际到账（用于验证）
+    var sol=cSolve(Math.round(target*100), rt);           // v18.48ar: 逐个试"分", 保证到账正好等于目标
+    var pre=sol.pre/100, tax=sol.tax/100, arrive=(sol.pre-sol.tax)/100;
 
     $('calcOutPre').textContent=cFmt(pre);
     $('calcOutTax').textContent='$'+cFmt(tax);
     $('calcOutArrive').textContent='$'+cFmt(arrive);
     $('calcOutRateTag').textContent=(Math.round(rateNum*1000)/1000)+'%';
     $('calcFormula').innerHTML=
-      '<div class="calc-fline"><span class="calc-fk">计算</span>'+cFmt(target)+' ÷ (1 − '+rateNum+'%) = <b>'+cFmt(pre)+'</b></div>'
+      '<div class="calc-fline"><span class="calc-fk">计算</span>'+cFmt(target)+' ÷ (1 − '+rateNum+'%) ≈ <b>'+cFmt(pre)+'</b></div>'
       +'<div class="calc-fline"><span class="calc-fk">校验</span>'+cFmt(pre)+' − '+cFmt(tax)+' = '+cFmt(arrive)+'</div>';
 
     lastPre=cFmt(pre).replace(/,/g,'');
@@ -6396,6 +6450,14 @@ document.addEventListener('reward:changed',()=>{
   $r.addEventListener('keydown', function(e){ if(e.key==='Enter'){ cCalc(); $r.blur(); } });
   $t.addEventListener('input', function(){ cErr(''); cSyncField(); });
   $r.addEventListener('input', function(){ cErr(''); });
+
+  // v18.48ar: 一键清除 — 清空金额、隐藏结果和报错, 光标回输入框; 费率保留(每次都是同一个费率, 清掉反而要重打)
+  var $clear=$('calcClear');
+  if($clear) $clear.addEventListener('click', function(){
+    $t.value=''; lastPre=''; cErr(''); $res.classList.remove('show');
+    cSyncField();
+    $t.focus();
+  });
 
   // 失焦时给整数部分加千分位，方便核对
   $t.addEventListener('blur', function(){
