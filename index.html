@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ar</title>
+<title>GrowTime · v18.48as</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1673,7 +1673,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ar';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48as';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励', calc:'🧮 预扣'};
@@ -6387,8 +6387,7 @@ document.addEventListener('reward:changed',()=>{
     $t.style.width=Math.ceil(w+2)+'px';
   }
 
-  // 记住上次填的费率（不同平台费率不同, 少敲一次; 首次仍是 4）
-  try{ var _r0=localStorage.getItem('wbCalcRate'); if(_r0!==null && _r0!=='') $r.value=_r0; }catch(e){}
+  // v18.48as: 按用户要求「每次都是新的」——不在本地记住任何数据, 费率每次回到默认 4%
 
   function cFmt(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function cErr(m){
@@ -6441,8 +6440,6 @@ document.addEventListener('reward:changed',()=>{
     $res.classList.remove('show');
     void $res.offsetWidth;
     $res.classList.add('show');
-
-    try{ localStorage.setItem('wbCalcRate',String(rateNum)); }catch(e){}
   }
 
   $btn.addEventListener('click', cCalc);
@@ -6489,6 +6486,19 @@ document.addEventListener('reward:changed',()=>{
       navigator.clipboard.writeText(text).then(done, fallback);
     } else { fallback(); }
   });
+
+  // v18.48as: 每次进入计算器都是全新状态——清空金额与结果, 费率回默认 4%,
+  // 不写 localStorage / 不写云端, 关掉再进就是一次全新的计算。
+  function cReset(){
+    $t.value=''; $r.value='4'; lastPre=''; cErr('');
+    $res.classList.remove('show');
+    cSyncField();
+  }
+  var $view=$('viewCalc');
+  if($view && window.MutationObserver){
+    new MutationObserver(function(){ if(!$view.hidden) cReset(); })
+      .observe($view,{attributes:true,attributeFilter:['hidden']});
+  }
 })();
 
 /* v18.48n: PWA / GitHub Pages HTTP 缓存导致"部署了但设备还在跑旧代码" — 加自动更新检测.
