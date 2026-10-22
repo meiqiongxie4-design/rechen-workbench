@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48ao</title>
+<title>GrowTime · v18.48aq</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1058,6 +1058,120 @@
   .r-modal-btn.ok:active{background:#16a34a;}
   .r-modal-btn.ok.danger{background:var(--red);}
   .r-modal-btn.ok.danger:active{background:#b91c1c;}
+
+  /* ===== v18.48aq: 充值预扣计算器 (独立模块, 样式全部 .calc- 前缀, 不改动任何已有类) ===== */
+  .calc-wrap{ width:100%; max-width:520px; margin:0 auto; padding:2px 0 22px; }
+  .calc-head{ margin:0 3px 14px; text-align:center; }   /* v18.48aq: 标题居中, 副标题按用户要求删除 */
+  .calc-head h2{ margin:0; font-size:18px; font-weight:700; color:var(--text); letter-spacing:.2px; }
+  .calc-card{
+    background:#fff; border-radius:16px; padding:16px 15px 18px;
+    border:1px solid rgba(34,197,94,.16);
+    box-shadow:0 2px 4px rgba(23,43,77,.04), 0 10px 24px -14px rgba(23,43,77,.18);
+  }
+  .calc-card + .calc-card{ margin-top:12px; }
+  .calc-lbl{ display:block; font-size:13px; font-weight:600; color:#3c4a63; margin:0 0 9px; letter-spacing:.2px; }
+
+  .calc-field{
+    display:flex; align-items:center; justify-content:center; background:#f7faf8; border:1.5px solid #e2ede6;
+    border-radius:13px; height:56px; padding:0 14px;
+    transition:border-color .18s, background .18s, box-shadow .18s;
+  }
+  .calc-field:focus-within{ background:#fff; border-color:var(--accent); box-shadow:0 0 0 4px rgba(34,197,94,.12); }
+  .calc-field .calc-cur{ font-size:20px; font-weight:600; color:#9aa7bd; margin-right:6px; line-height:1; transition:color .18s; }
+  .calc-field:focus-within .calc-cur{ color:var(--accent); }
+  /* v18.48aq: 有值时 $ 和数字作为一组居中 (JS 按字数设宽度); 空值时只显示居中的 placeholder */
+  .calc-field.calc-empty .calc-cur{ display:none; }
+  .calc-field input{
+    flex:0 0 auto; width:100%; max-width:100%; min-width:0; border:0; outline:0; background:transparent;
+    font-family:inherit; font-size:22px; font-weight:600; color:var(--text); padding:0;
+    text-align:center; transition:width .1s;
+  }
+  .calc-field input::placeholder{ font-size:15px; font-weight:400; color:#aab4c6; letter-spacing:0; }
+
+  .calc-rate-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; }
+  .calc-rate-row .calc-lbl{ margin:0; }
+  .calc-rate-ctrl{
+    display:flex; align-items:center; gap:6px; background:#f7faf8; border:1.5px solid #e2ede6;
+    border-radius:11px; height:44px; padding:0 13px;
+    transition:border-color .18s, background .18s, box-shadow .18s;
+  }
+  .calc-rate-ctrl:focus-within{ background:#fff; border-color:var(--accent); box-shadow:0 0 0 4px rgba(34,197,94,.12); }
+  .calc-rate-ctrl input{
+    width:58px; border:0; outline:0; background:transparent; font-family:inherit;
+    font-size:17px; font-weight:600; color:var(--text); text-align:right; padding:0; -moz-appearance:textfield;
+  }
+  .calc-rate-ctrl input::-webkit-outer-spin-button,
+  .calc-rate-ctrl input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .calc-pct{ font-size:15px; font-weight:600; color:#9aa7bd; line-height:1; }
+
+  .calc-btn{
+    display:block; width:100%; margin-top:18px; height:50px; border:0; border-radius:13px;
+    font-family:inherit; font-size:16px; font-weight:700; letter-spacing:3px; color:#fff;
+    background:linear-gradient(135deg,#34d17a 0%,#16a34a 100%);
+    box-shadow:0 8px 18px -8px rgba(22,163,74,.6); cursor:pointer;
+    transition:transform .12s, box-shadow .16s, filter .16s; -webkit-tap-highlight-color:transparent;
+  }
+  .calc-btn:hover{ filter:brightness(1.04); }
+  .calc-btn:active{ transform:translateY(1px) scale(.995); }
+
+  .calc-err{ display:none; margin:11px 2px 0; font-size:12.5px; line-height:1.5; color:#dc2626; }
+  .calc-err.show{ display:block; }
+
+  .calc-res{ display:none; }
+  .calc-res.show{ display:block; animation:calcPop .26s ease-out both; }
+  @keyframes calcPop{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:translateY(0); } }
+
+  .calc-res-main{
+    position:relative; border-radius:13px; padding:15px 15px 16px; text-align:center;
+    background:linear-gradient(135deg,#eefaf2 0%,#f6fdf8 100%); border:1px solid #d5f2e0;
+  }
+  .calc-res-t{ margin:0 0 6px; font-size:12.5px; font-weight:600; color:#4f7a63; letter-spacing:.4px; }
+  .calc-res-v{ display:flex; align-items:baseline; justify-content:center; gap:2px; font-variant-numeric:tabular-nums; }
+  .calc-res-v .calc-sym{ font-size:20px; font-weight:600; color:#16a34a; line-height:1; }
+  .calc-res-v .calc-num{ font-size:clamp(28px,8.6vw,34px); font-weight:750; line-height:1.05; color:#12813f; letter-spacing:-.5px; }
+  .calc-copy{
+    position:absolute; top:13px; right:13px; font-family:inherit; font-size:12px; font-weight:600;
+    color:#15803d; background:#fff; border:1px solid #c9e9d5; border-radius:8px; padding:5px 10px;
+    cursor:pointer; transition:background .15s; -webkit-tap-highlight-color:transparent;
+  }
+  .calc-copy:hover{ background:#f0fdf4; }
+  .calc-copy:active{ transform:scale(.96); }
+
+  .calc-rows{ margin-top:4px; }
+  .calc-row{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:13px 2px; border-bottom:1px solid #f1f5f3;
+  }
+  .calc-row:last-child{ border-bottom:0; padding-bottom:2px; }
+  .calc-row .calc-k{ font-size:14px; color:#5b6b86; display:flex; align-items:center; gap:6px; }
+  .calc-row .calc-k em{
+    font-style:normal; font-size:11.5px; font-weight:600; color:#8c99ae;
+    background:#f2f5fa; border-radius:6px; padding:2px 6px;
+  }
+  .calc-row .calc-row-num{ font-size:17px; font-weight:650; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:.2px; }
+  .calc-row-ok .calc-row-num{ color:#12855b; }
+
+  .calc-formula{
+    margin:12px 2px 0; padding-top:11px; border-top:1px dashed #e2ede6;
+    font-size:12px; line-height:1.85; color:#8a97ac; font-variant-numeric:tabular-nums;
+  }
+  .calc-fline{ display:block; }
+  .calc-fline .calc-fk{
+    display:inline-block; font-size:11px; font-weight:600; color:#93a0b5; background:#f3f7f4;
+    border-radius:5px; padding:1px 6px; line-height:1.6; margin-right:7px; transform:translateY(-1px);
+  }
+  .calc-fline b{ color:#41526e; font-weight:650; }
+
+  .calc-tip{ margin:14px 6px 0; font-size:11.5px; line-height:1.7; color:#a3aec1; text-align:center; }
+
+  @media (max-width:360px){
+    .calc-card{ padding:14px 12px 16px; border-radius:15px; }
+    .calc-field{ height:52px; }
+    .calc-field input{ font-size:20px; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .calc-res.show{ animation:none; }
+  }
   </style>
 </head>
 <body>
@@ -1068,11 +1182,11 @@
   (function(){
     try{
       var v = (localStorage.getItem('rechen_current_view')||'home').trim();
-      var VALID = ['home','todo','memo','counter','period','farm','water','saving','reward'];
+      var VALID = ['home','todo','memo','counter','period','farm','water','saving','reward','calc'];
       var target = VALID.indexOf(v) >= 0 ? v : 'home';
       if(target === 'farm') target = 'home';   /* v18.28: 农场已隐藏，刷新恢复时回落到首页，不自动打开农场 */
       // 1) 默认全部 view 隐藏(含 viewHome)
-      var css = '#viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving{display:none !important;}';
+      var css = '#viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving,#viewReward,#viewCalc{display:none !important;}';
       // 2) 仅显示 saved view(对应 ID = "view" + 大写首字母)
       if(target !== 'home'){
         var cap = target.charAt(0).toUpperCase() + target.slice(1);
@@ -1084,7 +1198,7 @@
       window.__initialView = target;
     }catch(e){
       window.__initialView = 'home';
-      document.write('<style id="viewBootStyle">#viewHome{display:flex !important;}#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving,#viewReward{display:none !important;}</style>');
+      document.write('<style id="viewBootStyle">#viewHome{display:flex !important;}#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving,#viewReward,#viewCalc{display:none !important;}</style>');
     }
   })();
 </script>
@@ -1126,6 +1240,8 @@
       <button class="sb-item" data-view="saving" data-label-key="saving" title="存钱"><span class="ic">💰</span><span class="lb">存钱</span></button>
       <button class="sb-item" data-view="water" data-label-key="water" title="喝水"><span class="ic">💧</span><span class="lb">喝水</span></button>
       <button class="sb-item" data-view="reward" data-label-key="reward" title="奖励"><span class="ic">🌟</span><span class="lb">奖励</span></button>
+      <!-- v18.48aq: 充值预扣计算器 (纯本地计算, 不写云端, 不产生任何流量) -->
+      <button class="sb-item" data-view="calc" data-label-key="calc" title="预扣"><span class="ic">🧮</span><span class="lb">预扣</span></button>
       <div class="sb-spacer"></div>
       <div class="sidebar-foot"><button class="sb-item" id="settingsBtnSb" title="设置"><span class="ic">⚙️</span><span class="lb">设置</span></button></div>
     </aside>
@@ -1400,6 +1516,57 @@
     <div class="reward-wrap" id="rewardRoot"></div>
   </div>
 
+  <!-- v18.48aq: 充值预扣计算器 — 纯前端计算, 不读不写云端 (零流量), 手机端同样可用 -->
+  <div id="viewCalc" hidden>
+    <div class="calc-wrap">
+      <div class="calc-head">
+        <h2>充值预扣计算器</h2>
+      </div>
+
+      <div class="calc-card">
+        <label class="calc-lbl" for="calcTarget">目标充值金额</label>
+        <div class="calc-field calc-empty" id="calcField">
+          <span class="calc-cur">$</span>
+          <input id="calcTarget" type="text" inputmode="decimal" autocomplete="off" size="1" placeholder="请输入目标充值金额">
+        </div>
+
+        <div class="calc-rate-row">
+          <label class="calc-lbl" for="calcRate">服务费率</label>
+          <div class="calc-rate-ctrl">
+            <input id="calcRate" type="number" value="4" step="0.1" min="0" max="99" inputmode="decimal">
+            <span class="calc-pct">%</span>
+          </div>
+        </div>
+
+        <button class="calc-btn" id="calcBtn" type="button">计 算</button>
+        <div class="calc-err" id="calcErr"></div>
+      </div>
+
+      <div class="calc-card calc-res" id="calcRes">
+        <div class="calc-res-main">
+          <p class="calc-res-t">需要预扣的金额</p>
+          <div class="calc-res-v"><span class="calc-sym">$</span><span class="calc-num" id="calcOutPre">0.00</span></div>
+          <button class="calc-copy" id="calcCopy" type="button">复制</button>
+        </div>
+
+        <div class="calc-rows">
+          <div class="calc-row">
+            <span class="calc-k">税费 <em id="calcOutRateTag">4%</em></span>
+            <span class="calc-row-num" id="calcOutTax">$0.00</span>
+          </div>
+          <div class="calc-row calc-row-ok">
+            <span class="calc-k">实际到账 <em>验证</em></span>
+            <span class="calc-row-num" id="calcOutArrive">$0.00</span>
+          </div>
+        </div>
+
+        <div class="calc-formula" id="calcFormula"></div>
+      </div>
+
+      <p class="calc-tip">预扣金额向上取整到分，确保实际到账不低于目标金额</p>
+    </div>
+  </div>
+
     </div>  <!-- /.main -->
   </div>    <!-- /.app -->
 
@@ -1434,6 +1601,7 @@
       <div class="field"><label>喝水</label><input id="labWater" maxlength="14" placeholder="💧 喝水" /></div>
       <div class="field"><label>存钱</label><input id="labSaving" maxlength="14" placeholder="💰 存钱" /></div>
       <div class="field"><label>奖励</label><input id="labReward" maxlength="14" placeholder="🌟 奖励" /></div>
+      <div class="field"><label>预扣计算器</label><input id="labCalc" maxlength="14" placeholder="🧮 预扣" /></div>
       <div style="font-size:12px;color:var(--muted);">前面带 emoji 的会用作侧栏图标；emoji 后是侧栏显示名。保存后立即生效；不填则恢复默认。</div>
     </div>
     <div class="modal-actions">
@@ -1468,11 +1636,11 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48ao';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48aq';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
-const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励'};
-const SB_LABEL_KEY={home:'home',todo:'todo',memo:'memo',period:'warm',counter:'eye',farm:'farm',saving:'saving',water:'water',reward:'reward'};
+const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励', calc:'🧮 预扣'};
+const SB_LABEL_KEY={home:'home',todo:'todo',memo:'memo',period:'warm',counter:'eye',farm:'farm',saving:'saving',water:'water',reward:'reward',calc:'calc'};
 function getLabels(){
   let s={};
   try{ s=JSON.parse(localStorage.getItem('wbLabels')||'{}'); }catch(e){ s={}; }
@@ -1541,6 +1709,7 @@ function openSettings(){
   $('labWater').value=L.water;
   $('labSaving').value=L.saving;
   $('labReward').value=L.reward;
+  $('labCalc').value=L.calc;
   $('settingsModal').hidden=false;
   setTimeout(()=>$('labApp').focus(),50);
 }
@@ -1557,6 +1726,7 @@ async function saveLabels(){
     water:$('labWater').value.trim()||DEFAULT_LABELS.water,
     saving:$('labSaving').value.trim()||DEFAULT_LABELS.saving,
     reward:$('labReward').value.trim()||DEFAULT_LABELS.reward,
+    calc:$('labCalc').value.trim()||DEFAULT_LABELS.calc,
   };
   localStorage.setItem('wbLabels', JSON.stringify(L));
   applyLabels();
@@ -1800,12 +1970,12 @@ function switchView(v){
   try{
     var bs=$('viewBootStyle');
     if(!bs){ bs=document.createElement('style'); bs.id='viewBootStyle'; document.head.appendChild(bs); }
-    var css='#viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving,#viewReward{display:none !important;}';
+    var css='#viewHome,#viewTodo,#viewMemo,#viewCounter,#viewPeriod,#viewFarm,#viewWater,#viewSaving,#viewReward,#viewCalc{display:none !important;}';
     var cap2=v.charAt(0).toUpperCase()+v.slice(1);
     css+='#view'+cap2+'{display:flex !important;}';
     bs.textContent=css;
   }catch(e){}
-  ['viewHome','viewTodo','viewMemo','viewCounter','viewPeriod','viewFarm','viewWater','viewSaving','viewReward'].forEach(id=>{
+  ['viewHome','viewTodo','viewMemo','viewCounter','viewPeriod','viewFarm','viewWater','viewSaving','viewReward','viewCalc'].forEach(id=>{
     const el=$(id); if(el) el.hidden = id!=='view'+capitalize(v);
   });
   document.querySelectorAll('.sb-item[data-view]').forEach(b=>{
@@ -6152,6 +6322,112 @@ document.addEventListener('reward:changed',()=>{
   try{ if($('homeCards')) renderHomeCards(); }catch(e){}
   try{ if(typeof view!=='undefined'&&view==='reward' && !rewardEditorOpen()) renderReward(); }catch(e){}
 });
+
+/* v18.48aq: 充值预扣计算器 — 纯本地计算, 不读不写云端(零流量); 费率可自行填写, 默认 4%.
+   公式: 预扣 = 目标 ÷ (1 − 费率), 向上取整到分, 保证实际到账 ≥ 目标 */
+(function initCalcModule(){
+  var $t=$('calcTarget'), $r=$('calcRate'), $btn=$('calcBtn'),
+      $err=$('calcErr'), $res=$('calcRes'), $copy=$('calcCopy');
+  if(!$t || !$r || !$btn || !$res) return;
+
+  var lastPre='';
+
+  // v18.48aq: 输入框里「$ + 数字」作为一组水平居中 — 按文字实际宽度给 input 设宽度,
+  // 空值时铺满整行只显示居中的 placeholder, 并隐藏 $ (避免 $ 孤零零贴左边)。
+  // 用 canvas 量文字宽度(px)而不是 ch 单位: ch 在 input 上某些情况算出来不准, 会把框撑得过大。
+  var $field=$('calcField'), _cc=document.createElement('canvas').getContext('2d');
+  function cSyncField(){
+    var v=String($t.value||'');
+    $field.classList.toggle('calc-empty', v.length===0);
+    if(!v.length){ $t.style.width='100%'; return; }
+    var w=0;
+    try{
+      var cs=getComputedStyle($t);
+      _cc.font=cs.fontWeight+' '+cs.fontSize+' '+cs.fontFamily;
+      w=_cc.measureText(v).width;
+    }catch(e){}
+    if(!w) w=v.length*12.2;
+    $t.style.width=Math.ceil(w+2)+'px';
+  }
+
+  // 记住上次填的费率（不同平台费率不同, 少敲一次; 首次仍是 4）
+  try{ var _r0=localStorage.getItem('wbCalcRate'); if(_r0!==null && _r0!=='') $r.value=_r0; }catch(e){}
+
+  function cFmt(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function cCeil2(n){ return Math.ceil(n*100-1e-9)/100; }
+  function cErr(m){
+    if(m){ $err.textContent=m; $err.classList.add('show'); }
+    else { $err.textContent=''; $err.classList.remove('show'); }
+  }
+
+  function cCalc(){
+    var raw=String($t.value).replace(/[,\s$¥]/g,'');
+    var target=parseFloat(raw);
+    var rateNum=parseFloat($r.value);
+
+    if(!raw){ cErr('请先输入目标充值金额'); $res.classList.remove('show'); $t.focus(); return; }
+    if(isNaN(target)||target<=0){ cErr('请输入大于 0 的有效数字'); $res.classList.remove('show'); $t.focus(); return; }
+    if(isNaN(rateNum)||rateNum<0||rateNum>=100){ cErr('服务费率需在 0 ~ 99 之间'); $res.classList.remove('show'); $r.focus(); return; }
+    cErr('');
+
+    var rt=rateNum/100;
+    var pre=cCeil2(target/(1-rt));                       // 预扣金额（向上取整到分）
+    var tax=Math.round(pre*rt*100)/100;                  // 税费
+    var arrive=Math.round((pre-tax)*100)/100;            // 实际到账（用于验证）
+
+    $('calcOutPre').textContent=cFmt(pre);
+    $('calcOutTax').textContent='$'+cFmt(tax);
+    $('calcOutArrive').textContent='$'+cFmt(arrive);
+    $('calcOutRateTag').textContent=(Math.round(rateNum*1000)/1000)+'%';
+    $('calcFormula').innerHTML=
+      '<div class="calc-fline"><span class="calc-fk">计算</span>'+cFmt(target)+' ÷ (1 − '+rateNum+'%) = <b>'+cFmt(pre)+'</b></div>'
+      +'<div class="calc-fline"><span class="calc-fk">校验</span>'+cFmt(pre)+' − '+cFmt(tax)+' = '+cFmt(arrive)+'</div>';
+
+    lastPre=cFmt(pre).replace(/,/g,'');
+    $res.classList.remove('show');
+    void $res.offsetWidth;
+    $res.classList.add('show');
+
+    try{ localStorage.setItem('wbCalcRate',String(rateNum)); }catch(e){}
+  }
+
+  $btn.addEventListener('click', cCalc);
+  $t.addEventListener('keydown', function(e){ if(e.key==='Enter'){ cCalc(); $t.blur(); } });
+  $r.addEventListener('keydown', function(e){ if(e.key==='Enter'){ cCalc(); $r.blur(); } });
+  $t.addEventListener('input', function(){ cErr(''); cSyncField(); });
+  $r.addEventListener('input', function(){ cErr(''); });
+
+  // 失焦时给整数部分加千分位，方便核对
+  $t.addEventListener('blur', function(){
+    var raw=String($t.value).replace(/[,\s$¥]/g,'');
+    if(!raw) return;
+    var n=parseFloat(raw);
+    if(isNaN(n)||n<=0) return;
+    var parts=raw.split('.');
+    var intPart=(parts[0]||'0').replace(/^0+(?=\d)/,'');
+    var dec=parts.length>1?'.'+parts[1].slice(0,2):'';
+    $t.value=Number(intPart||'0').toLocaleString('en-US')+dec;
+    cSyncField();
+  });
+
+  cSyncField();   // 初始化一次(恢复上次内容/空值状态)
+
+  $copy.addEventListener('click', function(){
+    var btn=this, text=lastPre;
+    if(!text) return;
+    function done(){ btn.textContent='已复制'; setTimeout(function(){ btn.textContent='复制'; },1400); }
+    function fallback(){
+      var ta=document.createElement('textarea');
+      ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){}
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else { fallback(); }
+  });
+})();
 
 /* v18.48n: PWA / GitHub Pages HTTP 缓存导致"部署了但设备还在跑旧代码" — 加自动更新检测.
    直接拉 index.html 本身 (cache:'no-store' 绕过 HTTP 缓存), 从 <title> 解析版本号, 与服务端当前版本比对.
