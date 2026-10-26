@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>GrowTime · v18.48at</title>
+<title>GrowTime · v18.48au</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
@@ -1725,7 +1725,7 @@
 <script>
 const SUPABASE_URL='https://jioitybssvfberfpqvgv.supabase.co';
 const SUPABASE_KEY='sb_publishable_3AU_UCoAnMu_a1gO_n6HUA_h7_DiuNt';
-const APP_VERSION='v18.48at';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
+const APP_VERSION='v18.48au';  // 部署版本号 — 供自动更新检测 (与服务端 index.html 的 <title> 比对); 每次部署记得同步改这两处
 
 /* 自定义名称：localStorage 持久化，刷新保留 */
 const DEFAULT_LABELS={app:'热忱工作台', home:'🏠 首页', todo:'📋 待办事项', memo:'📝 备忘录', eye:'🌿 护眼记', warm:'💗 暖记', farm:'🌾 我的农场', water:'💧 喝水', saving:'💰 存钱', reward:'🌟 奖励', calc:'🧮 预扣'};
@@ -2920,17 +2920,27 @@ function coinBurst(amount){
   if(!pile) return;
   // pile 容量上限 80 枚, 超出时让最早的金币向上飘走淡出
   const MAX=80;
-  while(pile.children.length + n > MAX){
+  // v18.48au: 修复死循环 —— 原 while(pile.children.length + n > MAX) 里 old.remove() 放在
+  // setTimeout(620ms) 中, 循环内部节点不减少, firstElementChild 永远指向同一枚 → 永不终止,
+  // 点"存入"时页面卡死(表现为"没反应/数字不变/不报错", 手机电脑都中招)。
+  // 改法: 先一次性算出需要移除的 overflow 数量, 用 for 按数量移除; 循环内同步 remove 原节点让
+  // 指针推进, 同时克隆一枚做飞出动画(620ms 后移除)保留视觉, 既修卡死又不丢动画。
+  let overflow = pile.children.length + n - MAX;
+  for(let k=0; k<overflow; k++){
     const old=pile.firstElementChild;
     if(!old) break;
     try{
       const t = old.style.transform || '';
-      old.animate([
+      const fly = old.cloneNode(true);
+      fly.removeAttribute('data-static');
+      pile.appendChild(fly);
+      fly.animate([
         { transform: t, opacity:1 },
         { transform: t + ' translateY(-220px)', opacity:0 }
       ], { duration: 600, easing:'ease-in', fill:'forwards' });
-      setTimeout(()=>{ try{ old.remove(); }catch(e){} }, 620);
+      setTimeout(()=>{ try{ fly.remove(); }catch(e){} }, 620);
     }catch(e){}
+    old.remove();   // 同步移除原节点, 让循环推进 + children.length 减少
   }
   // 主体动画: 每枚金币从罐口落入罐底并永久保留(WAAPI + fill:forwards)
   for(let i=0;i<n;i++){
